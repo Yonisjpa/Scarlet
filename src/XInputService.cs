@@ -1,0 +1,174 @@
+using WGI = Windows.Gaming.Input;
+
+namespace XboxScarlet;
+
+/// <summary>
+/// Lee el botón Xbox directo del control (XInput), aunque la app esté detrás de un juego.
+/// Toque doble = volver al menú / al juego · Mantener = menú rápido. También hace vibrar el mando.
+/// </summary>
+sealed class XInputService : IDisposable
+{
+    [StructLayout(LayoutKind.Sequential)]
+    struct XINPUT_GAMEPAD { public ushort wButtons; public byte bLeftTrigger, bRightTrigger; public short sThumbLX, sThumbLY, sThumbRX, sThumbRY; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct XINPUT_STATE { public uint dwPacketNumber; public XINPUT_GAMEPAD Gamepad; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct XINPUT_VIBRATION { public ushort wLeftMotorSpeed, wRightMotorSpeed; }
+
+    // XInputGetStateEx (ordinal 100) es la única forma de leer el botón Xbox; no viene documentada pero existe desde Windows 8.
+    [DllImport("xinput1_4.dll", EntryPoint = "#100")] static extern int XInputGetStateEx(int userIndex, out XINPUT_STATE state);
+    [DllImport("xinput1_4.dll")] static extern int XInputSetState(int userIndex, ref XINPUT_VIBRATION vibration);
+
+    const ushort GUIDE = 0x0400;
+    const int HOLD_MS = 550, DOUBLE_MS = 330;   // un toque se confirma cuando pasan 330 ms sin el segundo
+
+    public event Action GuideSingle, GuideDouble, GuideHold, GuideDown;
+    Thread thread;
+    volatile bool running = true;
+    volatile int lastIndex;
+
+    public void Start()
+    {
+        thread = new Thread(Loop) { IsBackground = true, Name = "xinput-guide" };
+        thread.Start();
+    }
+
+    // Respaldo del botón Xbox: en Windows.Gaming.Input el botón Xbox no tiene etiqueta propia; se busca el que Windows
+    // marque como "Mode" (el botón de inicio en mandos genéricos). Además sirve para anotar en el log qué mandos hay.
+    sealed class WgiPad { public WGI.RawGameController C; public int Guide; public bool[] B; public WGI.GameControllerSwitchPosition[] S; public double[] A; public string L; }
+    List<WgiPad> wgi = new();
+
+    void RefreshWgi()
+    {
+        var list = new List<WgiPad>();
+        foreach (var c in WGI.RawGameController.RawGameControllers)
+        {
+            int guide = -1;
+            var labels = new List<string>();
+            for (int i = 0; i < c.ButtonCount; i++)
+            {
+                var l = c.GetButtonLabel(i);
+                labels.Add(l.ToString());
+                if ((int)l == 23 /* Mode */ && guide < 0) guide = i;
+            }
+            list.Add(new WgiPad { C = c, Guide = guide, B = new bool[c.ButtonCount], S = new WGI.GameControllerSwitchPosition[c.SwitchCount], A = new double[c.AxisCount], L = string.Join("/", labels) });
+        }
+        string desc = string.Join(", ", list.Select(p => $"{p.C.DisplayName} ({p.C.HardwareVendorId:x4}:{p.C.HardwareProductId:x4}, {p.B.Length} botones [{p.L}], inicio={(p.Guide >= 0 ? p.Guide.ToString() : "no")})"));
+        if (desc != wgiDesc) { wgiDesc = desc; Log.Write("wgi: " + (desc.Length > 0 ? desc : "sin mandos")); }
+        wgi = list;
+    }
+    string wgiDesc;
+
+    bool WgiGuide()
+    {
+        foreach (var p in wgi)
+        {
+            if (p.Guide < 0) continue;
+            try { p.C.GetCurrentReading(p.B, p.S, p.A); if (p.B[p.Guide]) return true; } catch { }
+        }
+        return false;
+    }
+
+    const ushort START = 0x0010, BACK = 0x0020;
+    const int CHORD_HOLD_MS = 600;
+
+    void Loop()
+    {
+        var sw = Stopwatch.StartNew();
+        var connected = new bool[4];
+        bool down = false, holdFired = false;
+        long downAt = 0, lastTap = 0, tick = 0;
+        bool chord = false, chordHold = false;
+        long chordAt = 0;
+        int presses = 0;
+        bool reported = false, xinputOk = true;
+        while (running)
+        {
+            bool guide = false, viewMenu = false;
+            if (xinputOk)
+            {
+                try
+                {
+                    for (int i = 0; i < 4; i++)
+                    {
+                        if (!connected[i] && tick % 60 != 0) continue;   // los puertos vacíos se revisan 1 vez por segundo
+                        bool ok = XInputGetStateEx(i, out var s) == 0;
+                        if (ok != connected[i]) Log.Write($"xinput: mando {(ok ? "conectado" : "desconectado")} en el puerto {i + 1}");
+                        connected[i] = ok;
+                        if (!ok) continue;
+                        if ((s.Gamepad.wButtons & GUIDE) != 0) { guide = true; lastIndex = i; }
+                        if ((s.Gamepad.wButtons & (START | BACK)) == (START | BACK)) { viewMenu = true; lastIndex = i; }
+                    }
+                }
+                catch (Exception ex) when (ex is EntryPointNotFoundException or DllNotFoundException)
+                {
+                    Log.Error("xinput: este Windows no deja leer el botón Xbox por XInput", ex);
+                    xinputOk = false;
+                }
+                catch (Exception ex) { if (!reported) { reported = true; Log.Error("xinput", ex); } Thread.Sleep(2000); }
+            }
+            try
+            {
+                if (tick % 120 == 0) RefreshWgi();   // cada 2 s
+                if (!guide && WgiGuide()) { guide = true; if (presses < 30 && !down) Log.Write("wgi: botón Xbox presionado"); }
+            }
+            catch (Exception ex) { if (tick % 600 == 0) Log.Error("wgi", ex); }
+            tick++;
+
+            long now = sw.ElapsedMilliseconds;
+            if (guide && !down)
+            {
+                down = true; holdFired = false; downAt = now;
+                if (presses++ < 30) Log.Write($"botón Xbox presionado (puerto {lastIndex + 1})");   // para diagnosticar; solo las primeras
+                Raise(GuideDown);
+            }
+            else if (guide && down && !holdFired && now - downAt >= HOLD_MS) { holdFired = true; lastTap = 0; Raise(GuideHold); }
+            else if (!guide && down)
+            {
+                down = false;
+                if (!holdFired)
+                {
+                    if (lastTap != 0 && now - lastTap < DOUBLE_MS) { lastTap = 0; Raise(GuideDouble); }
+                    else lastTap = now;
+                }
+            }
+            else if (!guide && !down && lastTap != 0 && now - lastTap >= DOUBLE_MS) { lastTap = 0; Raise(GuideSingle); }
+
+            // Respaldo por si Windows no deja leer el botón Xbox: View + Menú juntos.
+            // Tocar = como doble toque (menú / regresar al juego) · mantener = menú rápido.
+            if (viewMenu && !chord) { chord = true; chordHold = false; chordAt = now; }
+            else if (viewMenu && chord && !chordHold && now - chordAt >= CHORD_HOLD_MS) { chordHold = true; Log.Write("View + Menú mantenidos: menú rápido"); Raise(GuideSingle); }
+            else if (!viewMenu && chord)
+            {
+                chord = false;
+                if (!chordHold) { Log.Write("View + Menú: menú / juego"); Raise(GuideDouble); }
+            }
+            Thread.Sleep(16);
+        }
+    }
+
+    static void Raise(Action a)
+    {
+        try { a?.Invoke(); } catch (Exception ex) { Log.Error("guide", ex); }
+    }
+
+    public void Rumble(double strong, double weak, int ms)
+    {
+        try
+        {
+            int idx = lastIndex;
+            var v = new XINPUT_VIBRATION { wLeftMotorSpeed = (ushort)(Math.Clamp(strong, 0, 1) * 65535), wRightMotorSpeed = (ushort)(Math.Clamp(weak, 0, 1) * 65535) };
+            XInputSetState(idx, ref v);
+            _ = Task.Delay(Math.Clamp(ms, 10, 2000)).ContinueWith(_ =>
+            {
+                var z = new XINPUT_VIBRATION();
+                try { XInputSetState(idx, ref z); } catch { }
+            });
+        }
+        catch (Exception ex) { Log.Error("vibración", ex); }
+    }
+
+    public void Dispose() { running = false; }
+}

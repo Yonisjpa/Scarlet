@@ -1,0 +1,19 @@
+// Apps que aparecen en tu biblioteca junto a los juegos.
+// Este archivo se copia a %APPDATA%\XboxScarlet\apps.json la primera vez; edita ESA copia y reinicia la app.
+// "Exec" es el programa y "Args" sus opciones. Puedes usar variables como %LOCALAPPDATA%.
+[
+  {
+    "Id": "youtube",
+    "Name": "YouTube",
+    "Exec": "msedge",
+    "Args": "--app=https://www.youtube.com/tv --start-fullscreen --user-data-dir=\"%LOCALAPPDATA%\\XboxScarlet\\EdgeApps\" --user-agent=\"Mozilla/5.0 (SMART-TV; Linux; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 76.0.3809.146/6.0 TV Safari/537.36\""
+  },
+  {
+    "Id": "edge",
+    "Name": "Microsoft Edge",
+    "Exec": "msedge",
+    "Args": "--start-maximized"
+  }
+  // Ejemplo para agregar Discord (quita las dos barras del inicio de cada línea y pon una coma tras la llave anterior):
+  // ,{ "Id": "discord", "Name": "Discord", "Exec": "%LOCALAPPDATA%\\Discord\\Update.exe", "Args": "--processStart Discord.exe" }
+]

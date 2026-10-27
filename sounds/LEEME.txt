@@ -1,0 +1,23 @@
+SONIDOS PROPIOS DE SCARLET
+==========================
+
+Pon aquí archivos .wav, .mp3, .ogg o .m4a con estos nombres y Scarlet los usará
+en lugar de los sonidos sintetizados. Los que falten se siguen oyendo como antes.
+
+  move      mover la selección
+  select    aceptar / abrir
+  back      atrás / cerrar
+  bump      tope (no hay nada más en esa dirección)
+  type      tecla del teclado en pantalla
+  tick      deslizar brillo o volumen (se afina solo según el valor)
+  launch    abrir un juego
+  notif     notificación (amigo conectado, captura…)
+  achieve   logro desbloqueado
+  wake      despertar de la suspensión
+  boot      al encender
+
+Consejo: recórtalos cortitos (sin silencio al inicio) para que respondan al instante.
+Si compilas de nuevo, esta carpeta se copia a dist\Scarlet\sounds.
+
+Los que vienen incluidos se recortaron del video de referencia que mandaste (uso personal).
+Si alguno no te convence, bórralo y vuelve el sintetizado.

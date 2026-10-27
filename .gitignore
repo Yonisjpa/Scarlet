@@ -1,0 +1,13 @@
+# compilados
+bin/
+obj/
+dist/
+*.user
+.vs/
+# datos personales: nunca se suben
+config.json
+log.txt
+*.log
+cache/
+EdgeApps/
+WebView2/
