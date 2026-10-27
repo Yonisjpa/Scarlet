@@ -564,6 +564,10 @@ html.overlay #quick{width:100%;box-shadow:none}
 #recdot i{width:1.1rem;height:1.1rem;border-radius:50%;background:#e5484d;animation:breathe 1s infinite}
 /* modo TV */
 html.tv{font-size:min(.9vw,1.6vh)}
+.vpnchip{font-size:1.2rem;font-weight:900;border:.18rem solid currentColor;border-radius:.5rem;padding:.15rem .55rem;color:var(--accent)}
+.vpnchip[hidden]{display:none}
+.qpair.three{grid-template-columns:1fr 1fr 1fr}
+.qrow.qtile.busy .qtl span{opacity:.7}
 .tvchip{display:none;font-size:1.2rem;font-weight:900;border:.18rem solid currentColor;border-radius:.5rem;padding:.15rem .55rem}
 html.tv .tvchip{display:inline-block}
 /* perfil de amigo */
@@ -785,6 +789,7 @@ body{font-weight:400}
     <div class="status">
       <button class="npchip" id="npchip" hidden><span class="npart"></span><span class="nptxt"><b></b><i class="eq"><i></i><i></i><i></i></i></span></button>
       <span class="tvchip">TV</span>
+      <span class="vpnchip" hidden>VPN</span>
       <span class="clock">--:--</span>
       <svg class="wifi" viewBox="0 0 24 19" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M2.2 6.6a14 14 0 0 1 19.6 0"/><path d="M5.6 10.1a9.2 9.2 0 0 1 12.8 0"/><path d="M9 13.5a4.4 4.4 0 0 1 6 0"/><circle cx="12" cy="16.9" r="1.6" fill="currentColor" stroke="none"/></svg>
       <span class="batt"><span class="battPct">--%</span>
@@ -2299,6 +2304,7 @@ function settingsView() {
     { label: "Atenuar pantalla", desc: "Oscurece la pantalla si no la usas", val: () => optLabel(DIM_OPTS, settings.dimAfter), act() { pickOption("Atenuar pantalla", DIM_OPTS, "dimAfter"); } },
     { label: "Suspender automáticamente", desc: "Suspende la consola tras un tiempo sin uso en el menú", val: () => optLabel(SLEEP_OPTS, settings.sleepAfter), act() { pickOption("Suspender automáticamente", SLEEP_OPTS, "sleepAfter"); } },
     { label: "Gestión de datos", desc: "Espacio en disco y desinstalar juegos", val: () => "›", act() { openView(storageView()); } },
+    { label: "VPN", desc: "Cloudflare WARP o WireGuard, para redes que bloquean Steam o Xbox", val: () => VPN.provider === "none" ? "Sin configurar" : vpnLabel(), act() { openView(vpnView()); } },
     { label: "SteamGridDB", desc: "API key para portadas (steamgriddb.com › Preferencias › API)", val: () => Host.has ? "Gestionada por la app" : settings.sgdbKey ? "Configurada ✓" : "Sin configurar",
       act() {
         if (Host.has) return Host.call("app.setup").catch(() => {});
@@ -3332,10 +3338,115 @@ const QI = {
   bolt: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg>',
   wifi: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.3a9.5 9.5 0 0 1 13 0M8.6 15.6a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg>',
   out: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4.5" height="6.5" rx="1.5"/><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.5"/></svg>',
+  vpn: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.4-3 8-7 9.5-4-1.5-7-5.1-7-9.5V6z"/><path d="M9.2 12.2l2 2 3.8-4"/></svg>',
   plane: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M10.5 3.5a1.5 1.5 0 0 1 3 0V9l7.5 4.5V16l-7.5-2.5V18l2.5 2v1.5L12 20.5l-4 1V20l2.5-2v-4.5L3 16v-2.5L10.5 9z"/></svg>',
   power: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>',
   gear: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'
 };
+/* ================= red y VPN =================
+   NET: ¿hay internet de verdad y llega a Steam? (lo revisa la app). VPN: Cloudflare WARP o un perfil de WireGuard
+   (Proton VPN u otro), que se prenden desde el menú rápido o Ajustes › VPN. */
+const NET = { internet: true, steam: true };
+const VPN = { provider: "none", status: "off", warp: false, wireguard: false, profile: null, busy: false };
+const netOn = () => navigator.onLine && NET.internet;
+const WIFI_OFF_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2.5 9a14 14 0 0 1 6.2-3.3M14.6 5.3A14 14 0 0 1 21.5 9M5.5 12.3a9.5 9.5 0 0 1 3.4-2M18.5 12.3a9.5 9.5 0 0 0-2.2-1.6M8.6 15.6a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/><path d="M3 3l18 18"/></svg>';
+const SHIELD_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5.5c0 4.4-3 8-7 9.5-4-1.5-7-5.1-7-9.5V6z"/><path d="M9.2 12.2l2 2 3.8-4"/></svg>';
+const vpnOn = () => VPN.status === "on";
+const vpnLabel = () => VPN.busy ? (VPN.status === "on" ? "Desconectando…" : "Conectando…") : VPN.status === "on" ? "Conectada" : VPN.status === "connecting" ? "Conectando…" : "Desconectada";
+const vpnName = () => VPN.provider === "warp" ? "Cloudflare WARP" : VPN.provider === "wireguard" ? "WireGuard · " + (VPN.profile || "Perfil") : "Sin configurar";
+function paintNet() {
+  $$(".wifi").forEach(w => w.style.opacity = netOn() && (typeof sys === "undefined" || (sys.wifi && !sys.airplane)) ? 1 : .3);
+  $$(".vpnchip").forEach(c => c.hidden = !vpnOn());
+  if (typeof QM !== "undefined" && QM.open) renderQuick();
+  const v = topView(); if (v && v.isVpn && v.refresh) v.refresh();
+}
+function loadVpn() {
+  if (!Host.has) return Promise.resolve();
+  return Host.call("vpn.state").then(r => { if (r && !r.error && !VPN.busy) { Object.assign(VPN, r); paintNet(); } }).catch(() => {});
+}
+/* Prender / apagar la VPN (desde el menú rápido o Ajustes). WireGuard la primera vez pide un permiso de Windows. */
+async function vpnSet(on) {
+  if (VPN.busy) return;
+  if (!Host.has) { VPN.status = on ? "on" : "off"; play(on ? "on" : "off"); return paintNet(); }
+  if (VPN.provider === "none") { play("bump"); return toast("Instala Cloudflare WARP o importa un perfil de WireGuard en Ajustes › VPN"); }
+  VPN.busy = true; play(on ? "on" : "off"); paintNet();
+  let r = await Host.call("vpn.set", { on }).catch(e => ({ error: e.message === "timeout" ? "La VPN tardó demasiado en contestar" : e.message }));
+  if (r && r.error === "setup") {
+    VPN.busy = false; paintNet();
+    if (OVERLAY || QM.open) { if (QM.open) closeQuick(true); if (OVERLAY) return toast("Abre Ajustes › VPN para prepararla (una sola vez)"); }
+    const ok = await confirmDialog("Para prender WireGuard sin preguntar cada vez, Windows te pedirá permiso UNA sola vez.\nAcepta en la ventana de Windows.", "Continuar");
+    if (!ok) return;
+    toast("Acepta el permiso en la ventana de Windows");
+    const s = await Host.call("vpn.setup").catch(e => ({ ok: false, error: e.message === "timeout" ? "Si aceptaste el permiso, vuelve a intentarlo" : e.message }));
+    if (!s || !s.ok) return toast((s && s.error) || "No se pudo preparar la VPN");
+    VPN.busy = true; paintNet();
+    r = await Host.call("vpn.set", { on }).catch(e => ({ error: e.message }));
+  }
+  VPN.busy = false;
+  if (r && r.status) Object.assign(VPN, r);
+  if (r && r.error) toast(r.error);
+  else if (r && r.status === "on") toast(`VPN conectada (${vpnName()})`);
+  else if (r && r.status === "off" && !on) toast("VPN desconectada");
+  paintNet();
+}
+Events.on("net.state", async d => {
+  if (!d) return;
+  const was = { ...NET }; Object.assign(NET, { internet: d.internet !== false, steam: d.steam !== false });
+  paintNet();
+  await loadVpn();   // para sugerir lo correcto (prender la VPN o instalar una)
+  if (was.internet && !NET.internet) notify({ icon: WIFI_OFF_IC, title: "Sin conexión a internet", text: "Puedes jugar lo que tienes instalado" });
+  else if (!was.internet && NET.internet) notify({ icon: QI.wifi.replace(' class="qi"', ""), title: "Conectado a internet", text: NET.steam ? "Todo en orden" : "Pero esta red bloquea Steam" });
+  if (NET.internet && !NET.steam && (was.steam || !was.internet))
+    notify({ icon: SHIELD_IC, title: "Esta red bloquea Steam", text: vpnOn() ? "Aun con la VPN: prueba apagarla y prenderla" : VPN.provider !== "none" ? "Prende la VPN en el menú rápido" : "Usa una VPN: Ajustes › VPN" });
+  paintNet();
+});
+Events.on("steam.offline", () => notify({ icon: WIFI_OFF_IC, title: "Steam sin conexión", text: "Toca «Iniciar en modo sin conexión»" }));
+if (Host.has) { Host.call("net.state").then(d => { if (d) { NET.internet = d.internet !== false; NET.steam = d.steam !== false; paintNet(); } }).catch(() => {}); loadVpn(); }
+
+/* Ajustes › VPN */
+function vpnView() {
+  const open = url => { if (Host.has) Host.call("web.open", { url }).catch(() => {}); else toast("Prototipo: aquí se abriría " + url); };
+  const rows = [
+    { label: "VPN", desc: "Para redes que bloquean Steam o Xbox. También en el menú rápido.", val: () => VPN.provider === "none" ? "Sin configurar" : vpnLabel(),
+      act() { if (VPN.provider === "none") { play("bump"); return toast("Primero instala Cloudflare WARP o importa un perfil de WireGuard"); } vpnSet(!vpnOn()); } },
+    { label: "Usar", desc: "Cuál VPN prende el interruptor", val: () => vpnName(),
+      act() {
+        const can = [VPN.warp && "warp", VPN.wireguard && VPN.profile && "wireguard"].filter(Boolean);
+        if (can.length < 2) { play("bump"); return toast(can.length ? "Solo tienes " + vpnName() : "Todavía no hay ninguna VPN lista"); }
+        const next = VPN.provider === "warp" ? "wireguard" : "warp";
+        if (vpnOn()) return toast("Apaga la VPN antes de cambiarla");
+        Host.call("vpn.provider", { provider: next }).then(r => { if (r) Object.assign(VPN, r); play("select"); paintNet(); }).catch(() => {});
+      } },
+    { label: "Cloudflare WARP", desc: "Gratis y sin cuenta. Cifra tu conexión para que la red no bloquee Steam ni Xbox (no eliges país).", val: () => VPN.warp ? "Instalada ✓" : "Descargar ›",
+      act() { if (VPN.warp) return toast("WARP ya está instalada"); open("https://one.one.one.one/"); toast("Instálala y vuelve a Scarlet"); } },
+    { label: "WireGuard", desc: "Para perfiles .conf de Proton VPN (gratis) u otro proveedor. Bájalo a Descargas y elige Importar.", val: () => !VPN.wireguard ? "Descargar ›" : VPN.profile ? VPN.profile : "Importar perfil ›",
+      async act() {
+        if (!VPN.wireguard) { open("https://www.wireguard.com/install/"); return toast("Instálalo y vuelve a Scarlet"); }
+        let what = "import";
+        if (VPN.profile) {
+          what = await choiceDialog(`Perfil de WireGuard: ${VPN.profile}`, [{ label: "Cancelar", value: null }, { label: "Quitar", value: "remove" }, { label: "Importar otro", value: "import" }], 2);
+          if (!what) return;
+        }
+        if (what === "remove") { const r = await Host.call("vpn.remove").catch(() => null); if (r) Object.assign(VPN, r); toast("Perfil quitado"); return paintNet(); }
+        const r = await Host.call("vpn.import").catch(e => ({ ok: false, error: e.message }));
+        if (!r || !r.ok) return alertDialog((r && r.error) || "No se pudo importar");
+        toast("Perfil importado: " + r.name); await loadVpn();
+      } },
+    { label: "Conseguir un perfil de Proton VPN", desc: "account.protonvpn.com › Descargas › Configuraciones de WireGuard (con cuenta gratis)", val: () => "Abrir ›", act() { open("https://account.protonvpn.com/downloads"); } }
+  ];
+  return {
+    isVpn: true,
+    hints() { return [["B", "Atrás"], ["A", "Aceptar"]]; },
+    render(el) {
+      el.innerHTML = head(SHIELD_IC, "VPN") + `<div class="vbody">${rows.map((r, i) => `<button class="lrow fi" data-i="${i}"><span class="meta"><b>${esc(r.label)}</b><span>${esc(r.desc)}</span></span><span class="val">${esc(r.val())}</span></button>`).join("")}</div>`;
+      fis(el).forEach(b => b.onclick = () => { const r = rows[+b.dataset.i]; Promise.resolve(r.act.call(r)).then(() => this.refresh()); });
+      loadVpn().then(() => this.refresh());
+    },
+    refresh() { if (!this.el || !this.el.isConnected) return; fis(this.el).forEach(b => { b.querySelector(".val").textContent = rows[+b.dataset.i].val(); }); },
+    items() { return fis(this.el); }
+  };
+}
+
 const POWER = [["silent", "Silencioso", "13 W"], ["perf", "Rendimiento", "17 W"], ["turbo", "Turbo", "25 W"]];
 const sys = Object.assign({ brightness: 70, volume: 55, power: "perf", wifi: true, airplane: false }, store.get("sys", {}));
 const saveSys = () => store.set("sys", sys);
@@ -3351,6 +3462,7 @@ const qmRows = () => [
   // Interruptores en cuadritos, lado a lado (como el centro de control): ocupan la mitad y se tocan fácil.
   { k: "wifi", type: "tile", grp: "radio", icon: QI.wifi, label: "Wi-Fi" },
   { k: "airplane", type: "tile", grp: "radio", icon: QI.plane, label: "Modo avión" },
+  ...(VPN.provider !== "none" ? [{ k: "vpn", type: "tile", grp: "radio", icon: QI.vpn, label: "VPN" }] : []),
   { k: "sleep", type: "btn", grp: "act", icon: QI.power, label: "Apagar…" }, { k: "settings", type: "btn", grp: "act", icon: QI.gear, label: "Ajustes" }
 ];
 /* Filas agrupadas: las que van lado a lado (cuadritos, Apagar/Ajustes) forman un grupo para moverse con la cruceta. */
@@ -3396,7 +3508,8 @@ function renderQuick() {
   const row = (r, i) => {
     const f = QM.i === i ? " focused" : "";
     if (r.type === "slider") { const off = r.k === "brightness" && QM.noBri, v = sys[r.k], ic = r.k === "volume" ? volIcon(v) : sunIcon(off ? 50 : v); return `<div class="qrow${f}${off ? " qoff" : ""}">${ic}<span class="qlab">${r.label}</span><span class="qbar"><i style="width:${off ? 0 : v}%"></i></span><span class="qval">${off ? "—" : v}</span></div>`; }
-    if (r.type === "tile") { const on = !!sys[r.k], st = r.k === "wifi" ? (on ? (navigator.onLine ? "Conectado" : "Encendido") : "Apagado") : (on ? "Activado" : "Desactivado"); return `<div class="qrow qtile${on ? " on" : ""}${f}">${r.icon}<span class="qtl"><b>${r.label}</b><span>${st}</span></span></div>`; }
+    if (r.type === "tile" && r.k === "vpn") { const on = vpnOn() && !VPN.busy; return `<div class="qrow qtile${on ? " on" : ""}${VPN.busy ? " busy" : ""}${f}">${r.icon}<span class="qtl"><b>${r.label}</b><span>${vpnLabel()}</span></span></div>`; }
+    if (r.type === "tile") { const on = !!sys[r.k], st = r.k === "wifi" ? (on ? (netOn() ? "Conectado" : navigator.onLine ? "Sin internet" : "Encendido") : "Apagado") : (on ? "Activado" : "Desactivado"); return `<div class="qrow qtile${on ? " on" : ""}${f}">${r.icon}<span class="qtl"><b>${r.label}</b><span>${st}</span></span></div>`; }
     if (r.type === "seg") return `<div class="qrow wrap${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qval">${POWER.find(p => p[0] === sys.power)[2]}</span><span class="qseg">${POWER.map(([k, n, w]) => `<span class="${sys.power === k ? "on" : ""}">${n}</span>`).join("")}</span></div>`;
     if (r.type === "switch") return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qsw${sys[r.k] ? " on" : ""}"></span></div>`;
     if (r.type === "media") return mediaCard(f);
@@ -3409,7 +3522,7 @@ function renderQuick() {
   const rowAt = (r, i) => row(r, i).replace('<div class="qrow', `<div data-qi="${i}" class="qrow`);
   q.innerHTML = `<div class="qhead"><span class="qclock clock">${clockText()}</span><span class="qb"><span class="batt">${Math.round(deviceBatt * 100)} % ${battSvg(deviceBatt)}</span><span>${battEstimate()}</span></span></div>
     ${showDolby ? `<div class="dolby qdolby">${DOLBY_HTML}</div>` : ""}
-    <div class="qrows">${qmGroups(rows).map(g => g.grp === "radio" ? `<div class="qpair">${g.items.map(i => rowAt(rows[i], i)).join("")}</div>`
+    <div class="qrows">${qmGroups(rows).map(g => g.grp === "radio" ? `<div class="qpair${g.items.length === 3 ? " three" : ""}">${g.items.map(i => rowAt(rows[i], i)).join("")}</div>`
       : g.grp === "act" ? `<div class="qbtns">${g.items.map(i => `<div data-qi="${i}" class="qrow${QM.i === i ? " focused" : ""}">${rows[i].icon || ""}<span>${rows[i].label}</span></div>`).join("")}</div>`
       : g.items.map(i => rowAt(rows[i], i)).join("")).join("")}</div>
     <div class="qhint"><span class="hint"><span class="glyph">B</span>Cerrar</span><span class="hint"><span class="glyph">◀▶</span>Ajustar</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
@@ -3463,6 +3576,7 @@ function openQuick() {
   qmTouchSetup();
   if (QM.open || !["ui", "game"].includes(mode)) return;
   QM.open = true; QM.i = 0; QM.m = 2; QM.src = null; renderQuick(); tintQuick(); mediaTick();
+  loadVpn().then(() => { if (QM.open) qmPatch(() => {}); });
   // Cada vez que se abre se vuelve a leer todo (juego, barras, Salida, Dolby, canción, batería). Mientras llega,
   // se ve lo último que se sabía; lo que no conteste a tiempo se queda con su último valor.
   if (Host.has) {
@@ -3519,7 +3633,7 @@ function applySys(k) {
   if (k === "brightness") Host.call("system.brightness", { value: sys.brightness }).catch(() => {});
   if (k === "volume") Host.call("system.volume", { value: sys.volume }).catch(() => {});
   if (k === "power") Host.call("system.power", { profile: sys.power }).catch(() => {});
-  $$(".wifi").forEach(w => w.style.opacity = sys.wifi && !sys.airplane && navigator.onLine ? 1 : .3);
+  $$(".wifi").forEach(w => w.style.opacity = sys.wifi && !sys.airplane && netOn() ? 1 : .3);
 }
 /* Wi-Fi y modo avión como en Windows: el modo avión apaga el Wi-Fi (y quitarlo lo prende), pero con el modo avión puesto
    se puede volver a prender solo el Wi-Fi. El interruptor se queda como Windows diga que quedó; si no deja, se avisa. */
@@ -3583,6 +3697,7 @@ function qmInput(k) {
     return renderQuick();
   }
   if (k === "a") {
+    if (r.k === "vpn") return vpnSet(!vpnOn());
     if (r.type === "switch" || r.type === "tile") return setRadio(r.k, !sys[r.k]);
     if (r.type === "seg") { const j = (POWER.findIndex(p => p[0] === sys.power) + 1) % POWER.length; sys.power = POWER[j][0]; play("select"); applySys("power"); return renderQuick(); }
     if (OVERLAY && (r.k === "sleep" || r.k === "settings")) {   // lo hace la pantalla principal
@@ -4087,7 +4202,7 @@ function clockText(d = new Date()) {
 }
 function tick() {
   $$(".clock").forEach(c => c.textContent = clockText());
-  $$(".wifi").forEach(w => w.style.opacity = navigator.onLine && (typeof sys === "undefined" || (sys.wifi && !sys.airplane)) ? 1 : .3);
+  $$(".wifi").forEach(w => w.style.opacity = (typeof netOn === "function" ? netOn() : navigator.onLine) && (typeof sys === "undefined" || (sys.wifi && !sys.airplane)) ? 1 : .3);
   if (typeof QM !== "undefined" && QM.open) renderQuick();
 }
 setInterval(tick, 10000); tick();

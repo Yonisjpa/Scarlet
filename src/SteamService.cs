@@ -257,7 +257,7 @@ sealed class SteamService
     async Task<List<Owned>> OwnedAsync(bool refresh)
     {
         if (owned != null && !refresh) return owned;
-        if (HasKey)
+        if (HasKey && NetCheck.Internet)   // sin internet: lo guardado, al instante (no esperar a que falle la conexión)
         {
             try
             {
@@ -461,7 +461,7 @@ sealed class SteamService
     public async Task PollRunningAchievementsAsync()
     {
         long id = runningApp;
-        if (id == 0 || !HasKey) return;
+        if (id == 0 || !HasKey || !NetCheck.Internet) return;
         var r = await AchievementsRawAsync(id, true);
         if (r == null || id != runningApp || r.T == 0) return;
         var now = r.List.Where(x => (bool)x["unlocked"]).Select(x => (string)x["api"]).ToHashSet();
@@ -594,6 +594,8 @@ sealed class SteamService
     public async Task<List<Friend>> FriendsAsync(bool emit)
     {
         if (!HasKey) return friends;
+        // Sin internet no se sabe quién está conectado: todos "sin conexión" (no un "Jugando" de hace horas).
+        if (!NetCheck.Internet) return friends.Select(f => new Friend { steamid = f.steamid, name = f.name, avatar = f.avatar, status = "offline", last = f.last }).ToList();
         try
         {
             using var fl = await Api($"ISteamUser/GetFriendList/v1/?steamid={SteamId}&relationship=friend");

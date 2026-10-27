@@ -135,6 +135,9 @@ sealed class Config
     public int? GameBarLegacyBackup { get; set; }
     public Dictionary<string, int> PadOrder { get; set; } = new();
     public Dictionary<string, long> AppLastUsed { get; set; } = new();
+    /// <summary>VPN elegida: "warp", "wireguard" o vacío (la que haya).</summary>
+    public string VpnProvider { get; set; } = "";
+    public string VpnProfileName { get; set; }
 
     [JsonIgnore] public string SteamKey { get => Unprotect(SteamKeyEnc); set => SteamKeyEnc = Protect(value); }
     [JsonIgnore] public string SgdbKey { get => Unprotect(SgdbKeyEnc); set => SgdbKeyEnc = Protect(value); }

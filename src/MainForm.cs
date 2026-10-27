@@ -207,6 +207,8 @@ sealed class MainForm : Form
             steamGuard.Tick += (_, _) => HideSteamWindows();
             steamGuard.Start();
             StartWindowHook();
+            NetCheck.Changed += OnNetChanged;
+            NetCheck.Start();
             StartSteamSilently();
             slow.Start();
             friendsTimer.Tick += async (_, _) => await steam.FriendsAsync(true);
@@ -484,6 +486,30 @@ sealed class MainForm : Form
             case "install.eula": return await InstallStep(P.L(p, "appid"), SteamCdp.EulaAsync(P.L(p, "appid"), Flag(p, "accept"), EulaIds(p)));
             case "install.cancel": await SteamCdp.CancelAsync(); GuardSteam(3); return true;
             case "install.enable": return InstallEnable();
+            // ── Red y VPN
+            case "net.state": return new { internet = NetCheck.Internet, steam = NetCheck.SteamReachable };
+            case "vpn.state": return await Vpn.StatusAsync(cfg);
+            case "vpn.set": return await Vpn.SetAsync(cfg, P.B(p, "on"));
+            case "vpn.setup": { var (ok, error) = await Vpn.SetupWireGuardAsync(); ShowUi(); return new { ok, error }; }
+            case "vpn.import":
+            {
+                var (ok, name, error) = await Task.Run(Vpn.ImportWireGuard);
+                if (ok) { cfg.VpnProfileName = name; cfg.VpnProvider = "wireguard"; cfg.Save(); }
+                return new { ok, name, error };
+            }
+            case "vpn.remove":
+            {
+                if (cfg.VpnProvider == "wireguard" || Vpn.WarpCli == null) await Vpn.SetAsync(cfg, false);
+                Vpn.RemoveWireGuard(); cfg.VpnProfileName = null; if (cfg.VpnProvider == "wireguard") cfg.VpnProvider = ""; cfg.Save();
+                return await Vpn.StatusAsync(cfg);
+            }
+            case "vpn.provider": { string pv = P.S(p, "provider"); if (pv is "warp" or "wireguard") { cfg.VpnProvider = pv; cfg.Save(); } return await Vpn.StatusAsync(cfg); }
+            case "web.open":   // páginas de descarga (WARP, WireGuard) en el navegador de Windows
+            {
+                string url = P.S(p, "url");
+                if (url != null && Regex.IsMatch(url, @"^https://(one\.one\.one\.one|1\.1\.1\.1|www\.wireguard\.com|protonvpn\.com|account\.protonvpn\.com)(/|$)")) { TopMost = false; Shell.Open(url); return true; }
+                return false;
+            }
 
             // ── Ventana y notificaciones
             case "ui.show": ShowUi(); return true;
@@ -1658,7 +1684,7 @@ sealed class MainForm : Form
                 if (!Native.IsWindowVisible(h) || Native.Area(h) < 2500) return true;
                 string exe = Path.GetFileName(Native.WindowProcessPath(h, out _) ?? "");
                 if (!exe.Equals("steam.exe", StringComparison.OrdinalIgnoreCase) && !exe.Equals("steamwebhelper.exe", StringComparison.OrdinalIgnoreCase)) return true;
-                if (stuckLaunch || SteamDialogAllowed(h)) return true;
+                if (stuckLaunch || SteamDialogAllowed(h) || OfflinePrompt(h)) return true;
                 Native.ShowWindowAsync(h, 0 /* SW_HIDE */);
                 if (hiddenSteam.Add(h)) Log.Write($"ventana de Steam escondida: \"{Native.Title(h)}\"");
                 return true;
@@ -1944,11 +1970,48 @@ sealed class MainForm : Form
         WinWatch.Start(SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext());
     }
 
+    // ───── Sin internet ─────
+    readonly HashSet<IntPtr> offlinePrompts = new();
+
+    /// <summary>
+    /// Steam abierto sin internet pregunta "¿Iniciar en modo sin conexión?". Esa ventanita NO se esconde (si se escondía,
+    /// Steam se quedaba esperando y ningún juego abría): se deja al frente y se avisa qué tocar.
+    /// </summary>
+    bool OfflinePrompt(IntPtr h)
+    {
+        if (NetCheck.Internet || h == IntPtr.Zero) return false;
+        if (offlinePrompts.Contains(h)) return true;
+        if (SteamUptime() > TimeSpan.FromMinutes(3)) return false;
+        string exe = Path.GetFileName(Native.WindowProcessPath(h, out _) ?? "");
+        if (!exe.Equals("steamwebhelper.exe", StringComparison.OrdinalIgnoreCase) && !exe.Equals("steam.exe", StringComparison.OrdinalIgnoreCase)) return false;
+        string t = Native.Title(h);
+        if (t.Contains("Big Picture", StringComparison.OrdinalIgnoreCase) || t.Contains("amigos", StringComparison.OrdinalIgnoreCase) || t.Contains("Friends", StringComparison.OrdinalIgnoreCase)) return false;
+        long screen = (long)Screen.PrimaryScreen.Bounds.Width * Screen.PrimaryScreen.Bounds.Height, a = Native.Area(h);
+        if (a < 20_000 || a >= screen * 45 / 100) return false;
+        offlinePrompts.Add(h);
+        Log.Write($"sin internet: Steam pregunta algo («{t}»); se deja ver");
+        ToastForm.Pop("Steam sin conexión", "Toca «Iniciar en modo sin conexión» para jugar lo instalado", "!", "#f2c230", null);
+        Emit("steam.offline", new { title = t });
+        return true;
+    }
+
+    void OnNetChanged()
+    {
+        EmitAll("net.state", new { internet = NetCheck.Internet, steam = NetCheck.SteamReachable });
+        if (NetCheck.Internet) return;
+        Ui(() =>   // se fue el internet con Steam arrancando: la ventanita que ya se había escondido vuelve a verse
+        {
+            foreach (var h in hiddenSteam.ToList())
+                if (Native.IsWindow(h) && OfflinePrompt(h)) { Native.ShowWindowAsync(h, 5 /* SW_SHOW */); Native.ForceForeground(h); }
+        });
+    }
+
     void OnWindowShown(IntPtr hwnd)
     {
         if (hwnd == IntPtr.Zero || steamUiAllowed || !Native.IsWindow(hwnd)) return;
         try
         {
+            if (OfflinePrompt(hwnd)) { Native.ForceForeground(hwnd); return; }
             if (tracker != null && tracker.LaunchSeconds > 25) return;   // un juego atorado pidiendo algo en Steam: que se vea
             if (Native.Area(hwnd) < 2500) return;
             if (SteamDialogAllowed(hwnd)) { steamDialogs.Add(hwnd); Native.ForceForeground(hwnd); return; }
