@@ -1,14 +1,12 @@
-Novedades de la alpha 0.4.18
+Novedades de la alpha 0.4.19
 
-- Volumen arreglado de raíz: Scarlet tenía tres "llaves" distintas para el audio de Windows y chocaban entre sí, así que a veces el cambio no se aplicaba hasta otro intento (por eso había que moverle mucho). Ahora hay una sola.
-- El volumen general se aplica al instante: ya no revisa todas las salidas en cada paso.
-- Brillo y volúmenes se mueven de 5 en 5, y cada paso se aplica en Windows de inmediato.
-- El aviso de brillo del log se revisa cuando termina la transición de Windows (antes daba falsas alarmas).
-- Menos memoria mientras juegas: la interfaz y el menú escondidos usan la mínima memoria posible.
-- Menú rápido rediseñado:
-  - Wi-Fi y Modo avión en cuadritos lado a lado, que se iluminan cuando están prendidos.
-  - Las barras del juego y de las apps cuelgan de "Volumen", para que se vea que son parte del sonido.
-  - El ícono del volumen cambia con el valor (tachado en 0, más ondas mientras más alto) y el sol del brillo crece con el brillo.
-  - Tarjeta de música con carátula más grande; toca la barra de la canción para adelantar, o usa LB / RB.
-  - Apagar y Ajustes con ícono.
-- Controles: los mandos tipo Xbox (Machenike, 8BitDo en modo X…) llevan el dibujo de Xbox, y ya no aparecen dos veces (Windows los ve como mando Xbox y como dispositivo HID).
+- Reanudar en vez de relanzar: si sales de un juego al Inicio y vuelves a entrar, Scarlet lo trae al frente; ya no lo cierra ni lo abre otra vez.
+  - Antes, cuando el juego cambiaba de ventana (pantalla de carga → ventana final, o al cambiar de modo de pantalla), Scarlet a veces pensaba que se había cerrado y lo "olvidaba".
+  - Si aun así lo olvida, al volver al Inicio le pregunta a Windows qué juego sigue abierto y recupera el "Jugando".
+  - Si el juego sigue abierto pero Scarlet no lo estaba siguiendo (por ejemplo, después de reiniciar Scarlet), lo adopta y lo reanuda en lugar de abrir una segunda copia.
+- Cuando un juego se cierra solo, Scarlet ya no le manda una orden de cierre extra ni lo vuelve a mostrar como abierto por una respuesta atrasada de Windows.
+- Si cierras un juego y lo vuelves a abrir enseguida, la limpieza de la sesión anterior ya no puede cerrar la partida nueva.
+- Al salir de Scarlet, los volúmenes que bajó (el juego detrás del menú, Steam) se restauran antes de cerrar, no después.
+- Compartir del Álbum: si compartes una foto y luego otra, el tiempo límite de la primera ya no apaga la segunda.
+- Aviso de batería baja (15 %) en la interfaz.
+- El botón Xbox ya no puede dejar de responder si Windows da un error al leer el mando.

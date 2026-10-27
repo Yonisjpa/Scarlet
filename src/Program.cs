@@ -75,7 +75,7 @@ static class Program
         }) { IsBackground = true, Name = "show-request" };
         listener.Start();
         Application.Run(main);
-        AudioFocus.RestoreAll();   // al salir, nada se queda silenciado
+        AudioFocus.RestoreAllNow();   // al salir, nada se queda silenciado (ni Steam); se espera a que quede hecho
         GameFreezer.Resume();      // ni en pausa
         CursorHider.Restore();     // y el puntero vuelve
         AudioFocus.MuteSteam(false);

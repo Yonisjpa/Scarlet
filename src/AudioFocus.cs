@@ -157,6 +157,24 @@ static class AudioFocus
         });
     }
 
+    /// <summary>
+    /// Al cerrar Scarlet: devuelve el sonido a todo lo que silenció (juegos, apps y Steam) y ESPERA a que quede hecho.
+    /// RestoreAll/MuteSteam lo mandan sin esperar, y al cerrar la app no alcanzaba a hacerse: Steam se quedaba mudo.
+    /// </summary>
+    public static void RestoreAllNow()
+    {
+        string[] list;
+        lock (gate) { list = mutedApps.ToArray(); mutedApps.Clear(); Save(); }
+        bool steam = steamMuted; steamMuted = false;
+        AudioThread.Run(() =>
+        {
+            foreach (var exe in list) Apply(exe, false, out _);
+            Apply("steamwebhelper", false, out _); Apply("steam", false, out _);   // Steam siempre, por si quedó de una vez anterior
+            return true;
+        }, false, 3000);
+        Log.Write("al cerrar: sonido devuelto" + (list.Length > 0 ? " a " + string.Join(", ", list) : "") + (steam ? " y a Steam" : ""));
+    }
+
     /// <summary>Si Scarlet se cerró de golpe con algo silenciado, al arrancar se le devuelve el sonido.</summary>
     public static void RecoverAfterCrash()
     {

@@ -268,6 +268,7 @@ sealed class MainForm : Form
         else if (tracker == null || !tracker.Active) borderlessFixes = 0;
         if (!GameFreezer.IsFrozen) CheckHung(front);   // congelado, Windows lo marca "no responde": es normal
         CheckTouchBlocked();
+        CheckBattery();
         try { steam.PollDownloads(); } catch (Exception ex) { Log.Error("descargas", ex); }
         if (slowTicks % 20 == 0) _ = steam.PollRunningAchievementsAsync();   // cada minuto mientras juegas
     }
@@ -765,6 +766,15 @@ sealed class MainForm : Form
 
     async Task LaunchAsync(long appid, string source)
     {
+        // Si ese mismo juego ya está abierto, se reanuda: nunca se cierra para volver a lanzarlo.
+        if (tracker.Active && tracker.AppId == appid)
+        {
+            Log.Write($"{appid} ya está abierto: se reanuda");
+            FocusGame();
+            Emit("game.ready", new { appid });
+            return;
+        }
+        if (!tracker.Active && TryAdoptRunning(appid, source)) { FocusGame(); Emit("game.ready", new { appid }); return; }
         if (tracker.Active) { GameFreezer.Resume(); FlushPlay(); tracker.Close(); }
         playKey = null;
         AudioFocus.RestoreAll();
@@ -797,6 +807,22 @@ sealed class MainForm : Form
             Shell.Open("steam://rungameid/" + appid);
             BeginGame(appid, true);
         }
+    }
+
+    /// <summary>¿El juego ya corre aunque Scarlet no lo esté siguiendo (lo perdió, o se abrió por fuera)? Se toma y se reanuda.</summary>
+    bool TryAdoptRunning(long appid, string source)
+    {
+        try
+        {
+            string dir = source == "xbox" ? xbox.Find(appid)?.Dir : source == "app" ? null : steam.InstallDirOf(appid);
+            IntPtr w = GameTracker.RunningWindowIn(dir);
+            if (w == IntPtr.Zero && source != "xbox" && source != "app" && steam.RunningAppId() == appid && cfg.GameExes.TryGetValue(appid.ToString(), out var exe))
+                w = GameTracker.RunningWindowIn(Path.GetDirectoryName(exe));   // juegos que corren desde otra carpeta
+            if (w == IntPtr.Zero || !tracker.AdoptRunning(appid, source != "xbox" && source != "app", dir, w)) return false;
+            if (source != "xbox" && source != "app") steam.SetRunning(appid);
+            return true;
+        }
+        catch (Exception ex) { Log.Error("juego ya abierto", ex); return false; }
     }
 
     void BeginGame(long appid, bool isSteam)
@@ -1030,6 +1056,25 @@ sealed class MainForm : Form
             catch (Exception ex) { Log.Error("silenciar juego", ex); }
             finally { muting = false; }
         });
+    }
+
+    // ───── Batería baja (la interfaz tenía el aviso, pero la app nunca lo mandaba) ─────
+    bool battWarned;
+    void CheckBattery()
+    {
+        try
+        {
+            var ps = SystemInformation.PowerStatus;
+            if (ps.BatteryChargeStatus.HasFlag(BatteryChargeStatus.NoSystemBattery)) return;
+            float lvl = ps.BatteryLifePercent;
+            bool charging = ps.PowerLineStatus == PowerLineStatus.Online;
+            if (charging || lvl > 0.20f) { battWarned = false; return; }
+            if (battWarned || lvl > 0.15f) return;
+            battWarned = true;
+            Log.Write($"batería baja: {Math.Round(lvl * 100)} %");
+            Emit("battery.low", new { level = lvl });   // la interfaz lo muestra (encima del juego si estás jugando)
+        }
+        catch { }
     }
 
     // ───── Juego que no responde ─────

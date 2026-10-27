@@ -44,7 +44,8 @@ sealed class ShareServer
         expires = DateTime.UtcNow + Lifetime;
         cts = new CancellationTokenSource();
         _ = AcceptLoop(listener, cts.Token);
-        _ = Task.Delay(Lifetime).ContinueWith(_ => Stop());
+        string mine = token;
+        _ = Task.Delay(Lifetime).ContinueWith(_ => { if (token == mine) Stop(); });   // solo este enlace (si compartiste otro después, ese sigue)
 
         string url = $"http://{ip}:{port}/s/{token}";
         Log.Write($"compartir: {files.Count} archivo(s) en {url}");

@@ -1650,7 +1650,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.18";
+let APP_VERSION = "0.4.19";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2705,7 +2705,7 @@ function waitReady(g) {
   return new Promise(res => {
     if (!Host.has) return setTimeout(() => res(true), 3200 + Math.random() * 1400);
     let t;
-    const off = Events.on("game.ready", d => { if (!d || d.appid == g.appid) { clearTimeout(t); off(); off2(); res(true); } });
+    const off = Events.on("game.ready", d => { if (!d || d.appid == g.appid) { delete goneAt[g.appid]; clearTimeout(t); off(); off2(); res(true); } });
     const off2 = Events.on("game.failed", d => { if (!d || d.appid == g.appid) { clearTimeout(t); off(); off2(); res(false); } });
     t = setTimeout(() => { off(); res(false); }, 90000);
   });
@@ -2819,9 +2819,20 @@ function goHome() {
   Host.call("ui.show").catch(() => {});
   if (!fromOverlay) { home.zone = "games"; home.g = 0; home.offset = 0; }
   mode = "ui"; renderHome(); play("home");
+  syncRunning();
+}
+/* Pregunta a la app qué juego sigue abierto: si la interfaz lo había "olvidado", vuelve a mostrar su "Jugando" (y al
+   entrar se reanuda en vez de lanzarse otra vez). */
+const goneAt = {};   // juegos que se acaban de cerrar: una respuesta atrasada no debe "revivirlos"
+function syncRunning() {
+  if (!Host.has) return;
+  Host.call("game.state").then(gs => {
+    if (gs && gs.appid && gs.appid !== state.running && byId(gs.appid) && !(Date.now() - (goneAt[gs.appid] || 0) < 8000)) { state.running = gs.appid; if (mode !== "boot") renderHome(); }
+  }).catch(() => {});
 }
 function closeRunning(silent) {
   const g = runningGame(); if (!g) return;
+  goneAt[g.appid] = Date.now();
   Host.call("game.close", { appid: g.appid }).catch(() => {});
   state.running = null; renderHome();
   if (!silent) toast(`Se cerró ${g.name}`);
@@ -2838,9 +2849,10 @@ Events.on("game.hung", async d => {
   else { Host.call("game.wait").catch(() => {}); const g = runningGame(); if (g) { showGame(g); mode = "game"; } }
 });
 Events.on("game.exited", d => {
+  if (d && d.appid) goneAt[d.appid] = Date.now();
   if (!state.running || (d && d.appid != state.running)) return;
-  if (mode === "game") goHome();
-  closeRunning(true);
+  state.running = null;      // ya se cerró solo: no hace falta pedir a Windows que lo cierre
+  if (mode === "game") goHome(); else renderHome();
 });
 let lastGuide = 0, guideSingleT = 0;
 function guidePress() {   // (teclado / demo) 1 toque = menú rápido · 2 toques = menú / juego

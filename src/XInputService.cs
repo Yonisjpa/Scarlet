@@ -133,6 +133,8 @@ sealed class XInputService : IDisposable
         var fwdNext = new Dictionary<string, long>();
         while (running)
         {
+          try
+          {
             bool guide = false, viewMenu = false;
             ushort pad = 0;
             if (xinputOk)
@@ -202,6 +204,13 @@ sealed class XInputService : IDisposable
                 if (!chordHold) { Log.Write("View + Menú: menú / juego"); Raise(GuideDouble); }
             }
             Thread.Sleep(16);
+          }
+          catch (Exception ex)
+          {
+            // Un error aquí (p. ej. al cerrar Scarlet) no debe tumbar la app: este hilo no tiene quién lo atrape.
+            Log.Error("botón Xbox (hilo)", ex);
+            Thread.Sleep(500);
+          }
         }
     }
 

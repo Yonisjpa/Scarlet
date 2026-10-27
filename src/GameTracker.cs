@@ -204,9 +204,13 @@ sealed class GameTracker
             alive = Native.WindowOpen(hwnd);
             if (!alive)
             {
-                // ¿Cambió de ventana (un launcher que abre el juego de verdad, o al cambiar de resolución)? Se sigue a la nueva.
+                // ¿Cambió de ventana (un launcher que abre el juego de verdad, o al cambiar de pantalla completa / resolución,
+                // que es justo lo que pasa al salir al menú)? Se sigue a la nueva.
                 var w = FindGameWindow(anyProcessInDir: true);
                 if (w != IntPtr.Zero) { hwnd = w; Native.GetWindowThreadProcessId(w, out pid); alive = true; Log.Write($"el juego cambió de ventana: {Native.Describe(w)}"); }
+                // Sin ventana por un momento pero con su proceso vivo: sigue abierto (se está recreando la ventana o está
+                // congelado). Solo cuentan como cerradas las apps de la Store que quedan dormidas sin ninguna ventana.
+                else if (pid != 0 && ProcessAlive(pid) && !SharedHost(pid) && !DormantStoreApp(pid)) alive = true;
             }
         }
         else if (pid != 0) alive = ProcessAlive(pid) && !SharedHost(pid);
@@ -215,12 +219,58 @@ sealed class GameTracker
         if (++deadTicks >= 3) { long id = AppId; Stop(); Log.Write($"juego cerrado {id} (ya no está su ventana ni su proceso)"); Exited?.Invoke(id); }
     }
 
-    /// <summary>Windows avisó que se destruyó una ventana: si era la del juego, se revisa ya (sin esperar 3 s).</summary>
+    /// <summary>
+    /// Windows avisó que se destruyó la ventana del juego: se revisa ya, pero con la misma regla de siempre (3 revisiones
+    /// seguidas sin juego). Antes se daba casi por cerrado al instante y, como muchos juegos recrean su ventana al salir
+    /// al menú, Scarlet "olvidaba" el juego y al volver a entrar lo lanzaba otra vez.
+    /// </summary>
     public void WindowDestroyed(IntPtr h)
     {
         if (!IsReady || h == IntPtr.Zero || h != hwnd) return;
-        deadTicks = Math.Max(deadTicks, 2);
         try { AliveTick(); } catch (Exception ex) { Log.Error("tracker", ex); }
+    }
+
+    /// <summary>¿Es una app de la Store que Windows dejó "dormida" al cerrarla (proceso vivo, ninguna ventana visible)?</summary>
+    static bool DormantStoreApp(uint p)
+    {
+        string path = Native.ProcessPath(p) ?? "";
+        if (!path.Contains(@"\WindowsApps\", StringComparison.OrdinalIgnoreCase)) return false;
+        bool anyWindow = false;
+        Native.EnumWindows((h, _) => { Native.GetWindowThreadProcessId(h, out uint wp); if (wp == p && Native.WindowOpen(h)) { anyWindow = true; return false; } return true; }, IntPtr.Zero);
+        return !anyWindow;
+    }
+
+    /// <summary>
+    /// Toma un juego que ya está abierto (Scarlet lo perdió o se abrió por fuera) en vez de lanzarlo otra vez.
+    /// Devuelve false si no encontró su ventana.
+    /// </summary>
+    public bool AdoptRunning(long appid, bool steamGame, string dir, IntPtr window)
+    {
+        if (window == IntPtr.Zero) return false;
+        timer.Stop();
+        AppId = appid; isSteam = steamGame; installDir = dir; slow = false;
+        start = DateTime.Now; deadTicks = 0; releasedTopMost = true; seen = true;
+        hwnd = window; Native.GetWindowThreadProcessId(window, out pid);
+        IsReady = true;
+        timer.Interval = 1000;
+        timer.Start();
+        Log.Write($"el juego {appid} ya estaba abierto: se reanuda en vez de lanzarlo otra vez ({Native.Describe(window)})");
+        return true;
+    }
+
+    /// <summary>La ventana principal de un juego que ya corre desde esa carpeta (null si no está abierto).</summary>
+    public static IntPtr RunningWindowIn(string dir)
+    {
+        if (string.IsNullOrEmpty(dir)) return IntPtr.Zero;
+        IntPtr best = IntPtr.Zero; long bestArea = 0;
+        foreach (var h in Native.TopWindows())
+        {
+            string path = Native.WindowProcessPath(h, out _);
+            if (!Paths.Under(path ?? "", dir) || IsHelper(path) || !Native.WindowOpen(h)) continue;
+            long a = Native.Area(h);
+            if (a > bestArea) { bestArea = a; best = h; }
+        }
+        return best;
     }
 
     /// <summary>Programas que comparten muchas ventanas (Edge, el contenedor de apps de la Store): su proceso no dice nada del juego.</summary>
@@ -332,10 +382,14 @@ sealed class GameTracker
             await Task.Delay(6000);
             try
             {
+                // Si en estos 6 s se volvió a abrir el mismo juego, no hay que tocar la carpeta: mataría la partida nueva.
+                bool reopened = Active && !string.IsNullOrEmpty(dir) && string.Equals(installDir, dir, StringComparison.OrdinalIgnoreCase);
+                uint now = pid;
                 foreach (var proc in Process.GetProcesses())
                     using (proc)
                     {
-                        bool match = (p != 0 && proc.Id == p) || Paths.Under(Native.ProcessPath((uint)proc.Id), dir);
+                        if (now != 0 && proc.Id == now) continue;
+                        bool match = (p != 0 && proc.Id == p) || (!reopened && Paths.Under(Native.ProcessPath((uint)proc.Id), dir));
                         if (match) try { proc.Kill(true); } catch { }
                     }
             }
