@@ -146,6 +146,26 @@ static class Native
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr hWnd, StringBuilder name, int max);
     public static string ClassName(IntPtr hWnd) { var sb = new StringBuilder(128); GetClassName(hWnd, sb, sb.Capacity); return sb.ToString(); }
 
+    [DllImport("user32.dll")] public static extern bool IsHungAppWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hWnd);
+    [DllImport("user32.dll")] public static extern bool EnableWindow(IntPtr hWnd, bool enable);
+    [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(Point p);
+    [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
+
+    /// <summary>Ventana principal (de nivel superior) que está en ese punto de la pantalla.</summary>
+    public static IntPtr RootAt(Point p)
+    {
+        IntPtr h = WindowFromPoint(p);
+        return h == IntPtr.Zero ? h : GetAncestor(h, 2 /* GA_ROOT */);
+    }
+
+    /// <summary>La ventanita (diálogo) que tiene bloqueada a esa ventana, si hay.</summary>
+    public static IntPtr BlockingPopup(IntPtr hWnd)
+    {
+        IntPtr p = GetWindow(hWnd, 6 /* GW_ENABLEDPOPUP */);
+        return p == hWnd ? IntPtr.Zero : p;
+    }
+
     public static string Title(IntPtr hWnd)
     {
         var sb = new StringBuilder(256);

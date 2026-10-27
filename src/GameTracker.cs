@@ -28,7 +28,14 @@ sealed class GameTracker
     int deadTicks;
     bool releasedTopMost;
 
+    /// <summary>La ventana que podría ser el juego mientras todavía carga (antes de quedar "listo").</summary>
+    public IntPtr Candidate => cand;
+
     public event Action<long> Ready, Failed, Exited;
+    /// <summary>Apareció la primera ventana del juego: la pantalla de carga ya no debe quedarse "siempre encima"
+    /// (si la tapa, algunos juegos no logran pasar a pantalla completa y se quedan en ventana o en negro).</summary>
+    public event Action WindowSeen;
+    bool seen;
     /// <summary>Pide quitar "siempre encima" a la pantalla de carga (un diálogo de Steam necesita verse).</summary>
     public event Action ReleaseTopMost;
 
@@ -54,7 +61,7 @@ sealed class GameTracker
     {
         AppId = appid; isSteam = steamGame; installDir = dir; slow = slowStart;
         start = DateTime.Now; steamDialogSince = DateTime.MinValue;
-        cand = hwnd = IntPtr.Zero; pid = 0; deadTicks = 0; IsReady = false; releasedTopMost = false;
+        cand = hwnd = IntPtr.Zero; pid = 0; deadTicks = 0; IsReady = false; releasedTopMost = false; seen = false;
         pushed.Clear();
         try { before = steamGame ? new() : Native.TopWindows().ToHashSet(); } catch { before = new(); }
         timer.Interval = 250;
@@ -116,6 +123,7 @@ sealed class GameTracker
 
             if (IsCandidate(fg, path, exe))
             {
+                if (!seen) { seen = true; Log.Write($"apareció la ventana del juego: {Native.Describe(fg)}"); WindowSeen?.Invoke(); }
                 Native.GetWindowRect(fg, out var r);
                 if (fg == cand && r.Equals(candRect))
                 {
@@ -236,6 +244,32 @@ sealed class GameTracker
         if (hwnd == IntPtr.Zero) return false;
         Native.ForceForeground(hwnd);
         return true;
+    }
+
+    /// <summary>Juego que no responde: se cierra a la fuerza ya (su proceso y lo que corra desde su carpeta).</summary>
+    public void Kill()
+    {
+        IntPtr h = hwnd != IntPtr.Zero ? hwnd : cand;
+        uint p = pid;
+        if (p == 0 && h != IntPtr.Zero) Native.GetWindowThreadProcessId(h, out p);
+        string dir = installDir;
+        long id = AppId;
+        Stop();
+        Log.Write($"cerrando a la fuerza {id} (pid {p})");
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                foreach (var proc in Process.GetProcesses())
+                    using (proc)
+                    {
+                        bool match = (p != 0 && proc.Id == p) || (!string.IsNullOrEmpty(dir) && Paths.Under(Native.ProcessPath((uint)proc.Id), dir));
+                        if (match) try { proc.Kill(true); } catch { }
+                    }
+            }
+            catch (Exception ex) { Log.Error("cerrar juego a la fuerza", ex); }
+        });
+        Exited?.Invoke(id);
     }
 
     /// <summary>Le pide al juego que se cierre normal; si a los 6 s sigue abierto (y es de Steam), lo cierra a la fuerza.</summary>

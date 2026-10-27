@@ -15,6 +15,8 @@ sealed class QuickOverlay : Form
     bool ready;
 
     public bool IsOpen { get; private set; }
+    /// <summary>La ventana sobre la que se abrió (el juego).</summary>
+    public IntPtr ReturnTo => returnTo;
     public CoreWebView2 View => ready ? web.CoreWebView2 : null;
     public event Action Hidden;
 
@@ -72,7 +74,11 @@ sealed class QuickOverlay : Form
             cw.WebResourceRequested += serveFiles;
         }
         cw.ProcessFailed += (_, e) => { Log.Write("menú rápido: WebView2 falló " + e.ProcessFailedKind); try { cw.Reload(); } catch { } };
-        cw.NavigationCompleted += (_, _) => ready = true;
+        cw.NavigationCompleted += (_, _) =>
+        {
+            ready = true;
+            if (reopen && IsOpen) { reopen = false; Post("quick.open"); Log.Write("menú rápido: recargado, se vuelve a abrir"); }
+        };
         cw.Navigate("https://app.scarlet/index.html?overlay=quick&v=" + Uri.EscapeDataString(stamp));
     }
 
@@ -101,7 +107,7 @@ sealed class QuickOverlay : Form
         if (!ready) { Log.Write("menú rápido: todavía cargando"); return false; }
         returnTo = front;
         Place();
-        IsOpen = true; IsClosing = false; FocusLost = false;
+        IsOpen = true; IsClosing = false; FocusLost = false; drawn = false;
         this.keepFocus = keepFocus;
         Native.SetNoActivate(Handle, keepFocus);
         if (keepFocus)
@@ -111,6 +117,7 @@ sealed class QuickOverlay : Form
             FocusLost = true;
             Post("quick.open");
             Log.Write($"menú rápido abierto sobre {Native.Describe(front)} (sin quitarle el foco)");
+            _ = CheckDrawn();
             return true;
         }
         _ = Task.Run(() => Log.Write("audio al abrir el menú: " + AudioMixer.Describe()));
@@ -121,6 +128,7 @@ sealed class QuickOverlay : Form
         Post("quick.open");
         Log.Write($"menú rápido abierto sobre {Native.Describe(front)}{(got ? "" : " (sin foco todavía)")}");
         _ = Reassert();
+        _ = CheckDrawn();
         return true;
     }
 
@@ -144,6 +152,43 @@ sealed class QuickOverlay : Form
         if (tries > 0) Log.Write(FocusLost
             ? $"menú rápido: {Native.Describe(Native.GetForegroundWindow())} no suelta el foco; el menú se maneja por la app{(Native.ExclusiveFullscreen() ? " (pantalla completa exclusiva)" : "")}"
             : $"menú rápido: el juego tomó el foco {tries} vez/veces, se recuperó");
+    }
+
+    bool drawn, reopen, stale;
+
+    /// <summary>La interfaz avisa que ya pintó el menú.</summary>
+    public void Ack() => drawn = true;
+
+    /// <summary>
+    /// Si el menú no se dibuja en 1 s (pasó al abrirlo mientras un juego cambiaba de resolución), se recarga solo
+    /// y se vuelve a abrir.
+    /// </summary>
+    async Task CheckDrawn()
+    {
+        await Task.Delay(1000);
+        if (!IsOpen || drawn) return;
+        Log.Write("menú rápido: no se dibujó; se recarga");
+        Reload(true);
+    }
+
+    void Reload(bool openAfter)
+    {
+        try { reopen = openAfter; ready = false; web.CoreWebView2?.Reload(); }
+        catch (Exception ex) { Log.Error("menú rápido (recargar)", ex); ready = true; }
+    }
+
+    /// <summary>
+    /// Cambió la pantalla (resolución o modo, p. ej. al arrancar un juego): el menú se vuelve a preparar para que la
+    /// siguiente vez abra bien. Si está abierto, se hace al cerrarse.
+    /// </summary>
+    public void Refresh(string why)
+    {
+        if (!ready && !stale) return;
+        if (IsOpen) { stale = true; return; }
+        stale = false;
+        Log.Write("menú rápido: se prepara de nuevo (" + why + ")");
+        Place();
+        Reload(false);
     }
 
     /// <summary>Un botón del mando que llegó por la app (el menú no tiene el foco).</summary>
@@ -170,6 +215,7 @@ sealed class QuickOverlay : Form
         try { Hidden?.Invoke(); } catch { }
         Log.Write($"menú rápido cerrado ({why ?? closeReason ?? "interfaz"})");
         closeReason = null;
+        if (stale) Refresh("pendiente");
         if (giveBack && returnTo != IntPtr.Zero && Native.IsWindow(returnTo)) Native.ForceForeground(returnTo);
     }
 

@@ -171,15 +171,17 @@ static class AudioMixer
     public sealed record Session(string exe, uint pid, bool active, int volume);
 
     /// <summary>Apps con sonido ahora mismo (sesiones del mezclador), con su volumen 0–100.</summary>
-    public static List<Session> Sessions()
+    /// <param name="strict">Si Windows no contesta, lanza error en vez de devolver la lista vacía (el menú distingue "nada suena" de "no se pudo leer").</param>
+    public static List<Session> Sessions(bool strict = false)
     {
         var list = new List<Session>();
-        Each((c2, vol, pid, exe) =>
+        bool ok = Each((c2, vol, pid, exe) =>
         {
             c2.GetState(out int state);
             vol.GetMasterVolume(out float level);
             list.Add(new Session(exe, pid, state == 1 /* activa */, (int)Math.Round(level * 100)));
         });
+        if (!ok && strict) throw new InvalidOperationException("Windows no dio las apps con sonido");
         return list;
     }
 
@@ -220,15 +222,15 @@ static class AudioMixer
         return string.Join(", ", parts);
     }
 
-    static void Each(Action<IAudioSessionControl2, ISimpleAudioVolume, uint, string> act)
+    static bool Each(Action<IAudioSessionControl2, ISimpleAudioVolume, uint, string> act)
     {
         try
         {
             var en = Enumerator();
-            if (en.GetDefaultAudioEndpoint(0, 1, out var dev) != 0 || dev == null) return;
+            if (en.GetDefaultAudioEndpoint(0, 1, out var dev) != 0 || dev == null) return false;
             var iid = typeof(IAudioSessionManager2).GUID;
-            if (dev.Activate(ref iid, 23, IntPtr.Zero, out object o) != 0 || o is not IAudioSessionManager2 mgr) return;
-            if (mgr.GetSessionEnumerator(out var sessions) != 0 || sessions == null) return;
+            if (dev.Activate(ref iid, 23, IntPtr.Zero, out object o) != 0 || o is not IAudioSessionManager2 mgr) return false;
+            if (mgr.GetSessionEnumerator(out var sessions) != 0 || sessions == null) return false;
             sessions.GetCount(out int count);
             for (int i = 0; i < count; i++)
             {
@@ -244,7 +246,8 @@ static class AudioMixer
                 }
                 finally { Marshal.ReleaseComObject(s); }
             }
+            return true;
         }
-        catch (Exception ex) { Log.Error("mezclador", ex); }
+        catch (Exception ex) { Log.Error("mezclador", ex); return false; }
     }
 }

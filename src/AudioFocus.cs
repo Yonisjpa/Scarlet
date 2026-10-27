@@ -85,11 +85,25 @@ static class AudioFocus
     {
         if (hWnd == IntPtr.Zero) return;
         string exe = Path.GetFileNameWithoutExtension(Native.WindowProcessPath(hWnd, out _) ?? "");
-        if (exe.Length == 0 || Never.Contains(exe) || IsMusic(exe)) return;
+        MuteExe(exe);
+    }
+
+    /// <summary>
+    /// Silencia una app por el nombre de su proceso (el juego que sigue Scarlet, aunque no sea la ventana del frente).
+    /// La música, Scarlet, Steam y el sistema nunca. Devuelve si quedó silenciada (tenía sonido que callar).
+    /// </summary>
+    public static bool MuteExe(string exe)
+    {
+        if (string.IsNullOrEmpty(exe) || Never.Contains(exe) || IsMusic(exe)) return false;
+        lock (gate) if (mutedApps.Contains(exe)) return true;
         int n = Apply(exe, true);
+        if (n == 0) return false;   // todavía no tiene sonido: se vuelve a intentar al rato
         lock (gate) { mutedApps.Add(exe); Save(); }
         Log.Write($"audio: {exe} silenciada ({n} sesión/es)");
+        return true;
     }
+
+    public static bool AnyMuted { get { lock (gate) return mutedApps.Count > 0; } }
 
     static bool steamMuted;
     public static bool SteamMuted => steamMuted;

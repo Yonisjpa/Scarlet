@@ -635,9 +635,7 @@ body{font-weight:400}
 /* mini reproductor en la barra de arriba */
 .npchip{display:flex;align-items:center;gap:1rem;height:4.2rem;padding:.5rem 1.4rem .5rem .5rem;border-radius:99rem;background:var(--bg2);color:var(--fg);font-size:1.5rem;max-width:30rem;cursor:pointer}
 .npchip[hidden]{display:none}
-.npchip .npart{width:3.2rem;height:3.2rem;border-radius:50%;flex:none;background:var(--line) center/cover no-repeat;animation:spinDisc 9s linear infinite}
-.npchip.paused .npart{animation-play-state:paused}
-@keyframes spinDisc{to{transform:rotate(360deg)}}
+.npchip .npart{width:3.2rem;height:3.2rem;border-radius:.6rem;flex:none;background:var(--line) center/cover no-repeat}
 .npchip .nptxt{display:flex;align-items:center;min-width:0}
 .npchip b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:20rem;order:2}
 .npchip .eq{order:1;height:1.4rem;color:var(--accent)}
@@ -1163,15 +1161,18 @@ const hasAch = g => g.ach && g.ach[1] > 0;
 /* ================= piezas de los mosaicos ================= */
 function tileExtras(g) {
   let h = "";
-  if (g.appid === state.running) h += `<span class="playing"><span class="pav">${avatarHTML()}</span><b>Jugando</b></span>`;
-  else if (isMusicTile(g)) h += `<span class="playing music${media.playing ? "" : " paused"}"><span class="pav">${avatarHTML()}</span><b><i class="eq"><i></i><i></i><i></i></i>${media.playing ? "Sonando" : "En pausa"}</b></span>`;
+  if (isMusicTile(g)) { const on = !!(media && media.playing && norm(media.app || "") === norm(g.name)); h += `<span class="playing music${on ? "" : " paused"}"><span class="pav">${avatarHTML()}</span><b><i class="eq"><i></i><i></i><i></i></i>${on ? "Sonando" : "En pausa"}</b></span>`; }
+  else if (g.appid === state.running) h += `<span class="playing"><span class="pav">${avatarHTML()}</span><b>Jugando</b></span>`;
   else if (!g.installed && !state.downloads[g.appid]) h += `<span class="badge cloud">${I.cloud}</span>`;
   const d = state.downloads[g.appid];
   if (d) h += `<div class="dl" data-dl="${g.appid}"><span>${esc(d.kind)} ${Math.round(d.p * 100)} %</span><b><i style="width:${d.p * 100}%"></i></b></div>`;
   return h;
 }
 /* ¿Este mosaico es la app que está sonando (Apple Music, Spotify…)? */
-const isMusicTile = g => !!(media && media.app && g.kind === "app" && g.appid !== state.running && norm(g.name) === norm(media.app));
+/* Apps de música (Apple Music, Spotify…) dicen "Sonando" / "En pausa" aunque sean la app abierta; YouTube, Netflix,
+   Prime Video y demás siguen con "Jugando". */
+const MUSIC_APP = /apple music|spotify|itunes|amazon music|deezer|tidal|youtube music|soundcloud/i;
+const isMusicTile = g => g.kind === "app" && (media && media.app && norm(g.name) === norm(media.app) || (g.appid === state.running && MUSIC_APP.test(g.name)));
 function buildTile(g, cls = "tile") {
   const b = document.createElement("button");
   b.className = cls + (g.installed ? "" : " uninst"); b.setAttribute("aria-label", g.name);
@@ -1569,7 +1570,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.8";
+let APP_VERSION = "0.4.9";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2727,6 +2728,17 @@ function closeRunning(silent) {
   state.running = null; renderHome();
   if (!silent) toast(`Se cerró ${g.name}`);
 }
+/* El juego dejó de responder: esperar o cerrarlo (en vez de quedarte viendo la pantalla negra). */
+Events.on("game.hung", async d => {
+  if (OVERLAY) return;
+  if (QM.open) closeQuick(true);
+  if (mode === "game") goHome();
+  await wait(400);
+  const name = (d && d.name) || "El juego";
+  const v = await choiceDialog(`${name} no responde.\n¿Esperas un poco más o lo cierras?`, [{ label: "Esperar", value: "wait" }, { label: "Cerrar juego", value: "kill" }], 0);
+  if (v === "kill") { Host.call("game.kill").catch(() => {}); toast(`Se cerró ${name}`); }
+  else { Host.call("game.wait").catch(() => {}); const g = runningGame(); if (g) { showGame(g); mode = "game"; } }
+});
 Events.on("game.exited", d => {
   if (!state.running || (d && d.appid != state.running)) return;
   if (mode === "game") goHome();
@@ -2862,16 +2874,14 @@ function renderQuick() {
 function openQuick() {
   if (QM.open || !["ui", "game"].includes(mode)) return;
   QM.open = true; QM.i = 0; QM.m = 2; renderQuick(); tintQuick(); mediaTick();
-  if (Host.has) Host.call("media.state").then(m => setMedia(m)).catch(() => {});
-  QM.mix = null; QM.outs = null;
+  // Cada vez que se abre se vuelve a leer todo (juego, barras, Salida, Dolby, canción, batería). Mientras llega,
+  // se ve lo último que se sabía; lo que no conteste a tiempo se queda con su último valor.
   if (Host.has) {
-    Host.call("system.state").then(st => { if (st) { for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; saveSys(); } if (QM.open) renderQuick(); }).catch(() => {});
-    Host.call("audio.outputs").then(o => qmPatch(() => { QM.outs = o || []; })).catch(() => {});
-    Host.call("battery.info").then(b => { battInfo = b; if (QM.open) renderQuick(); }).catch(() => {});
-    liveQuick();
-    clearInterval(QM.live); QM.live = setInterval(() => { if (!QM.open) return clearInterval(QM.live); liveQuick(); }, 2000);
+    liveQuick(true);
+    clearInterval(QM.live); QM.live = setInterval(() => { if (!QM.open) return clearInterval(QM.live); liveQuick(false); }, 2000);
   }
   $("#quick").classList.add("show"); $("#qshade").classList.add("show"); play("select");
+  if (OVERLAY && Host.has) requestAnimationFrame(() => requestAnimationFrame(() => Host.call("quick.shown").catch(() => {})));   // ya se dibujó
 }
 /* Cambia filas del menú sin que el foco brinque (si aparecen o desaparecen filas arriba del foco). */
 function qmPatch(fn) {
@@ -2883,15 +2893,19 @@ function qmPatch(fn) {
   renderQuick();
 }
 /* Barras de volumen y Dolby en vivo: cada 2 s mientras el menú está abierto. */
-function liveQuick() {
-  Host.call("quick.live").then(r => {
+function liveQuick(full) {
+  Host.call("quick.live", { full: !!full }).then(r => {
     if (!r || !QM.open) return;
     const touching = Date.now() - (QM.mixTouched || 0) < 2500;
+    if (r.system) { for (const k in r.system) if (r.system[k] != null && k in sys) sys[k] = r.system[k]; saveSys(); }
+    if ("battery" in r) battInfo = r.battery;
+    if ("media" in r) setMedia(r.media);
     qmPatch(() => {
       if (Array.isArray(r.mixer)) {
         if (touching && QM.mix && QM.mix.length === r.mixer.length) r.mixer.forEach((m, j) => m.volume = QM.mix[j].volume);   // no pelear con lo que estás moviendo
         QM.mix = r.mixer;
       }
+      if (Array.isArray(r.outputs)) QM.outs = r.outputs;
       if (typeof r.atmos === "boolean") ATMOS = r.atmos;
     });
   }).catch(() => {});
@@ -2899,6 +2913,7 @@ function liveQuick() {
 function closeQuick(stay, why = "B") {
   if (!QM.open) return;
   QM.open = false; $("#quick").classList.remove("show"); $("#qshade").classList.remove("show"); play("back");
+  clearInterval(QM.live); clearInterval(mediaTimer);   // nada del menú se queda corriendo de fondo
   if (OVERLAY) { if (!stay) setTimeout(() => Host.call("quick.close", { why }).catch(() => {}), 240); return; }
   if (!stay && Host.has && mode === "game") Host.call("game.focus").catch(() => {});
 }
