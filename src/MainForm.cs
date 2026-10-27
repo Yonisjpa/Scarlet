@@ -39,10 +39,13 @@ sealed class MainForm : Form
 
     static readonly JsonSerializerOptions J = new() { PropertyNamingPolicy = null, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
-    public MainForm(Config cfg, bool startup)
+    readonly bool updated;
+
+    public MainForm(Config cfg, bool startup, bool updated = false)
     {
         this.cfg = cfg;
         this.startup = startup;
+        this.updated = updated;
         steam = new SteamService(cfg);
         art = new ArtCache(cfg, steam);
         pads = new PadService(cfg);
@@ -180,7 +183,9 @@ sealed class MainForm : Form
             friendsTimer.Tick += async (_, _) => await steam.FriendsAsync(true);
 
             if (string.IsNullOrEmpty(cfg.InternalDisplay)) { cfg.InternalDisplay = Screen.PrimaryScreen.DeviceName; cfg.Save(); }
-            Log.Write("Scarlet listo" + (startup ? " (inicio con Windows)" : ""));
+            Log.Write("Scarlet listo" + (startup ? " (inicio con Windows)" : "") + (updated ? " (recién actualizada)" : ""));
+            // Modo seguro: si la versión nueva aguanta medio minuto abierta sin tronar, deja de estar a prueba.
+            _ = Task.Delay(TimeSpan.FromSeconds(30)).ContinueWith(_ => UpdateService.ConfirmGood());
         }
         catch (WebView2RuntimeNotFoundException)
         {
@@ -351,7 +356,10 @@ sealed class MainForm : Form
             }
             case "game.focus": FocusGame(); return true;
             case "media.state": return media.State;
-            case "app.info": return new { startup, version = Application.ProductVersion };
+            case "app.info": return new { startup, updated, rolledBack = UpdateService.TakeRolledBackNotice(), version = Application.ProductVersion };
+            case "update.check": return await UpdateService.CheckAsync();
+            case "update.install":
+                return await UpdateService.InstallAsync(pr => Emit("update.progress", new { p = pr }), () => BeginInvoke(new Action(() => { Log.Write("cerrando para actualizar"); Close(); })));
             case "game.pausepref":
             {
                 long id = P.L(p, "appid");
@@ -732,7 +740,6 @@ sealed class MainForm : Form
         steamUiAllowed = false;   // de regreso en Scarlet: Steam vuelve a esconderse
         var fg = Native.GetForegroundWindow();
         if (fg != IntPtr.Zero && fg != Handle) lastForeign = fg;
-        if (cfg.MuteBehind && fg != IntPtr.Zero && fg != Handle && !(quick != null && fg == quick.Handle)) AudioFocus.MuteWindow(fg);
         if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
         web.Visible = true;
         Native.ForceForeground(Handle);
@@ -883,10 +890,11 @@ sealed class MainForm : Form
     async void BringUiToFront()
     {
         IntPtr game = Native.GetForegroundWindow();
+        // Silenciar el foco: solo cuando tú vas al menú (no cuando un juego se cierra y queda otra app al frente).
+        if (cfg.MuteBehind && game != IntPtr.Zero && game != Handle && !(quick != null && game == quick.Handle)) AudioFocus.MuteWindow(game);
         ShowUi();
         await Task.Delay(150);
-        PauseGameIfMarked();
-        if (Native.GetForegroundWindow() == Handle) return;
+        if (Native.GetForegroundWindow() == Handle) { PauseGameIfMarked(); return; }
         IntPtr now = Native.GetForegroundWindow();
         Log.Write($"Scarlet no pudo pasar al frente: {Native.Describe(now)} no suelta la pantalla; se minimiza{(Native.ExclusiveFullscreen() ? " (pantalla completa exclusiva)" : "")}");
         WarnExclusive();
@@ -898,7 +906,8 @@ sealed class MainForm : Form
         web.Focus();
         await Task.Delay(400);
         TopMost = false;   // solo un instante: luego el juego debe poder volver al frente
-        if (!ok && Native.GetForegroundWindow() != Handle) Log.Write($"Scarlet sigue detrás de {Native.Describe(Native.GetForegroundWindow())}");
+        if (Native.GetForegroundWindow() == Handle) PauseGameIfMarked();   // congelar solo si Scarlet de verdad quedó al frente
+        else if (!ok) Log.Write($"Scarlet sigue detrás de {Native.Describe(Native.GetForegroundWindow())}");
     }
 
     /// <summary>Una vez por juego: si está en pantalla completa exclusiva, se avisa que conviene "ventana sin bordes".</summary>

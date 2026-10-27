@@ -17,12 +17,15 @@ static class Program
         if (!first) { show.Set(); return; }   // ya está abierta: que se ponga al frente
 
         Log.Write($"--- Scarlet alpha {Application.ProductVersion} {string.Join(" ", args)}");
+        // Modo seguro: si la versión nueva ya falló dos veces al abrir, se regresa a la anterior y esta copia no sigue.
+        if (UpdateService.StartupCheck()) return;
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         Application.ThreadException += (_, e) => Log.Error("ui", e.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
             Log.Write("ERROR FATAL: " + e.ExceptionObject);
-            Restart("error fatal");
+            // Versión recién actualizada que vuelve a tronar: se regresa a la anterior en vez de reiniciar la que falla.
+            if (!UpdateService.RollbackNowIfFailing()) Restart("error fatal");
             // Sin esperar al reporte de errores de Windows (tardaba ~10 s): la copia nueva entra de inmediato.
             try { Process.GetCurrentProcess().Kill(); } catch { }
         };
@@ -55,7 +58,7 @@ static class Program
             if (setup.ShowDialog() != DialogResult.OK) return;
         }
 
-        var main = new MainForm(cfg, args.Contains("--startup"));
+        var main = new MainForm(cfg, args.Contains("--startup"), args.Contains("--updated"));
         var listener = new Thread(() =>
         {
             try

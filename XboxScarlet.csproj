@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Scarlet · app de Windows (alpha 0.3)
+    Scarlet · app de Windows (alpha 0.4)
     Ventana a pantalla completa con WebView2 que carga la interfaz (web\index.html)
     y le da acceso a Steam, al botón Xbox, al sistema y a los mandos.
     Compilar: build.cmd  (o abrir en Visual Studio 2022 y presionar F5)
@@ -19,8 +19,8 @@
     <RootNamespace>XboxScarlet</RootNamespace>
     <ApplicationIcon>scarlet.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>0.3.0</Version>
-    <InformationalVersion>0.3</InformationalVersion>
+    <Version>0.4.0</Version>
+    <InformationalVersion>0.4</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>Scarlet</Product>
     <Company>Proyecto personal</Company>

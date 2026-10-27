@@ -1452,6 +1452,43 @@ function propsView(g) {
   };
 }
 
+/* --- actualizaciones desde GitHub --- */
+let APP_VERSION = "0.4";
+const updState = { available: false, latest: null };
+function updateView() {
+  return {
+    hints() { return this.info && this.info.available && !this.busy ? [["B", "Atrás"], ["A", "Descargar e instalar"]] : [["B", "Atrás"]]; },
+    render(el) {
+      el.innerHTML = head(I.gear, "Actualizaciones") + `<div class="vbody"><div class="upd"><p class="note">Buscando la versión más nueva…</p></div></div>`;
+      if (!Host.has) { $(".upd", el).innerHTML = `<p class="note">En la consola aquí se revisa GitHub y se instala la versión nueva.</p>`; return; }
+      Host.call("update.check").then(r => { this.info = r || {}; this.paint(); }).catch(() => { this.info = { error: "No se pudo revisar." }; this.paint(); });
+    },
+    paint() {
+      const r = this.info, box = $(".upd", this.el); if (!box) return;
+      if (r.available) { updState.available = true; updState.latest = r.latest; }
+      box.innerHTML = `<dl class="kv"><dt>Tienes</dt><dd>alpha ${esc(r.current || APP_VERSION)}</dd>${r.latest ? `<dt>Publicada</dt><dd>alpha ${esc(r.latest)}${r.sizeMb ? ` · ${r.sizeMb} MB` : ""}</dd>` : ""}</dl>
+        ${r.error ? `<p class="note">${esc(r.error)}</p>` : r.available ? `<h2 style="margin-top:2rem">${esc(r.name || "Versión nueva")}</h2><p class="note" style="white-space:pre-wrap">${esc((r.notes || "").replace(/[#*`]/g, "").trim())}</p>
+        <p class="note">Presiona A para descargarla. Scarlet se cerrará unos segundos y volverá a abrir ya actualizada. Tu configuración y portadas se quedan igual. Si la versión nueva fallara al abrir, se regresa sola a la que tienes ahora.</p>
+        <div class="prog" style="display:none"><div class="bar"><i style="width:0"></i></div><span>0 %</span></div>` : `<p class="note">Ya tienes la versión más nueva.</p>`}`;
+      updateFocus();
+    },
+    onKey(k) {
+      if (k !== "a") return false;
+      if (!this.info || !this.info.available || this.busy) { play("bump"); return true; }
+      this.busy = true; play("select"); updateFocus();
+      const pg = $(".prog", this.el); pg.style.display = "";
+      const off = Events.on("update.progress", d => { $(".prog i", this.el).style.width = d.p * 100 + "%"; $(".prog span", this.el).textContent = d.p >= 1 ? "Instalando…" : Math.round(d.p * 100) + " %"; });
+      Host.call("update.install").then(r => {
+        if (r && r.ok) { $(".prog span", this.el).textContent = "Instalando… Scarlet se reinicia"; return; }
+        off(); this.busy = false; toast((r && r.error) || "No se pudo actualizar"); this.paint();
+      }).catch(() => { off(); this.busy = false; toast("No se pudo actualizar"); this.paint(); });
+      return true;
+    },
+    onB() { return this.busy; },
+    items() { return []; }
+  };
+}
+
 /* --- grupos de un juego: marcar / desmarcar y crear nuevos --- */
 function groupsView(g, onChange) {
   return {
@@ -2020,7 +2057,8 @@ function settingsView() {
     { label: "Probar: batería baja", desc: "Aviso de batería", val: () => "", act() { notifyBattery(.15); } },
     { label: "Probar: mando conectado", desc: "Aviso de mando", val: () => "", act() { notify({ icon: I.pad, title: "Mando conectado", text: "Mando Xbox inalámbrico" }); } },
     { label: "Probar: actualización", desc: "Barra de descarga sobre un juego", val: () => "", act() { const g = games.find(x => x.installed && x.kind !== "app" && x.appid !== state.running && !state.downloads[x.appid]); if (g) { startDownload(g, "Actualizando"); toast("Actualizando " + g.name); } } },
-    { label: "Acerca de", desc: "Scarlet · alpha 0.3 · proyecto personal", val: () => "alpha 0.3", act() {} }
+    { label: "Buscar actualizaciones", desc: "Descarga e instala la versión más nueva de Scarlet desde GitHub", val: () => updState.available ? "Nueva: alpha " + updState.latest : "›", act() { openView(updateView()); } },
+    { label: "Acerca de", desc: `Scarlet · alpha ${APP_VERSION} · proyecto personal`, val: () => "alpha " + APP_VERSION, act() {} }
   ];
   if (Host.has) {   // en la app real: sin botones de prueba y con cuentas / salir
     for (let i = rows.length - 1; i >= 0; i--) if (rows[i].label.startsWith("Probar")) rows.splice(i, 1);
@@ -2843,7 +2881,7 @@ Events.on("quick.toggle", () => QM.open ? closeQuick() : openQuick());
 Events.on("quick.open", () => { lastActivity = performance.now(); dimmed = false; mode = "ui"; QM.open = false; openQuick(); });
 Events.on("quick.close", () => { if (QM.open) closeQuick(false, "botón Xbox"); else Host.call("quick.close", { why: "botón Xbox" }).catch(() => {}); });
 /* Botones que manda la app cuando el juego se quedó con el foco: así el menú siempre se puede usar y cerrar. */
-Events.on("pad.key", k => { if (OVERLAY && !document.hasFocus() && typeof k === "string") { lastActivity = performance.now(); input(k); } });
+Events.on("pad.key", k => { if (OVERLAY && QM.open && !document.hasFocus() && typeof k === "string") { lastActivity = performance.now(); input(k); } });
 /* El juego está en pantalla completa exclusiva: ahí el menú puede fallar. Encima del juego no se alcanza a ver, así que se avisa al volver al Inicio. */
 let exclusiveWarn = false;
 const flushExclusive = () => { if (!exclusiveWarn || mode !== "ui") return; exclusiveWarn = false; notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4.5" width="19" height="13" rx="2"/><path d="M8 21h8"/></svg>', title: "Pantalla completa exclusiva", text: "Pon el juego en «ventana sin bordes» para que el menú funcione siempre" }); };
@@ -3224,8 +3262,15 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
   renderUsers();
   if (mode !== "boot") renderHome();
   if (Host.has) setTimeout(dismissBoot, 2200);
+  const info = Host.has ? await Host.call("app.info").catch(() => null) : null;
+  if (info && info.version) APP_VERSION = String(info.version).replace(/\.0$/, "");
+  if (info && info.updated) setTimeout(() => notify({ icon: I.gear, title: "Scarlet se actualizó", text: `Ya tienes la alpha ${APP_VERSION}` }), 3000);
+  if (info && info.rolledBack) setTimeout(() => notify({ icon: I.gear, title: "Se regresó a la versión anterior", text: `La alpha ${info.rolledBack} no abrió bien; sigues con la alpha ${APP_VERSION}` }), 3000);
+  if (Host.has && Date.now() - (settings.updChecked || 0) > 864e5) setTimeout(() => Host.call("update.check").then(r => {
+    settings.updChecked = Date.now(); saveSettings();
+    if (r && r.available) { updState.available = true; updState.latest = r.latest; notify({ icon: I.gear, title: "Hay una actualización", text: `alpha ${r.latest} · Ajustes › Buscar actualizaciones` }); }
+  }).catch(() => {}), 15000);
   if (Host.has && settings.bootLast) {   // al encender: directo al último juego (solo si la consola acaba de arrancar)
-    const info = await Host.call("app.info").catch(() => null);
     const last = info && info.startup && !state.running && games.find(g => g.kind !== "app" && g.installed && !isHidden(g));
     if (last) setTimeout(() => { if (mode === "ui" && !state.running) { toast("Abriendo " + last.name); launchGame(last); } }, 2600);
   }

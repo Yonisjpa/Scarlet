@@ -1,4 +1,4 @@
-# Scarlet · alpha 0.3 (app de Windows)
+# Scarlet · alpha 0.4 (app de Windows)
 
 Launcher a pantalla completa estilo consola para la ROG Xbox Ally X. La interfaz es la misma de la demo (`web/index.html`); la app de Windows (C# + WebView2) le da acceso real a Steam, al botón Xbox, al sistema y a los mandos. Proyecto personal.
 
@@ -136,3 +136,12 @@ src\SetupForm.cs     cuentas y arranque
 - `build.cmd` — compila en Windows y deja la app en `dist\Scarlet`.
 
 Tus claves, configuración, caché y logs viven en `%APPDATA%\Scarlet` y `%LOCALAPPDATA%\Scarlet`, nunca en este repo.
+
+## Actualizar
+
+Desde la alpha 0.4, Scarlet se actualiza sola: **Ajustes › Buscar actualizaciones**. Descarga la versión nueva de los
+[Releases](https://github.com/Yonisjpa/Scarlet/releases) de este repo, cierra la app unos segundos y la vuelve a abrir.
+Si la versión nueva fallara al abrir dos veces seguidas, se regresa sola a la anterior.
+
+Cada vez que se sube un cambio a `main`, GitHub compila la app. Si la `<Version>` del `.csproj` es nueva, publica un
+Release con `Scarlet-win-x64.zip` y las notas de `NOTAS.md`.
