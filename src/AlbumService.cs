@@ -1,4 +1,7 @@
 using Microsoft.VisualBasic.FileIO;
+using Windows.Media.Editing;
+using Windows.Media.Transcoding;
+using Windows.Storage;
 
 namespace XboxScarlet;
 
@@ -101,6 +104,42 @@ sealed class AlbumService
             catch (IOException) { }
             catch (Exception ex) { Log.Error("captura nueva", ex); return; }
         }
+    }
+
+    public bool IsAlbumFile(string path) => !string.IsNullOrEmpty(path) && File.Exists(path) && Roots().Any(r => Paths.Under(path, r));
+
+    /// <summary>
+    /// Recorta un video (de "start" a "end" segundos) y lo guarda junto al original como "… (recorte).mp4".
+    /// Usa el editor de video de Windows; el original no se toca.
+    /// </summary>
+    public async Task<object> TrimAsync(string path, double start, double end)
+    {
+        if (!IsAlbumFile(path)) return new { ok = false, error = "No encontré el video." };
+        try
+        {
+            var file = await StorageFile.GetFileFromPathAsync(path);
+            var clip = await MediaClip.CreateFromFileAsync(file);
+            var total = clip.OriginalDuration;
+            var a = TimeSpan.FromSeconds(Math.Clamp(start, 0, total.TotalSeconds));
+            var b = TimeSpan.FromSeconds(Math.Clamp(end, 0, total.TotalSeconds));
+            if (b - a < TimeSpan.FromSeconds(1)) return new { ok = false, error = "El recorte debe durar al menos 1 segundo." };
+            clip.TrimTimeFromStart = a;
+            clip.TrimTimeFromEnd = total - b;
+            var comp = new MediaComposition();
+            comp.Clips.Add(clip);
+            var folder = await StorageFolder.GetFolderFromPathAsync(Path.GetDirectoryName(path));
+            var outFile = await folder.CreateFileAsync(Path.GetFileNameWithoutExtension(path) + " (recorte).mp4", CreationCollisionOption.GenerateUniqueName);
+            var r = await comp.RenderToFileAsync(outFile, MediaTrimmingPreference.Fast);
+            if (r != TranscodeFailureReason.None)
+            {
+                try { await outFile.DeleteAsync(); } catch { }
+                Log.Write("recorte falló: " + r);
+                return new { ok = false, error = "Windows no pudo recortar este video (" + r + ")." };
+            }
+            Log.Write($"recorte: {Path.GetFileName(outFile.Path)} ({a.TotalSeconds:0.#}–{b.TotalSeconds:0.#} s)");
+            return new { ok = true, item = Item(outFile.Path) };
+        }
+        catch (Exception ex) { Log.Error("recortar", ex); return new { ok = false, error = "No se pudo recortar el video." }; }
     }
 
     public bool Delete(string path)

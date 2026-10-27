@@ -23,6 +23,7 @@ sealed class MainForm : Form
     readonly SystemService sys = new();
     readonly XInputService xin = new();
     readonly MediaService media;
+    readonly ShareServer share = new();
     readonly List<AppEntry> apps;
     GameTracker tracker;
     QuickOverlay quick;
@@ -321,6 +322,17 @@ sealed class MainForm : Form
             // ── Álbum
             case "album.list": return await Task.Run(() => album.List());
             case "album.delete": return album.Delete(P.S(p, "path"));
+            case "album.trim": return await album.TrimAsync(P.S(p, "path"), P.D(p, "start"), P.D(p, "end"));
+            case "album.share":
+            {
+                var list = p.TryGetProperty("paths", out var arr) && arr.ValueKind == JsonValueKind.Array
+                    ? arr.EnumerateArray().Select(x => x.GetString()).Where(album.IsAlbumFile).ToList() : new List<string>();
+                var r = share.Start(list);
+                _ = BringFirewallPromptAsync();
+                return r;
+            }
+            case "album.shareStop": share.Stop(); return true;
+            case "album.copy": return CopyToClipboard(P.S(p, "path"));
             case "capture.take": return false;   // en la app real las capturas vienen de la Game Bar / Steam
 
             // ── Juegos
@@ -626,6 +638,52 @@ sealed class MainForm : Form
         TopMost = false;
         ShowUi();
         Emit("game.exited", new { appid });
+    }
+
+    /// <summary>Copia la captura al portapapeles: como imagen (para pegarla en Discord / WhatsApp Web) y como archivo.</summary>
+    bool CopyToClipboard(string path)
+    {
+        if (!album.IsAlbumFile(path)) return false;
+        try
+        {
+            var data = new DataObject();
+            data.SetFileDropList(new System.Collections.Specialized.StringCollection { path });
+            Image img = null;
+            if (!Regex.IsMatch(path, @"\.(mp4|webm)$", RegexOptions.IgnoreCase))
+            {
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var tmp = Image.FromStream(fs);
+                img = new Bitmap(tmp);
+                data.SetImage(img);
+            }
+            Clipboard.SetDataObject(data, true);
+            img?.Dispose();
+            return true;
+        }
+        catch (Exception ex) { Log.Error("copiar captura", ex); return false; }
+    }
+
+    /// <summary>
+    /// La primera vez que se comparte, Windows pregunta si deja que Scarlet reciba conexiones en tu red.
+    /// Esa ventanita quedaría detrás de Scarlet, así que se trae al frente.
+    /// </summary>
+    async Task BringFirewallPromptAsync()
+    {
+        for (int i = 0; i < 12; i++)
+        {
+            await Task.Delay(500);
+            foreach (var h in Native.TopWindows())
+            {
+                string t = Native.Title(h);
+                if (t.Contains("Firewall", StringComparison.OrdinalIgnoreCase) || t.Contains("seguridad de Windows", StringComparison.OrdinalIgnoreCase) || t.Contains("Windows Security", StringComparison.OrdinalIgnoreCase))
+                {
+                    TopMost = false;
+                    Native.ForceForeground(h);
+                    Log.Write("compartir: Windows pide permiso de red: " + t);
+                    return;
+                }
+            }
+        }
     }
 
     // ───── Tiempo de juego (Xbox y apps) ─────
