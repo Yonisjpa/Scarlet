@@ -127,9 +127,12 @@ sealed class MediaService
         aumid.Contains("chrome", StringComparison.OrdinalIgnoreCase) ? "Chrome" : aumid.Split('!')[0].Split('_')[0];
 
     /// <summary>La carátula se guarda en la caché (una vez por canción) y se sirve como archivo local.</summary>
+    // Apple Music a veces avisa la canción antes de tener lista la carátula (llega vacía): se vuelve a pedir un par de veces.
+    string retryKey;
+    int retries;
+
     async Task<string> ArtAsync(GlobalSystemMediaTransportControlsSessionMediaProperties props)
     {
-        if (props.Thumbnail == null) return null;
         string key = (props.Title + "|" + props.Artist + "|" + props.AlbumTitle);
         if (key == lastArtKey) return lastArtUrl;
         try
@@ -138,14 +141,33 @@ sealed class MediaService
             Directory.CreateDirectory(dir);
             string stem = "music_" + Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(key)))[..16];
             string file = Directory.EnumerateFiles(dir, stem + ".*").FirstOrDefault();
+            if (file != null && new FileInfo(file).Length < 200) { try { File.Delete(file); } catch { } file = null; }   // guardada vacía antes
             if (file == null)
             {
-                using IRandomAccessStreamWithContentType ras = await props.Thumbnail.OpenReadAsync();
-                string ext = ras.ContentType?.Contains("png", StringComparison.OrdinalIgnoreCase) == true ? ".png" : ".jpg";
+                byte[] bytes = null;
+                if (props.Thumbnail != null)
+                {
+                    using IRandomAccessStreamWithContentType ras = await props.Thumbnail.OpenReadAsync();
+                    using var input = ras.AsStreamForRead();
+                    using var ms = new MemoryStream();
+                    await input.CopyToAsync(ms);
+                    bytes = ms.ToArray();
+                }
+                if (bytes == null || bytes.Length < 200)
+                {
+                    if (retryKey != key) { retryKey = key; retries = 0; }
+                    if (retries < 4)
+                    {
+                        int wait = new[] { 1200, 2500, 5000, 9000 }[retries++];
+                        _ = Task.Delay(wait).ContinueWith(_ => RefreshAsync());
+                    }
+                    else Log.Write($"música: {props.Title} no trae carátula");
+                    return null;
+                }
+                // El tipo real se ve en los primeros bytes (algunas apps lo reportan mal).
+                string ext = bytes[0] == 0x89 && bytes[1] == 0x50 ? ".png" : bytes[0] == 0xFF && bytes[1] == 0xD8 ? ".jpg" : bytes[0] == 'R' && bytes[1] == 'I' ? ".webp" : ".png";
                 file = Path.Combine(dir, stem + ext);
-                using var input = ras.AsStreamForRead();
-                using var fs = File.Create(file);
-                await input.CopyToAsync(fs);
+                await File.WriteAllBytesAsync(file, bytes);
             }
             lastArtKey = key;
             lastArtUrl = ArtCache.LocalUrl(file);

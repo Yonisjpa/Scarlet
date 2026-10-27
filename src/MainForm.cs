@@ -203,6 +203,7 @@ sealed class MainForm : Form
     void SlowTick()
     {
         slowTicks++;
+        CloseStrayBigPicture();
         // Si saliste de Scarlet por otro lado (selector de ventanas, Alt+Tab), lo que estaba silenciado vuelve a sonar.
         var front = Native.GetForegroundWindow();
         if (front != Handle && !(quick != null && front == quick.Handle))
@@ -357,7 +358,7 @@ sealed class MainForm : Form
             case "game.focus": FocusGame(); return true;
             case "media.state": return media.State;
             case "app.icon": return await AppIconAsync(P.L(p, "appid"));
-            case "app.info": return new { startup, updated, rolledBack = UpdateService.TakeRolledBackNotice(), version = Application.ProductVersion };
+            case "app.info": return new { startup, updated, rolledBack = UpdateService.TakeRolledBackNotice(), version = Application.ProductVersion, dolby = DolbyInstalled() };
             case "update.check": return await UpdateService.CheckAsync();
             case "update.install":
                 return await UpdateService.InstallAsync(pr => Emit("update.progress", new { p = pr }), () => BeginInvoke(new Action(() => { Log.Write("cerrando para actualizar"); Close(); })));
@@ -375,6 +376,11 @@ sealed class MainForm : Form
                 if (!cfg.MuteBehind) AudioFocus.RestoreAll();
                 return true;
             case "game.state": return new { appid = tracker.Active ? tracker.AppId : 0, ready = tracker.IsReady };
+            case "game.detach":   // dejar la app abierta en segundo plano (música, YouTube) y dejar de seguirla
+                GameFreezer.Resume(); FlushPlay(); playKey = null;
+                Log.Write($"{tracker.AppId} queda abierta en segundo plano");
+                tracker.Stop(); steam.SetRunning(0); AudioFocus.RestoreAll();
+                return true;
             case "game.close": GameFreezer.Resume(); FlushPlay(); playKey = null; tracker.Close(); steam.SetRunning(0); AudioFocus.RestoreAll(); return true;   // congelado no podría cerrarse bien
             case "game.uninstall": Shell.Open("steam://uninstall/" + P.L(p, "appid")); return true;
 
@@ -584,8 +590,22 @@ sealed class MainForm : Form
         ".mp3" => "audio/mpeg",
         ".ogg" => "audio/ogg",
         ".m4a" => "audio/mp4",
+        ".img" => Sniff(path),
         _ => "application/octet-stream"
     };
+
+    /// <summary>Imágenes guardadas sin extensión (íconos de sitios web): el tipo se ve en los primeros bytes.</summary>
+    static string Sniff(string path)
+    {
+        try
+        {
+            var b = new byte[4];
+            using (var f = File.OpenRead(path)) f.Read(b, 0, 4);
+            return b[0] == 0x89 && b[1] == 0x50 ? "image/png" : b[0] == 0xFF && b[1] == 0xD8 ? "image/jpeg" : b[0] == 'G' && b[1] == 'I' ? "image/gif"
+                : b[0] == 'R' && b[1] == 'I' ? "image/webp" : b[0] == 0 && b[1] == 0 && b[2] == 1 ? "image/x-icon" : "application/octet-stream";
+        }
+        catch { return "application/octet-stream"; }
+    }
 
     // ───────────────────────────── Juegos ─────────────────────────────
 
@@ -651,6 +671,23 @@ sealed class MainForm : Form
         Emit("game.exited", new { appid });
     }
 
+    static bool? dolby;
+    /// <summary>¿La consola tiene Dolby Atmos (Dolby Access o el audio Dolby de ASUS)?</summary>
+    static bool DolbyInstalled()
+    {
+        if (dolby != null) return dolby.Value;
+        try
+        {
+            var pm = new Windows.Management.Deployment.PackageManager();
+            dolby = pm.FindPackagesForUser("").Any(p => (p.Id.FamilyName ?? "").Contains("Dolby", StringComparison.OrdinalIgnoreCase));
+            if (dolby == false)
+                using (var k = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Dolby")) dolby = k != null;
+        }
+        catch { dolby = false; }
+        Log.Write("Dolby Atmos: " + (dolby == true ? "sí" : "no encontrado"));
+        return dolby.Value;
+    }
+
     static readonly HttpClient web2 = new() { Timeout = TimeSpan.FromSeconds(12) };
     static MainForm() { web2.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 Edg/130.0"); }
 
@@ -696,12 +733,24 @@ sealed class MainForm : Form
                 var h = Regex.Match(t.Value, @"href=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
                 if (h.Success) candidates.Add((new Uri(home, System.Net.WebUtility.HtmlDecode(h.Groups[1].Value)).ToString(), 180));
             }
-            var best = candidates.Where(c => !c.url.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)).OrderByDescending(c => c.size).FirstOrDefault();
-            if (best.url == null) { Log.Write($"ícono de {a.Name}: el sitio no declara uno"); return null; }
+            foreach (Match t in Regex.Matches(html, @"<link[^>]+rel=[""'](?:shortcut )?icon[""'][^>]*>", RegexOptions.IgnoreCase))
+            {
+                var h = Regex.Match(t.Value, @"href=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
+                var sz = Regex.Match(t.Value, @"sizes=[""'](\d+)x", RegexOptions.IgnoreCase);
+                if (h.Success) candidates.Add((new Uri(home, System.Net.WebUtility.HtmlDecode(h.Groups[1].Value)).ToString(), sz.Success ? int.Parse(sz.Groups[1].Value) : 32));
+            }
+            var best = candidates.Where(c => !c.url.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) && c.size >= 96).OrderByDescending(c => c.size).FirstOrDefault();
+            // Respaldo: el servicio de íconos de Google da el ícono más grande que tenga el sitio.
+            if (best.url == null) best = ($"https://www.google.com/s2/favicons?domain={home.Host}&sz=256", 256);
             Log.Write($"ícono de {a.Name}: {best.url}");
             return await art.CacheAsync(best.url, "appicon");
         }
-        catch (Exception ex) { Log.Error("ícono de " + a.Name, ex); return null; }
+        catch (Exception ex)
+        {
+            Log.Error("ícono de " + a.Name, ex);
+            try { return await art.CacheAsync($"https://www.google.com/s2/favicons?domain={new Uri(m.Value).Host}&sz=256", "appicon"); }
+            catch { return null; }
+        }
     }
 
     /// <summary>Copia la captura al portapapeles: como imagen (para pegarla en Discord / WhatsApp Web) y como archivo.</summary>
@@ -860,6 +909,34 @@ sealed class MainForm : Form
             }, IntPtr.Zero);
         }
         catch (Exception ex) { Log.Error("ventanas de Steam", ex); }
+    }
+
+    DateTime lastBpClose = DateTime.MinValue;
+
+    /// <summary>
+    /// Big Picture escondido seguía corriendo detrás (con sus sonidos al navegar). Si tú no lo abriste (tienda, chat),
+    /// se cierra de verdad. Steam sigue abierto en silencio para lanzar juegos, logros y amigos.
+    /// </summary>
+    void CloseStrayBigPicture()
+    {
+        if (steamUiAllowed || DateTime.Now - lastBpClose < TimeSpan.FromSeconds(15)) return;
+        if (tracker != null && tracker.LaunchSeconds > 0 && tracker.LaunchSeconds < 25) return;   // Steam está arrancando un juego
+        bool found = false;
+        try
+        {
+            Native.EnumWindows((h, lp) =>
+            {
+                if (Native.Title(h).IndexOf("Big Picture", StringComparison.OrdinalIgnoreCase) < 0) return true;
+                string exe = Path.GetFileName(Native.WindowProcessPath(h, out _) ?? "");
+                if (exe.Equals("steamwebhelper.exe", StringComparison.OrdinalIgnoreCase) || exe.Equals("steam.exe", StringComparison.OrdinalIgnoreCase)) { found = true; return false; }
+                return true;
+            }, IntPtr.Zero);
+        }
+        catch { }
+        if (!found) return;
+        lastBpClose = DateTime.Now;
+        Log.Write("Big Picture abierto sin que lo pidieras: se cierra");
+        Shell.Open("steam://close/bigpicture");
     }
 
     /// <summary>Ventana de Steam Big Picture, si está abierta.</summary>

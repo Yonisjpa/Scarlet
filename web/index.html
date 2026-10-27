@@ -203,6 +203,14 @@ svg{display:block}
 
 /* álbum */
 .agrid{display:grid;grid-template-columns:repeat(5,1fr);gap:2.8rem 1.4rem}
+.dolby{display:flex;align-items:center;gap:.8rem;font-size:1.35rem;letter-spacing:.02em;color:var(--fg2)}
+.dolby svg{width:2rem;height:2rem;flex:none}
+.dolby b{font-weight:700;color:var(--fg)}
+.qdolby{margin:-.6rem 0 1.2rem}
+#launch .ldolby{position:absolute;left:4.6rem;bottom:4.6rem;color:#cfcfd4;opacity:0;transition:opacity .45s ease .3s;font-size:1.6rem}
+#launch .ldolby b{color:#fff}
+#launch .ldolby svg{width:2.4rem;height:2.4rem}
+#launch.logo .ldolby.on{opacity:1}
 .tile img.appicon{object-fit:contain;padding:17%;background:#fff;box-sizing:border-box}
 .shot{--r:.6rem;position:relative;aspect-ratio:16/9;border-radius:.6rem;background:var(--tile);animation:tileIn .4s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--k,0) * 25ms)}
 .shot img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
@@ -588,6 +596,7 @@ body{font-weight:400}
 .playing{position:absolute;left:50%;bottom:1.9rem;transform:translateX(-50%);display:flex;align-items:center;gap:.6rem;max-width:calc(100% - 1.6rem)}
 .playing .pav{width:4.9rem;height:4.9rem;border-radius:50%;overflow:hidden;flex:0 0 auto;background:linear-gradient(140deg,#ff9d4a,#ff4f86);display:grid;place-items:center;color:#fff;font-size:2rem;box-shadow:0 0 0 .15rem rgba(255,255,255,.9)}
 .playing .pav img,.playing .pav video{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.grid .tile .playing{transform:translateX(-50%) scale(.6);transform-origin:50% 100%;bottom:1.2rem;max-width:none}
 .playing b{height:4.9rem;min-width:14.5rem;display:flex;align-items:center;justify-content:center;padding:0 2.4rem;background:#000;color:#fff;border:.2rem solid #fff;border-radius:99rem;font-weight:400;font-size:2.1rem;white-space:nowrap}
 
 /* pie: sin línea en el inicio, con línea en los menús */
@@ -677,7 +686,7 @@ body{font-weight:400}
   <span class="gkeys">Doble toque al botón Xbox (H H) para volver al menú · P para suspender</span></div>
 </div>
 
-<div id="launch"><div class="ll">
+<div id="launch"><div class="ldolby dolby"></div><div class="ll">
   <img class="spin a" data-src="b1" alt="">
   <img class="slash" data-src="b2" alt="">
   <img class="spin b" data-src="b3" alt="">
@@ -1342,6 +1351,20 @@ function powerMenu() {
     items() { return fis(this.el); }
   });
 }
+/* Diálogo con varias opciones; devuelve el valor elegido (null si se cancela). */
+function choiceDialog(text, options) {
+  return new Promise(res => {
+    openView({
+      cls: "dialog", cols: options.length, hints: [["B", "Cancelar"], ["A", "Aceptar"]],
+      render(el) {
+        el.innerHTML = `<div class="dbox"><p>${esc(text)}</p><div class="dbtns" style="grid-template-columns:repeat(${options.length},1fr)">${options.map((o, i) => `<button class="fi" data-i="${i}">${esc(o.label)}</button>`).join("")}</div></div>`;
+        fis(el).forEach(b => b.onclick = () => { closeView(); res(options[+b.dataset.i].value); });
+      },
+      onB() { closeView(); res(null); return true; },
+      items() { return fis(this.el); }
+    });
+  });
+}
 function confirmDialog(text, okLabel) {
   return new Promise(res => {
     openView({
@@ -1461,8 +1484,14 @@ function propsView(g) {
   };
 }
 
+/* --- Dolby Atmos: un renglón discreto al jugar, en la pantalla de carga y en el menú rápido con música --- */
+let DOLBY = false;
+const DOLBY_HTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/><path d="M8.2 8.2a5.4 5.4 0 0 0 0 7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"/></svg><span>Powered by <b>Dolby Atmos</b></span>';
+const dolbyOn = () => DOLBY && settings.dolbyTag !== false;
+function paintDolby() { const l = $("#launch .ldolby"); if (l) { l.innerHTML = DOLBY_HTML; l.classList.toggle("on", dolbyOn()); } }
+
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.2";
+let APP_VERSION = "0.4.3";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2045,6 +2074,7 @@ function settingsView() {
     { label: "Tema", desc: "Apariencia del menú", val: () => settings.theme === "dark" ? "Oscuro" : "Claro", toggle() { settings.theme = settings.theme === "dark" ? "light" : "dark"; applyTheme(); } },
     { label: "Sonidos del menú", desc: "Efectos al navegar", val: () => settings.sound ? "Activados" : "Desactivados", toggle() { settings.sound = !settings.sound; } },
     { label: "Vibración", desc: "Vibración sutil al moverte y seleccionar", val: () => settings.rumble ? "Activada" : "Desactivada", toggle() { settings.rumble = !settings.rumble; } },
+    ...(DOLBY ? [{ label: "Aviso de Dolby Atmos", desc: "Muestra «Powered by Dolby Atmos» al jugar y con música", val: () => settings.dolbyTag !== false ? "Activado" : "Desactivado", toggle() { settings.dolbyTag = settings.dolbyTag === false; paintDolby(); } }] : []),
     { label: "Silenciar al volver al menú", desc: "El juego o video que dejas atrás se calla; la música sigue sonando", val: () => settings.muteBehind !== false ? "Activado" : "Desactivado", toggle() { settings.muteBehind = settings.muteBehind === false; Host.call("audio.mutebehind", { on: settings.muteBehind }).catch(() => {}); } },
     { label: "Al encender la consola", desc: "Qué se abre cuando la consola arranca", val: () => settings.bootLast ? "El último juego" : "El Inicio", toggle() { settings.bootLast = !settings.bootLast; } },
     { label: "Atenuar pantalla", desc: "Oscurece la pantalla si no la usas", val: () => optLabel(DIM_OPTS, settings.dimAfter), act() { pickOption("Atenuar pantalla", DIM_OPTS, "dimAfter"); } },
@@ -2550,9 +2580,18 @@ async function launchGame(g, el, opt = {}) {
   }
   if (state.running) {
     const r = runningGame();
-    const ok = await confirmDialog(`Se cerrará ${r.name}.\nSe perderá el progreso que no hayas guardado.`, "Cerrar y abrir");
-    if (!ok) return;
-    closeRunning(true); el = null;
+    if (r && r.kind === "app") {   // música, YouTube…: se puede dejar sonando mientras juegas
+      const v = await choiceDialog(`${r.name} está abierta.\n¿La cierras o la dejas en segundo plano (por ejemplo, para seguir oyendo música)?`,
+        [{ label: "Cancelar", value: null }, { label: "Dejar abierta", value: "keep" }, { label: "Cerrar y abrir", value: "close" }]);
+      if (!v) return;
+      if (v === "keep") { Host.call("game.detach").catch(() => {}); state.running = null; renderHome(); }
+      else closeRunning(true);
+      el = null;
+    } else {
+      const ok = await confirmDialog(`Se cerrará ${r.name}.\nSe perderá el progreso que no hayas guardado.`, "Cerrar y abrir");
+      if (!ok) return;
+      closeRunning(true); el = null;
+    }
   }
   mode = "launching"; play("launch");
   if (el && el.isConnected) echo(el);
@@ -2702,7 +2741,9 @@ function renderQuick() {
     if (r.type === "media") return mediaCard(f);
     return "";
   };
+  const showDolby = dolbyOn() && (OVERLAY || state.running || (media && media.playing));
   q.innerHTML = `<div class="qhead"><span class="qclock clock">${clockText()}</span><span class="qb"><span class="batt">${Math.round(deviceBatt * 100)} % ${battSvg(deviceBatt)}</span><span>${battEstimate()}</span></span></div>
+    ${showDolby ? `<div class="dolby qdolby">${DOLBY_HTML}</div>` : ""}
     <div class="qrows">${rows.map(row).join("")}<div class="qbtns">${rows.map((r, i) => r.type === "btn" ? `<div class="qrow${QM.i === i ? " focused" : ""}">${r.label}</div>` : "").join("")}</div></div>
     <div class="qhint"><span class="hint"><span class="glyph">B</span>Cerrar</span><span class="hint"><span class="glyph">◀▶</span>Ajustar</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
 }
@@ -3255,7 +3296,8 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
     const st = Host.has ? await Host.call("system.state").catch(() => null) : null;
     if (st) { Object.assign(sys, st); saveSys(); }
     if (Host.has) Host.call("sounds.list").then(m => { if (m && Object.keys(m).length) Snd.loadCustom(m); }).catch(() => {});
-    if (!Host.has) { demoMedia(); openQuick(); }
+    if (Host.has) Host.call("app.info").then(i => { DOLBY = !!(i && i.dolby); }).catch(() => {});
+    if (!Host.has) { DOLBY = true; demoMedia(); openQuick(); }
     return;
   }
   [profile, games, friends] = await Promise.all([Data.profile(), Data.games(), Data.friends()]);
@@ -3272,6 +3314,7 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
   if (mode !== "boot") renderHome();
   if (Host.has) setTimeout(dismissBoot, 2200);
   const info = Host.has ? await Host.call("app.info").catch(() => null) : null;
+  DOLBY = !!(info && info.dolby); paintDolby();
   if (info && info.version) APP_VERSION = String(info.version).replace(/\.0$/, "");
   if (info && info.updated) setTimeout(() => notify({ icon: I.gear, title: "Scarlet se actualizó", text: `Ya tienes la alpha ${APP_VERSION}` }), 3000);
   if (info && info.rolledBack) setTimeout(() => notify({ icon: I.gear, title: "Se regresó a la versión anterior", text: `La alpha ${info.rolledBack} no abrió bien; sigues con la alpha ${APP_VERSION}` }), 3000);
