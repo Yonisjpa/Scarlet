@@ -1,0 +1,56 @@
+# Compila Scarlet en Windows en cada cambio. Si la versión del .csproj es nueva,
+# publica un Release con el zip listo; la app lo descarga desde "Buscar actualizaciones".
+name: Compilar
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Compilar
+        shell: pwsh
+        run: dotnet publish XboxScarlet.csproj -c Release -r win-x64 --self-contained true -o dist/Scarlet --configfile nuget.config
+
+      - name: Versión
+        id: ver
+        shell: pwsh
+        run: |
+          [xml]$p = Get-Content XboxScarlet.csproj
+          $v = ($p.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          $info = ($p.Project.PropertyGroup | Where-Object { $_.InformationalVersion } | Select-Object -First 1).InformationalVersion
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "info=$info" >> $env:GITHUB_OUTPUT
+
+      - name: Empaquetar
+        shell: pwsh
+        run: |
+          Set-Content dist/Scarlet/version.txt "${{ steps.ver.outputs.version }}"
+          Compress-Archive -Path dist/Scarlet/* -DestinationPath Scarlet-win-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Scarlet-${{ steps.ver.outputs.version }}
+          path: Scarlet-win-x64.zip
+
+      - name: Publicar release (solo si la versión es nueva)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = "v${{ steps.ver.outputs.version }}"
+          gh release view $tag 2>$null
+          if ($LASTEXITCODE -eq 0) { Write-Host "La versión $tag ya existe; no se publica."; exit 0 }
+          gh release create $tag Scarlet-win-x64.zip --title "Scarlet alpha ${{ steps.ver.outputs.info }}" --notes-file NOTAS.md --target $env:GITHUB_SHA
