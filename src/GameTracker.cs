@@ -44,11 +44,18 @@ sealed class GameTracker
 
     bool slow;   // juegos de Xbox: tardan como los de Steam, pero su .exe no siempre corre desde la carpeta del paquete
 
+    // Apps y juegos que no son de Steam: ventanas que ya existían al lanzar. Si aparece una nueva y no pasa al frente
+    // (Edge abre YouTube en un proceso que ya estaba corriendo y Windows no le deja tomar el foco), se trae al frente.
+    HashSet<IntPtr> before = new();
+    readonly HashSet<IntPtr> pushed = new();
+
     public void Begin(long appid, bool steamGame, string dir, bool slowStart = false)
     {
         AppId = appid; isSteam = steamGame; installDir = dir; slow = slowStart;
         start = DateTime.Now; steamDialogSince = DateTime.MinValue;
         cand = hwnd = IntPtr.Zero; pid = 0; deadTicks = 0; IsReady = false; releasedTopMost = false;
+        pushed.Clear();
+        try { before = steamGame ? new() : Native.TopWindows().ToHashSet(); } catch { before = new(); }
         timer.Interval = 250;
         timer.Start();
         Log.Write($"lanzando {appid} (steam={steamGame}) {dir}");
@@ -117,6 +124,7 @@ sealed class GameTracker
             }
         }
 
+        if (!isSteam && secs >= 2 && cand == IntPtr.Zero) PushNewWindow();
         if (secs > 25) Release();   // tarda mucho: que se vea lo que esté pasando (un launcher, por ejemplo)
 
         bool hasDir = !string.IsNullOrEmpty(installDir);
@@ -126,6 +134,23 @@ sealed class GameTracker
             else if (isSteam && steam.RunningAppId() == AppId) MarkReady(IntPtr.Zero, 0);
             else if (!isSteam && hasDir && AnyProcessIn(installDir)) MarkReady(IntPtr.Zero, 0);
             else { long id = AppId; Stop(); Log.Write($"no se detectó la ventana del juego {id}"); Failed?.Invoke(id); }
+        }
+    }
+
+    /// <summary>Una ventana nueva de la app que quedó detrás (o minimizada): se trae al frente para que se detecte.</summary>
+    void PushNewWindow()
+    {
+        foreach (var h in Native.TopWindows())
+        {
+            if (h == own || before.Contains(h) || pushed.Contains(h) || Native.Area(h) < 200_000) continue;
+            string path = Native.WindowProcessPath(h, out _) ?? "";
+            string exe = Path.GetFileName(path);
+            if (exe.Length == 0 || Excluded.Contains(exe) || exe.Equals("Scarlet.exe", StringComparison.OrdinalIgnoreCase)) continue;
+            if (!string.IsNullOrEmpty(installDir) && !Paths.Under(path, installDir)) continue;
+            pushed.Add(h);
+            Log.Write($"la ventana de {exe} «{Native.Title(h)}» quedó detrás; se trae al frente");
+            Native.ForceForeground(h);
+            return;
         }
     }
 

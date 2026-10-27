@@ -101,6 +101,9 @@ static class Native
         return GetForegroundWindow() == hWnd;
     }
 
+    /// <summary>Deja que la app que se va a abrir tome el foco (Scarlet está al frente y le "presta" el permiso).</summary>
+    public static void AllowAnyForeground() { try { AllowSetForegroundWindow(-1); } catch { } }
+
     public static void Minimize(IntPtr hWnd) { if (hWnd != IntPtr.Zero && IsWindow(hWnd)) ShowWindow(hWnd, 6 /* SW_MINIMIZE */); }
 
     /// <summary>¿Hay un juego en pantalla completa exclusiva? Ahí Windows no deja poner nada encima de forma estable.</summary>

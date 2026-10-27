@@ -356,6 +356,7 @@ sealed class MainForm : Form
             }
             case "game.focus": FocusGame(); return true;
             case "media.state": return media.State;
+            case "app.icon": return await AppIconAsync(P.L(p, "appid"));
             case "app.info": return new { startup, updated, rolledBack = UpdateService.TakeRolledBackNotice(), version = Application.ProductVersion };
             case "update.check": return await UpdateService.CheckAsync();
             case "update.install":
@@ -601,6 +602,7 @@ sealed class MainForm : Form
             cfg.AppLastUsed[a.Id ?? a.Name ?? ""] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             cfg.Save();
             playKey = a.Id ?? a.Name ?? "";
+            Native.AllowAnyForeground();
             a.Start();
             BeginGame(appid, false);
         }
@@ -610,6 +612,7 @@ sealed class MainForm : Form
             cfg.AppLastUsed["xbox:" + g.Pfn] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             cfg.Save();
             playKey = "xbox:" + g.Pfn;
+            Native.AllowAnyForeground();
             xbox.Launch(g);
             // ZZZ y otros juegos de la Xbox Store corren desde XboxGames, no desde la carpeta del paquete: se detecta por su ventana.
             tracker.Begin(appid, false, null, slowStart: true);
@@ -646,6 +649,59 @@ sealed class MainForm : Form
         TopMost = false;
         ShowUi();
         Emit("game.exited", new { appid });
+    }
+
+    static readonly HttpClient web2 = new() { Timeout = TimeSpan.FromSeconds(12) };
+    static MainForm() { web2.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 Edg/130.0"); }
+
+    /// <summary>
+    /// Ícono oficial de una app web (YouTube…): el que el sitio declara para instalarse como app (su manifest),
+    /// o su apple-touch-icon. Es el mismo ícono que usaría Edge o Chrome al instalarla.
+    /// </summary>
+    async Task<string> AppIconAsync(long appid)
+    {
+        var a = apps.FirstOrDefault(x => x.AppId == appid);
+        if (a == null) return null;
+        var m = Regex.Match((a.Args ?? "") + " " + (a.Exec ?? ""), @"https?://[^\s""']+");
+        if (!m.Success) return null;
+        try
+        {
+            var site = new Uri(m.Value);
+            var home = new Uri(site.GetLeftPart(UriPartial.Authority) + "/");
+            string html = await web2.GetStringAsync(home);
+            var candidates = new List<(string url, int size)>();
+
+            var man = Regex.Match(html, @"<link[^>]+rel=[""']manifest[""'][^>]*>", RegexOptions.IgnoreCase);
+            var href = man.Success ? Regex.Match(man.Value, @"href=[""']([^""']+)[""']", RegexOptions.IgnoreCase) : null;
+            if (href != null && href.Success)
+            {
+                var manUrl = new Uri(home, System.Net.WebUtility.HtmlDecode(href.Groups[1].Value));
+                using var d = JsonDocument.Parse(await web2.GetStringAsync(manUrl));
+                if (d.RootElement.TryGetProperty("icons", out var icons))
+                    foreach (var i in icons.EnumerateArray())
+                    {
+                        string purpose = i.TryGetProperty("purpose", out var pu) ? pu.GetString() ?? "" : "";
+                        if (purpose.Contains("monochrome")) continue;
+                        string src = i.TryGetProperty("src", out var s) ? s.GetString() : null;
+                        if (string.IsNullOrEmpty(src)) continue;
+                        int size = 0;
+                        var sm = Regex.Match(i.TryGetProperty("sizes", out var sz) ? sz.GetString() ?? "" : "", @"(\d+)x\d+");
+                        if (sm.Success) size = int.Parse(sm.Groups[1].Value);
+                        if (purpose.Contains("maskable") && !purpose.Contains("any")) size /= 2;   // los "maskable" traen mucho margen
+                        candidates.Add((new Uri(manUrl, src).ToString(), size));
+                    }
+            }
+            foreach (Match t in Regex.Matches(html, @"<link[^>]+rel=[""']apple-touch-icon[^""']*[""'][^>]*>", RegexOptions.IgnoreCase))
+            {
+                var h = Regex.Match(t.Value, @"href=[""']([^""']+)[""']", RegexOptions.IgnoreCase);
+                if (h.Success) candidates.Add((new Uri(home, System.Net.WebUtility.HtmlDecode(h.Groups[1].Value)).ToString(), 180));
+            }
+            var best = candidates.Where(c => !c.url.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)).OrderByDescending(c => c.size).FirstOrDefault();
+            if (best.url == null) { Log.Write($"ícono de {a.Name}: el sitio no declara uno"); return null; }
+            Log.Write($"ícono de {a.Name}: {best.url}");
+            return await art.CacheAsync(best.url, "appicon");
+        }
+        catch (Exception ex) { Log.Error("ícono de " + a.Name, ex); return null; }
     }
 
     /// <summary>Copia la captura al portapapeles: como imagen (para pegarla en Discord / WhatsApp Web) y como archivo.</summary>

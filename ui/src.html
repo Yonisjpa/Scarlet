@@ -203,6 +203,7 @@ svg{display:block}
 
 /* álbum */
 .agrid{display:grid;grid-template-columns:repeat(5,1fr);gap:2.8rem 1.4rem}
+.tile img.appicon{object-fit:contain;padding:17%;background:#fff;box-sizing:border-box}
 .shot{--r:.6rem;position:relative;aspect-ratio:16/9;border-radius:.6rem;background:var(--tile);animation:tileIn .4s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--k,0) * 25ms)}
 .shot img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
 .shot .vid{position:absolute;right:.7rem;bottom:.7rem;background:rgba(0,0,0,.65);color:#fff;font-size:1.2rem;font-weight:700;padding:.3rem .8rem;border-radius:99rem}
@@ -651,7 +652,7 @@ body{font-weight:400}
     <div class="status">
       <span class="tvchip">TV</span>
       <span class="clock">--:--</span>
-      <svg class="wifi" viewBox="0 0 24 18" fill="currentColor"><path d="M12 15.5a1.8 1.8 0 1 1 0 .01z"/><path d="M6.6 10.6a7.7 7.7 0 0 1 10.8 0l-1.6 1.6a5.4 5.4 0 0 0-7.6 0z"/><path d="M3.3 7.3a12.4 12.4 0 0 1 17.4 0l-1.6 1.6a10.1 10.1 0 0 0-14.2 0z"/><path d="M0 4a17 17 0 0 1 24 0l-1.6 1.6a14.8 14.8 0 0 0-20.8 0z"/></svg>
+      <svg class="wifi" viewBox="0 0 24 19" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M2.2 6.6a14 14 0 0 1 19.6 0"/><path d="M5.6 10.1a9.2 9.2 0 0 1 12.8 0"/><path d="M9 13.5a4.4 4.4 0 0 1 6 0"/><circle cx="12" cy="16.9" r="1.6" fill="currentColor" stroke="none"/></svg>
       <span class="batt"><span class="battPct">--%</span>
         <svg viewBox="0 0 30 16"><rect x=".8" y=".8" width="25" height="14.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="27.2" y="5" width="2.2" height="6" rx="1" fill="currentColor"/><rect class="battFill" x="3" y="3" width="20.6" height="10" rx="1.5" fill="currentColor"/><path class="battBolt" style="display:none" d="M15.6 1.6 9.8 9h3.6l-1.6 5.4L17.8 7h-3.7z" fill="#3ad16b" stroke="var(--bg,#000)" stroke-width="1.1" stroke-linejoin="round"/></svg>
       </span>
@@ -964,6 +965,7 @@ const Art = {
     return id;
   },
   pick: store.get("artPick", {}),
+  icons: new Set(),
   steamUrl(g, kind = "grid") { return `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/${kind === "hero" ? "library_hero.jpg" : "library_600x900.jpg"}`; },
   async local(url) { return Host.has ? Host.call("cache.image", { url }) : url; },
   /* todas las portadas de SteamGridDB para elegir: mode "square" | "all" */
@@ -996,6 +998,13 @@ const Art = {
       } catch (e) {}
     }
     const n = this.alt[g.appid] || 0, key = `${kind}:${g.appid}:${n}${g.kind === "app" ? ":i" : ""}`;
+    // apps web (YouTube…): el ícono oficial que declara el sitio, centrado en una tarjeta blanca
+    if (Host.has && kind === "grid" && g.source === "app" && !n) {
+      const wk = `web:${g.appid}`;
+      if (this.cache[wk]) { this.icons.add(this.cache[wk]); return this.cache[wk]; }
+      const wu = await Host.call("app.icon", { appid: g.appid }).catch(() => null);
+      if (wu) { this.cache[wk] = wu; store.set("artCache", this.cache); this.icons.add(wu); return wu; }
+    }
     if (this.cache[key]) return this.cache[key];
     if (!Host.has && !settings.sgdbKey) return null;
     try {
@@ -1027,7 +1036,7 @@ const Art = {
     this.get(g, kind).then(u => {
       if (!u) return;
       const im = new Image();
-      im.onload = () => { img.src = u; };
+      im.onload = () => { img.src = u; img.classList.toggle("appicon", kind === "grid" && this.icons.has(u)); };
       // si la imagen guardada ya no existe (se borró la caché o cambió de carpeta), se olvida y se vuelve a descargar
       im.onerror = () => { if (!retry) return; this.forget(u); this.apply(img, g, kind, false); };
       im.src = u;
@@ -1453,7 +1462,7 @@ function propsView(g) {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4";
+let APP_VERSION = "0.4.1";
 const updState = { available: false, latest: null };
 function updateView() {
   return {

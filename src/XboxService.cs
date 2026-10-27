@@ -47,6 +47,7 @@ sealed class XboxService
     public async Task<List<XboxGame>> ScanAsync()
     {
         var list = new List<XboxGame>();
+        var apple = new List<string>();
         try
         {
             var pm = new PackageManager();
@@ -54,6 +55,8 @@ sealed class XboxService
             {
                 try
                 {
+                    string famName = pkg.Id.FamilyName ?? "";
+                    if (famName.Contains("Apple", StringComparison.OrdinalIgnoreCase)) apple.Add($"{famName} ({SafeName(pkg)}{(pkg.IsFramework ? ", framework" : "")}{(pkg.IsResourcePackage ? ", recursos" : "")})");
                     if (pkg.IsFramework || pkg.IsResourcePackage || pkg.IsBundle) continue;
                     string dir = null;
                     try { dir = pkg.InstalledPath; } catch { }
@@ -62,7 +65,7 @@ sealed class XboxService
 
                     string config = Path.Combine(dir, "MicrosoftGame.config");
                     bool isGame = File.Exists(config) || dir.Contains(@"\XboxGames\", StringComparison.OrdinalIgnoreCase);
-                    string known = KnownApps.FirstOrDefault(k => pkg.Id.FamilyName.StartsWith(k.Key, StringComparison.OrdinalIgnoreCase)).Value;
+                    string known = KnownApp(pkg);
                     if (!isGame && known == null) continue;
 
                     var g = new XboxGame { Pfn = pkg.Id.FamilyName, Dir = dir, Name = known ?? SafeName(pkg), IsApp = !isGame };
@@ -83,20 +86,34 @@ sealed class XboxService
         catch (Exception ex) { Log.Error("xbox: biblioteca", ex); }
 
         games = list;
-        Log.Write("xbox: " + (list.Count == 0 ? "sin juegos" : string.Join(", ", list.Select(g => $"{g.Name} ({g.StoreId ?? g.Pfn})"))));
+        if (apple.Count > 0) Log.Write("xbox: paquetes de Apple instalados: " + string.Join(", ", apple));
+        Log.Write("xbox: " + (list.Count == 0 ? "sin juegos" : string.Join(", ", list.Select(g => $"{g.Name}{(g.IsApp ? " [app]" : "")} ({g.StoreId ?? g.Pfn})"))));
         _ = FetchArtAsync();
         return list;
     }
 
-    /// <summary>Apps de la Microsoft Store que aparecen en la biblioteca como apps (inicio del nombre del paquete → nombre).</summary>
-    static readonly Dictionary<string, string> KnownApps = new()
+    /// <summary>
+    /// Apps de la Microsoft Store que aparecen en la biblioteca como apps: se reconocen por un pedazo del nombre del paquete
+    /// o por el nombre con el que aparecen en Windows (así no depende del código exacto de cada editor).
+    /// </summary>
+    static readonly (string token, string name)[] KnownApps =
     {
-        ["AppleInc.AppleMusicWin"] = "Apple Music",
-        ["SpotifyAB.SpotifyMusic"] = "Spotify",
-        ["4DF9E0F8.Netflix"] = "Netflix",
-        ["Disney.37853FC22B2CE"] = "Disney+",
-        ["AmazonVideo.PrimeVideo"] = "Prime Video"
+        ("AppleMusic", "Apple Music"), ("AppleTV", "Apple TV"), ("SpotifyMusic", "Spotify"), ("Netflix", "Netflix"),
+        ("Disney", "Disney+"), ("PrimeVideo", "Prime Video"), ("Crunchyroll", "Crunchyroll"), ("Max", "Max")
     };
+
+    static string KnownApp(Windows.ApplicationModel.Package pkg)
+    {
+        string fam = pkg.Id.FamilyName ?? "", display = SafeName(pkg) ?? "";
+        foreach (var (token, name) in KnownApps)
+        {
+            if (token == "Max" ? display.Equals("Max", StringComparison.OrdinalIgnoreCase)
+                : fam.Contains(token, StringComparison.OrdinalIgnoreCase) || display.Equals(name, StringComparison.OrdinalIgnoreCase))
+                return name;
+        }
+        if (display.Contains("Apple Music", StringComparison.OrdinalIgnoreCase)) return "Apple Music";
+        return null;
+    }
 
     static string SafeName(Windows.ApplicationModel.Package pkg)
     {
