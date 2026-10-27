@@ -202,10 +202,18 @@ static class SteamCdp
     // Estados del asistente de Steam (EInstallMgrState).
     const int ShowConfig = 7, ShowEULAs = 8, CreateApps = 9, Complete = 14, Failed = 15, Canceled = 16;
     static readonly int[] NeedsSteam = { 3, 4, 6, 10, 11, 12, 13 };   // licencia gratis, clave, contraseña, discos, registro…
+    public static bool NeedsSteamUi(int state) => NeedsSteam.Contains(state);
 
+    // Tolerante: la lista de apps puede venir como números u objetos, y el estado como número o como nombre.
     const string Js = @"const I = SteamClient.Installs, sleep = ms => new Promise(r => setTimeout(r, ms));
-const mine = (info, id) => !!(info && (info.rgAppIDs || []).some(a => a.nAppID == id));
-const pack = info => info ? { s: info.eInstallState, need: info.nDiskSpaceRequired || 0, folder: info.iInstallFolder, canChange: !!info.bCanChangeInstallFolder, err: info.eAppError || 0, detail: info.errorDetail || '', cur: info.currentAppID || 0 } : { s: 0 };";
+const NAMES = ['None','Setup','WaitLicense','FreeLicense','ShowCDKey','WaitAppInfo','ShowPassword','ShowConfig','ShowEULAs','CreateApps','ReadFromMedia','ShowChangeMedia','WaitLegacyCDKeys','ShowSignup','Complete','Failed','Canceled'];
+const sNum = v => typeof v === 'number' ? v : Math.max(0, NAMES.indexOf(String(v)));
+const appsOf = info => ((info && info.rgAppIDs) || []).map(a => a && typeof a === 'object' ? (a.nAppID ?? a.unAppID ?? a.appid ?? a.appId) : a);
+const mine = (info, id) => !!info && (appsOf(info).some(a => a == id) || info.currentAppID == id);
+const raw = info => { try { return JSON.stringify(info).slice(0, 700); } catch (e) { return String(info); } };
+const pack = info => info ? { s: sNum(info.eInstallState), need: Number(info.nDiskSpaceRequired) || 0, folder: info.iInstallFolder ?? -1, canChange: info.bCanChangeInstallFolder !== false, err: Number(info.eAppError) || 0, detail: info.errorDetail || '', cur: info.currentAppID || 0, raw: raw(info) } : { s: 0, raw: 'null' };
+const ensureDl = () => { const w = window; if (!w.__scarletDl) { w.__scarletDl = { items: [], ov: null }; SteamClient.Downloads.RegisterForDownloadItems((on, items) => { w.__scarletDl.items = items || []; }); SteamClient.Downloads.RegisterForDownloadOverview(o => { w.__scarletDl.ov = o; }); } return w.__scarletDl; };
+const queued = id => { try { return (ensureDl().items || []).some(i => i.appid == id && !i.completed); } catch (e) { return false; } };";
 
     static readonly SemaphoreSlim installGate = new(1, 1);
 
@@ -218,16 +226,22 @@ const pack = info => info ? { s: info.eInstallState, need: info.nDiskSpaceRequir
             return await EvalAsync($@"(async () => {{ {Js}
 const id = {appid};
 let info = await I.GetInstallManagerInfo();
-if (info && info.eInstallState > 0 && info.eInstallState < {Complete}) {{ I.CancelInstall(); await sleep(500); }}
+const s0 = info ? sNum(info.eInstallState) : 0;
+if (s0 > 0 && s0 < {Complete}) {{ I.CancelInstall(); await sleep(500); }}
 I.OpenInstallWizard([id]);
 const t0 = Date.now();
-while (Date.now() - t0 < 20000) {{
-  await sleep(250);
+let last = -1, since = Date.now();
+while (Date.now() - t0 < 15000) {{
+  await sleep(200);
   info = await I.GetInstallManagerInfo();
   if (!mine(info, id)) continue;
-  const s = info.eInstallState;
-  if (s === {ShowConfig} && (info.nDiskSpaceRequired > 0 || Date.now() - t0 > 5000)) break;
+  const s = sNum(info.eInstallState), need = Number(info.nDiskSpaceRequired) || 0;
+  if (s !== last) {{ last = s; since = Date.now(); }}
+  if (Number(info.eAppError) > 0 && s !== {ShowConfig}) break;
+  if (s === {ShowConfig} && (need > 0 || Date.now() - t0 > 4000)) break;
   if (s > {ShowConfig} || [{string.Join(",", NeedsSteam)}].includes(s)) break;
+  // estado que Scarlet no conoce (Steam pudo cambiar sus números): si ya trae el tamaño y no se mueve, es la pantalla del disco
+  if (need > 0 && ![1, 2, 5].includes(s) && Date.now() - since > 1200) break;
 }}
 let folders = [];
 try {{ folders = (await SteamClient.InstallFolder.GetInstallFolders()) || []; }} catch (e) {{}}
@@ -243,7 +257,8 @@ return Object.assign(pack(info), {{ mine: mine(info, id), folders: folders.map(f
         return await EvalAsync($@"(async () => {{ {Js}
 const id = {appid};
 let info = await I.GetInstallManagerInfo();
-if (!mine(info, id) || info.eInstallState !== {ShowConfig}) return Object.assign(pack(info), {{ stale: true }});
+const sc = info ? sNum(info.eInstallState) : 0;
+if (!mine(info, id) || sc === 0 || sc >= {Complete}) return Object.assign(pack(info), {{ stale: true }});
 I.SetInstallFolder({folder});
 I.SetCreateShortcuts(!!info.bDesktopShortcut, !!info.bSystemMenuShortcut);
 await sleep(350);
@@ -258,11 +273,13 @@ const waitNext = async (id, from, ms) => {
   while (Date.now() - t0 < ms) {
     await sleep(250);
     info = await I.GetInstallManagerInfo();
-    const s = info ? info.eInstallState : 0;
+    if (queued(id)) { const r = pack(info); r.started = true; return r; }   // ya está en las descargas de Steam
+    const s = info ? sNum(info.eInstallState) : 0;
     if (!info || s === 0 || s >= 14) break;
     if (s !== from && s !== 9 && s !== 1 && s !== 2 && s !== 5) break;
   }
   const r = pack(info);
+  if (queued(id)) r.started = true;
   if (r.s === 8) { try { r.eulas = await SteamClient.Apps.LoadEula(r.cur || id); } catch (e) { r.eulas = []; } }
   return r;
 };";
@@ -276,10 +293,11 @@ const waitNext = async (id, from, ms) => {
             return await EvalAsync($@"(async () => {{ {Js} {WaitNext}
 const id = {appid};
 let info = await I.GetInstallManagerInfo();
-if (!mine(info, id) || info.eInstallState !== {ShowConfig}) return Object.assign(pack(info), {{ stale: true }});
+const sc = info ? sNum(info.eInstallState) : 0;
+if (!mine(info, id) || sc === 0 || sc >= {Complete}) return Object.assign(pack(info), {{ stale: true }});
 if ({folder} >= 0 && info.iInstallFolder !== {folder}) {{ I.SetInstallFolder({folder}); I.SetCreateShortcuts(!!info.bDesktopShortcut, !!info.bSystemMenuShortcut); await sleep(300); }}
 I.ContinueInstall();
-return await waitNext(id, {ShowConfig}, 20000);
+return await waitNext(id, sc, 20000);
 }})()", 26000);
         }
         finally { installGate.Release(); }
@@ -295,13 +313,14 @@ return await waitNext(id, {ShowConfig}, 20000);
             return await EvalAsync($@"(async () => {{ {Js} {WaitNext}
 const id = {appid};
 let info = await I.GetInstallManagerInfo();
-if (!info || info.eInstallState !== {ShowEULAs}) return Object.assign(pack(info), {{ stale: true }});
+const se = info ? sNum(info.eInstallState) : 0;
+if (!info || se === 0 || se >= {Complete}) return Object.assign(pack(info), {{ stale: true }});
 const app = info.currentAppID || id;
 if (!{(accept ? "true" : "false")}) {{ I.CancelInstall(); await sleep(300); return Object.assign(pack(await I.GetInstallManagerInfo()), {{ s: {Canceled} }}); }}
 {marks}
 await sleep(200);
 I.ContinueInstall();
-const r = await waitNext(id, {ShowEULAs}, 12000);
+const r = await waitNext(id, se, 12000);
 if (r.s === {ShowEULAs} && JSON.stringify((r.eulas || []).map(e => e.id)) === JSON.stringify({JsonSerializer.Serialize(eulas.Select(e => e.id))})) r.stuck = true;
 return r;
 }})()", 20000);
@@ -311,7 +330,7 @@ return r;
 
     public static async Task CancelAsync()
     {
-        try { await EvalAsync("(async () => { const i = await SteamClient.Installs.GetInstallManagerInfo(); if (i && i.eInstallState > 0 && i.eInstallState < 14) SteamClient.Installs.CancelInstall(); return true; })()", 4000); }
+        try { await EvalAsync($@"(async () => {{ {Js} const i = await I.GetInstallManagerInfo(); const s = i ? sNum(i.eInstallState) : 0; if (s > 0 && s < {Complete}) I.CancelInstall(); return true; }})()", 4000); }
         catch (Exception ex) { Log.Write("Steam: cancelar instalación: " + ex.Message); }
     }
 

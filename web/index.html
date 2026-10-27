@@ -1705,7 +1705,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.20";
+let APP_VERSION = "0.4.21";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2969,14 +2969,28 @@ function eulaView(g, eulas) {
 async function installFlow(g) {
   const v = installView(g); openView(v);
   const gone = () => !views.includes(v);
-  let r;
-  for (let tries = 0; ; tries++) {   // Steam arrancando: se espera un poco
-    r = await steamCall("install.prepare", { appid: g.appid }).catch(e => ({ mode: "steam", why: e.message }));
-    if (gone()) { steamCall("install.cancel").catch(() => {}); return; }
-    if (r && r.mode === "wait" && tries < 25) { v.set({ msg: "Esperando a Steam…" }); await wait(3000); if (gone()) return; continue; }
-    break;
+  let quit = false;
+  const prep = (async () => {
+    let r;
+    for (let tries = 0; ; tries++) {   // Steam arrancando: se espera un poco
+      r = await steamCall("install.prepare", { appid: g.appid }).catch(e => ({ mode: "steam", why: e.message }));
+      if (quit || gone()) {   // cancelaste mientras Steam contestaba: si alcanzó a abrir su asistente, se cierra
+        if (r && (r.mode === "cdp" || r.mode === "eula")) steamCall("install.cancel").catch(() => {});
+        return null;
+      }
+      if (r && r.mode === "wait" && tries < 25) { v.set({ msg: "Esperando a Steam…" }); await wait(3000); if (quit || gone()) return null; continue; }
+      return r;
+    }
+  })();
+  // Cancelar (o B) funciona desde el primer momento: no espera a que Steam conteste.
+  const first = await Promise.race([prep.then(r => ({ r })), nextAct(v).then(a => ({ a }))]);
+  if (first.a !== undefined || !first.r) {
+    quit = true; dropView(v);
+    steamCall("install.cancel").catch(() => {});
+    return;
   }
-  if (!r || r.mode === "wait") r = { mode: "steam", why: "Steam no terminó de abrir" };
+  let r = first.r;
+  if (r.mode === "wait") r = { mode: "steam", why: "Steam no terminó de abrir" };
   if (r.mode !== "cdp") { dropView(v); return afterPrepare(g, r); }
   v.set({ phase: "config", size: r.size || 0, folders: r.folders || [], sel: r.folder >= 0 ? r.folder : ((r.folders || []).find(f => f.def) || (r.folders || [])[0] || { i: -1 }).i, canChange: r.canChange });
   for (;;) {
@@ -3005,8 +3019,12 @@ async function afterPrepare(g, r) {
   if (r.mode === "started") return began(g);
   if (r.mode === "eula") return eulaFlow(g, r.eulas || []);
   if (r.mode === "error") return alertDialog(`No se pudo instalar ${g.name}.\n${r.error || ""}`);
-  toast("Se abre la ventanita de Steam para instalar");
-  installViaSteam(g);
+  return askSteamWindow(g);
+}
+/* Si Scarlet no pudo con el asistente de Steam, la ventana de Steam solo se abre si tú quieres. */
+async function askSteamWindow(g) {
+  const c = await choiceDialog(`Steam no contestó como Scarlet esperaba.\n¿Terminas de instalar ${g.name} en la ventana de Steam?`, [{ label: "Cancelar", value: null }, { label: "Abrir Steam", value: "steam" }], 0);
+  if (c === "steam") installViaSteam(g);
 }
 async function afterStep(g, r) {
   const s = r && r.s;
@@ -3014,8 +3032,7 @@ async function afterStep(g, r) {
   if (s === "eula") return eulaFlow(g, r.eulas || []);
   if (s === "canceled") return toast("Se canceló la instalación");
   if (s === "error") return alertDialog(`No se pudo instalar ${g.name}.\n${r.error || ""}`);
-  toast("Steam necesita algo más: se abre su ventanita");
-  installViaSteam(g);
+  return askSteamWindow(g);
 }
 async function eulaFlow(g, eulas) {
   const v = eulaView(g, eulas); openView(v);

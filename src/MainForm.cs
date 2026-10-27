@@ -482,7 +482,7 @@ sealed class MainForm : Form
             case "install.folder": return await InstallFolder(P.L(p, "appid"), (int)P.L(p, "folder"));
             case "install.go": return await InstallStep(P.L(p, "appid"), SteamCdp.ContinueAsync(P.L(p, "appid"), (int)P.L(p, "folder")));
             case "install.eula": return await InstallStep(P.L(p, "appid"), SteamCdp.EulaAsync(P.L(p, "appid"), Flag(p, "accept"), EulaIds(p)));
-            case "install.cancel": await SteamCdp.CancelAsync(); return true;
+            case "install.cancel": await SteamCdp.CancelAsync(); GuardSteam(3); return true;
             case "install.enable": return InstallEnable();
 
             // ── Ventana y notificaciones
@@ -1560,6 +1560,7 @@ sealed class MainForm : Form
     /// </summary>
     async Task SteamDialogAsync(string uri, string what)
     {
+        GuardSteam(0);   // aquí sí se quiere ver la ventanita de Steam
         steamBefore = new HashSet<IntPtr>();
         Native.EnumWindows((h, lp) => { steamBefore.Add(h); return true; }, IntPtr.Zero);
         steamDialogUntil = DateTime.Now.AddSeconds(90);
@@ -1729,18 +1730,19 @@ sealed class MainForm : Form
             return new { mode = "setup", restart = true, gameOpen = tracker != null && tracker.Active, millennium = SteamCdp.MillenniumInstalled(steam.SteamPath) };
         }
         JsonElement r;
+        GuardSteam(600);   // la ventanita de Steam se esconde en cuanto asome y Scarlet se queda al frente (si no, el mando deja de llegar)
         try { r = await SteamCdp.PrepareAsync(appid); }
-        catch (Exception ex) { Log.Write("Steam: preparar instalación: " + ex.Message); return new { mode = "steam", why = ex.Message }; }
-        Ui(() => { if (web.Visible && (tracker == null || !tracker.Active)) ShowUi(); });   // por si la ventanita de Steam alcanzó a robar el foco
+        catch (Exception ex) { Log.Write("Steam: preparar instalación: " + ex.Message); await SteamCdp.CancelAsync(); GuardSteam(3); return new { mode = "steam", why = ex.Message }; }
         int s = State(r);
-        Log.Write($"Steam: instalar {appid}: asistente en estado {s}");
-        if (!Flag(r, "mine") || s == 0) { await SteamCdp.CancelAsync(); return new { mode = "steam", why = "Steam no abrió su asistente" }; }
-        if (s == 15) { await SteamCdp.CancelAsync(); return new { mode = "error", error = SteamCdp.ErrorText(Num(r, "err", out var e) ? (int)e : 1, Str(r, "detail")) }; }
-        if (s == 16) return new { mode = "error", error = "Steam canceló la instalación." };
-        if (s == 14) return new { mode = "started" };
+        Num(r, "need", out var need); Num(r, "folder", out var cur); Num(r, "err", out var err);
+        Log.Write($"Steam: instalar {appid}: asistente en estado {s} · {Str(r, "raw")}");
+        if (!Flag(r, "mine")) { await SteamCdp.CancelAsync(); GuardSteam(3); return new { mode = "steam", why = "Steam no abrió su asistente" }; }
+        if (s == 15 || (err > 0 && s != 7 && need <= 0)) { await SteamCdp.CancelAsync(); GuardSteam(3); return new { mode = "error", error = SteamCdp.ErrorText(err > 0 ? (int)err : 1, Str(r, "detail")) }; }
+        if (s == 16) { GuardSteam(3); return new { mode = "error", error = "Steam canceló la instalación." }; }
+        if (s == 14) { GuardSteam(5); return new { mode = "started" }; }
         if (s == 8) return new { mode = "eula", eulas = await EulaTexts(r) };
-        if (s != 7) { await SteamCdp.CancelAsync(); return new { mode = "steam", why = $"Steam necesita algo más (paso {s})" }; }
-        Num(r, "need", out var need); Num(r, "folder", out var cur);
+        // 7 = elegir disco; un estado desconocido que ya trae el tamaño también es esa pantalla (Steam pudo renumerar sus pasos)
+        if (s != 7 && (need <= 0 || s == 0 || SteamCdp.NeedsSteamUi(s))) { await SteamCdp.CancelAsync(); GuardSteam(3); return new { mode = "steam", why = $"Steam necesita algo más (paso {s})" }; }
         return new { mode = "cdp", size = need, folder = (int)cur, canChange = Flag(r, "canChange"), folders = Folders(r) };
     }
 
@@ -1769,6 +1771,7 @@ sealed class MainForm : Form
 
     async Task<object> InstallFolder(long appid, int folder)
     {
+        GuardSteam(600);
         try
         {
             var r = await SteamCdp.SetFolderAsync(appid, folder);
@@ -1794,11 +1797,14 @@ sealed class MainForm : Form
     async Task<object> InstallStep(long appid, Task<JsonElement> step)
     {
         JsonElement r;
+        GuardSteam(600);
         try { r = await step; }
-        catch (Exception ex) { Log.Write("Steam: instalación: " + ex.Message); return new { s = "steam", why = ex.Message }; }
-        Ui(() => { if (web.Visible && (tracker == null || !tracker.Active)) ShowUi(); });
+        catch (Exception ex) { Log.Write("Steam: instalación: " + ex.Message); await SteamCdp.CancelAsync(); GuardSteam(3); return new { s = "steam", why = ex.Message }; }
         int s = State(r);
-        Log.Write($"Steam: instalar {appid}: paso {s}" + (Flag(r, "stale") ? " (el asistente ya no estaba)" : "") + (Flag(r, "stuck") ? " (contrato atorado)" : ""));
+        Log.Write($"Steam: instalar {appid}: paso {s}" + (Flag(r, "started") ? " (ya está en descargas)" : "") + (Flag(r, "stale") ? " (el asistente ya no estaba)" : "") + (Flag(r, "stuck") ? " (contrato atorado)" : "") + " · " + Str(r, "raw"));
+        if (Flag(r, "started")) { GuardSteam(5); return new { s = "started" }; }
+        if (s == 8 && !Flag(r, "stuck") && !Flag(r, "stale")) return new { s = "eula", eulas = await EulaTexts(r) };
+        GuardSteam(s == 14 || s == 0 || s == 9 ? 5 : 3);
         if (Flag(r, "stale"))
         {
             if (s == 14) return new { s = "started" };   // ya iba en camino
@@ -1839,6 +1845,56 @@ sealed class MainForm : Form
             finally { foreach (var x in ps) x.Dispose(); }
         }
         catch { return TimeSpan.MaxValue; }
+    }
+
+    // ───── Guardia de instalación: mientras Scarlet maneja el asistente de Steam, ninguna ventana de Steam se deja ver ─────
+    // El aviso de "ventana nueva" no basta: la ventanita de Steam a veces nace chiquita o reaparece al cambiar de paso, y si
+    // se queda al frente (aunque sea invisible) el mando ya no le llega a Scarlet. Por eso se revisa cada 100 ms.
+    readonly System.Windows.Forms.Timer installGuard = new() { Interval = 100 };
+    bool guardWired;
+    DateTime guardUntil = DateTime.MinValue, guardPidsAt = DateTime.MinValue;
+    readonly HashSet<uint> guardPids = new();
+    readonly HashSet<IntPtr> guardHidden = new();
+
+    void GuardSteam(int seconds)
+    {
+        Ui(() =>
+        {
+            if (!guardWired) { guardWired = true; installGuard.Tick += (_, _) => GuardTick(); }
+            guardUntil = DateTime.Now.AddSeconds(Math.Max(0, seconds));
+            if (seconds > 0) { if (!installGuard.Enabled) installGuard.Start(); GuardTick(); }
+            else { installGuard.Stop(); guardHidden.Clear(); }
+        });
+    }
+
+    void GuardTick()
+    {
+        if (DateTime.Now > guardUntil || steamUiAllowed) { installGuard.Stop(); guardHidden.Clear(); return; }
+        try
+        {
+            if (DateTime.Now - guardPidsAt > TimeSpan.FromSeconds(2))
+            {
+                guardPidsAt = DateTime.Now; guardPids.Clear();
+                foreach (var n in new[] { "steam", "steamwebhelper" })
+                    foreach (var pr in Process.GetProcessesByName(n)) using (pr) guardPids.Add((uint)pr.Id);
+            }
+            bool hid = false;
+            Native.EnumWindows((h, lp) =>
+            {
+                if (!Native.IsWindowVisible(h)) return true;
+                Native.GetWindowThreadProcessId(h, out uint pid);
+                if (!guardPids.Contains(pid)) return true;
+                Native.ShowWindowAsync(h, 0 /* SW_HIDE */);
+                if (guardHidden.Add(h)) Log.Write($"instalar: se escondió una ventana de Steam «{Native.Title(h)}»");
+                hid = true;
+                return true;
+            }, IntPtr.Zero);
+            var fg = Native.GetForegroundWindow();
+            bool steamFront = false;
+            if (fg != IntPtr.Zero && fg != Handle) { Native.GetWindowThreadProcessId(fg, out uint fp); steamFront = guardPids.Contains(fp); }
+            if ((hid || steamFront) && web.Visible && (tracker == null || !tracker.Active)) ShowUi();
+        }
+        catch (Exception ex) { Log.Error("guardia de instalación", ex); }
     }
 
     /// <summary>Progreso de descargas en vivo desde Steam (cada segundo mientras hay conexión directa).</summary>

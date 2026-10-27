@@ -1,9 +1,7 @@
-Novedades de la alpha 0.4.20
+Novedades de la alpha 0.4.21
 
-- Instalar juegos sin que se abra Steam: al darle A a un juego que no está instalado sale el diálogo "Instalar" de Scarlet con la portada, el tamaño, los discos de Steam y su espacio libre (con estrella el disco predeterminado).
-  - Si el juego no cabe, te dice cuánto falta y, si tienes otro disco, que lo elijas.
-  - Si el juego tiene contrato de licencia, se muestra en Scarlet; se lee con arriba/abajo (o LB/RB) y se acepta o se cancela.
-  - Scarlet le habla directo a Steam (su conexión local, la misma que usan Decky Loader y Millennium). La primera vez pide permiso: Steam se reinicia una sola vez para activarla.
-  - Si Steam pide algo que Scarlet no maneja (clave de producto, contraseña) o la conexión no está activa, se abre la ventanita de Steam de siempre.
-- Animación de descarga como en la consola: el juego pasa al primer lugar con una franja de rayas que avanzan y su barra de progreso. Arriba, junto al nombre, la tarjeta con flecha y el porcentaje ("En cola", "En pausa", "Preparando…").
-- El progreso de las descargas llega en vivo desde Steam (antes cada 3 s y a saltos), y si cancelas una descarga en Steam, la franja se quita sola.
+- Instalar: la ventana de Steam ya no se asoma. Mientras Scarlet maneja la instalación, cualquier ventana de Steam se esconde en cuanto aparece y Scarlet se queda al frente (antes la ventanita de Steam se quedaba con el foco y el mando dejaba de responder en el diálogo de Scarlet).
+- Instalar: Cancelar (o B) cierra el diálogo al instante, aunque Steam todavía no conteste; si Steam alcanza a abrir su asistente después, Scarlet lo cierra.
+- Instalar: si Steam no contesta como Scarlet espera, ya no abre la ventana de Steam por su cuenta: te pregunta si quieres terminar ahí.
+- Instalar: Scarlet entiende mejor las respuestas de Steam (aunque cambien de formato) y detecta que la descarga ya empezó viendo la lista de descargas de Steam.
+- El log guarda lo que Steam contestó en cada paso, para corregir rápido si algo falla.
