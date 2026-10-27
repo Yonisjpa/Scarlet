@@ -22,6 +22,7 @@ sealed class MainForm : Form
     DateTime xboxScanned = DateTime.MinValue;
     readonly SystemService sys = new();
     readonly XInputService xin = new();
+    readonly MediaService media;
     readonly List<AppEntry> apps;
     GameTracker tracker;
     QuickOverlay quick;
@@ -46,6 +47,8 @@ sealed class MainForm : Form
         pads = new PadService(cfg);
         album = new AlbumService(steam);
         xbox = new XboxService(art);
+        media = new MediaService(art);
+        AudioFocus.RecoverAfterCrash();
         apps = AppEntry.Load();
 
         Text = "Scarlet";
@@ -161,6 +164,9 @@ sealed class MainForm : Form
             if (quick != null) quick.Hidden += () => xin.ForwardKeys = false;
             xin.Start();
 
+            media.Changed += st => EmitAll("media.changed", st);
+            _ = media.StartAsync();
+
             SystemEvents.PowerModeChanged += OnPower;
             SystemEvents.DisplaySettingsChanged += OnDisplay;
 
@@ -190,6 +196,9 @@ sealed class MainForm : Form
     void SlowTick()
     {
         slowTicks++;
+        // Si saliste de Scarlet por otro lado (selector de ventanas, Alt+Tab), lo que estaba silenciado vuelve a sonar.
+        var front = Native.GetForegroundWindow();
+        if (front != Handle && !(quick != null && front == quick.Handle)) AudioFocus.RestoreAll();
         try { steam.PollDownloads(); } catch (Exception ex) { Log.Error("descargas", ex); }
         if (slowTicks % 20 == 0) _ = steam.PollRunningAchievementsAsync();   // cada minuto mientras juegas
     }
@@ -219,6 +228,14 @@ sealed class MainForm : Form
     }
 
     void Emit(string ev, object data) => Send(new Dictionary<string, object> { ["event"] = ev, ["data"] = data });
+
+    /// <summary>A la interfaz y también al menú rápido que se abre encima de los juegos.</summary>
+    void EmitAll(string ev, object data)
+    {
+        var msg = new Dictionary<string, object> { ["event"] = ev, ["data"] = data };
+        Send(msg);
+        Ui(() => { var v = quick?.View; if (v != null) SendTo(v, msg); });
+    }
 
     async void OnMessage(string json, CoreWebView2 from)
     {
@@ -310,6 +327,12 @@ sealed class MainForm : Form
                 return true;
             }
             case "game.focus": FocusGame(); return true;
+            case "media.state": return media.State;
+            case "media.cmd": return await media.CommandAsync(P.S(p, "cmd"), P.D(p, "value"));
+            case "audio.mutebehind":
+                cfg.MuteBehind = P.B(p, "on"); cfg.Save();
+                if (!cfg.MuteBehind) AudioFocus.RestoreAll();
+                return true;
             case "game.state": return new { appid = tracker.Active ? tracker.AppId : 0, ready = tracker.IsReady };
             case "game.close": tracker.Close(); steam.SetRunning(0); return true;
             case "game.uninstall": Shell.Open("steam://uninstall/" + P.L(p, "appid")); return true;
@@ -581,6 +604,7 @@ sealed class MainForm : Form
     /// <summary>Volver al juego (o a lo que estaba abierto antes del menú).</summary>
     void FocusGame()
     {
+        AudioFocus.RestoreAll();
         if (tracker.Active && tracker.Focus()) { HideSoon(); return; }
         if (lastForeign != IntPtr.Zero && Native.IsWindow(lastForeign)) { Native.ForceForeground(lastForeign); return; }
         Native.SendToBottom(Handle);
@@ -598,6 +622,7 @@ sealed class MainForm : Form
         steamUiAllowed = false;   // de regreso en Scarlet: Steam vuelve a esconderse
         var fg = Native.GetForegroundWindow();
         if (fg != IntPtr.Zero && fg != Handle) lastForeign = fg;
+        if (cfg.MuteBehind && fg != IntPtr.Zero && fg != Handle && !(quick != null && fg == quick.Handle)) AudioFocus.MuteWindow(fg);
         if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
         web.Visible = true;
         Native.ForceForeground(Handle);
@@ -708,7 +733,7 @@ sealed class MainForm : Form
     void OnGuideSingle()
     {
         guideActions++;
-        if (quick != null && quick.Closing) { Log.Write("botón Xbox: toque ignorado (el menú se está cerrando)"); return; }
+        if (quick != null && quick.IsClosing) { Log.Write("botón Xbox: toque ignorado (el menú se está cerrando)"); return; }
         if (GuideTooSoon("toque")) return;
         if (quick != null && quick.IsOpen) { quick.RequestClose("botón Xbox"); return; }
         var fg = Native.GetForegroundWindow();

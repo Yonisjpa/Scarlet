@@ -96,6 +96,7 @@ sealed class Config
     public bool SetupDone { get; set; }
     public bool StartBigPicture { get; set; } = true;
     public bool DevTools { get; set; }
+    public bool MuteBehind { get; set; } = true;
     public string InternalDisplay { get; set; } = "";
     public int? GameBarNexusBackup { get; set; }
     public int? GameBarLegacyBackup { get; set; }

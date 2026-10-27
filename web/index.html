@@ -424,6 +424,33 @@ html.overlay #quick{width:100%;box-shadow:none}
 .qbtns{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:.9rem}
 .qbtns .qrow{justify-content:center}
 .qhint{display:flex;justify-content:flex-end;gap:2rem;font-size:1.4rem;font-weight:700;padding-top:1.4rem;border-top:1px solid var(--line);margin-top:1.4rem}
+/* Reproduciendo ahora (Apple Music u otra app) */
+.qrow.qmedia{flex-direction:column;align-items:stretch;gap:1.1rem;padding:1.3rem 1.5rem 1.1rem}
+.qmtop{display:flex;align-items:center;gap:1.4rem;min-width:0}
+.qmart{width:7.2rem;height:7.2rem;flex:none;border-radius:.7rem;background:var(--line) center/cover no-repeat;box-shadow:0 .4rem 1.4rem rgba(0,0,0,.35)}
+.qmtxt{min-width:0;flex:1;display:flex;flex-direction:column;gap:.3rem}
+.qmtxt b{font-size:1.75rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qmtxt span{font-size:1.4rem;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qmtxt em{font-style:normal;font-size:1.2rem;color:var(--fg2);opacity:.8}
+.qmprog{display:flex;align-items:center;gap:1rem;font-size:1.25rem;color:var(--fg2);font-variant-numeric:tabular-nums}
+.qmprog .qbar{height:.55rem}
+.qmprog .qbar i{transition:none}
+.qmbtns{display:flex;justify-content:center;gap:2.2rem}
+.qmb{width:4.4rem;height:4.4rem;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--fg);position:relative}
+.qmb svg{width:2.3rem;height:2.3rem}
+.qmb.big{width:5.2rem;height:5.2rem;background:var(--fg);color:var(--bg)}
+.qmb.big svg{width:2.6rem;height:2.6rem}
+.qmb.on{color:var(--accent)}
+.qmb.off{opacity:.3}
+.qrow.qmedia.focused .qmb.sel{box-shadow:0 0 0 .3rem var(--accent)}
+@property --mt1{syntax:"<color>";inherits:true;initial-value:#1f1f1f}
+@property --mt2{syntax:"<color>";inherits:true;initial-value:#1f1f1f}
+@property --mt3{syntax:"<color>";inherits:true;initial-value:#1f1f1f}
+#quick{transition:transform .26s cubic-bezier(.2,.9,.25,1),--mt1 1.4s ease,--mt2 1.4s ease,--mt3 1.4s ease}
+#quick.tinted{--bg2:rgba(0,0,0,.26);--bg3:rgba(0,0,0,.26);--fg:#fff;--fg2:rgba(255,255,255,.72);--line:rgba(255,255,255,.2);color:#fff;
+  background:linear-gradient(140deg,var(--mt1),var(--mt2) 45%,var(--mt3) 75%,var(--mt1)),#141414;background-size:260% 260%,auto;animation:qtint 16s ease-in-out infinite alternate}
+#quick.tinted .qmb.big{background:#fff;color:#111}
+@keyframes qtint{0%{background-position:0% 0%,0 0}50%{background-position:100% 60%,0 0}100%{background-position:40% 100%,0 0}}
 /* atenuación y flash de captura */
 #dim{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity 1.2s;z-index:80}
 #dim.on{opacity:.62}
@@ -1783,6 +1810,7 @@ function settingsView() {
     { label: "Tema", desc: "Apariencia del menú", val: () => settings.theme === "dark" ? "Oscuro" : "Claro", toggle() { settings.theme = settings.theme === "dark" ? "light" : "dark"; applyTheme(); } },
     { label: "Sonidos del menú", desc: "Efectos al navegar", val: () => settings.sound ? "Activados" : "Desactivados", toggle() { settings.sound = !settings.sound; } },
     { label: "Vibración", desc: "Vibración sutil al moverte y seleccionar", val: () => settings.rumble ? "Activada" : "Desactivada", toggle() { settings.rumble = !settings.rumble; } },
+    { label: "Silenciar al volver al menú", desc: "El juego o video que dejas atrás se calla; la música sigue sonando", val: () => settings.muteBehind !== false ? "Activado" : "Desactivado", toggle() { settings.muteBehind = settings.muteBehind === false; Host.call("audio.mutebehind", { on: settings.muteBehind }).catch(() => {}); } },
     { label: "Atenuar pantalla", desc: "Oscurece la pantalla si no la usas", val: () => optLabel(DIM_OPTS, settings.dimAfter), act() { pickOption("Atenuar pantalla", DIM_OPTS, "dimAfter"); } },
     { label: "Suspender automáticamente", desc: "Suspende la consola tras un tiempo sin uso en el menú", val: () => optLabel(SLEEP_OPTS, settings.sleepAfter), act() { pickOption("Suspender automáticamente", SLEEP_OPTS, "sleepAfter"); } },
     { label: "Gestión de datos", desc: "Espacio en disco y desinstalar juegos", val: () => "›", act() { openView(storageView()); } },
@@ -2417,14 +2445,14 @@ const sys = Object.assign({ brightness: 70, volume: 55, power: "perf", wifi: tru
 const saveSys = () => store.set("sys", sys);
 const QM = { open: false, i: 0 };
 const qmRows = () => [
+  ...(media ? [{ k: "media", type: "media" }] : []),
   { k: "brightness", type: "slider", icon: QI.sun, label: "Brillo" },
   { k: "volume", type: "slider", icon: QI.vol, label: "Volumen" },
-  { k: "power", type: "seg", icon: QI.bolt, label: "Energía" },
   { k: "wifi", type: "switch", icon: QI.wifi, label: "Wi-Fi" },
   { k: "airplane", type: "switch", icon: QI.plane, label: "Modo avión" },
   { k: "sleep", type: "btn", label: "Apagar…" }, { k: "settings", type: "btn", label: "Ajustes" }
 ];
-function battEstimate() { const h = deviceBatt * ({ silent: 6.5, perf: 4.2, turbo: 2.6 })[sys.power]; return `≈ ${Math.floor(h)} h ${String(Math.round((h % 1) * 60)).padStart(2, "0")} min restantes`; }
+function battEstimate() { const h = deviceBatt * 4.2; return `≈ ${Math.floor(h)} h ${String(Math.round((h % 1) * 60)).padStart(2, "0")} min restantes`; }
 function renderQuick() {
   const rows = qmRows(), q = $("#quick");
   const row = (r, i) => {
@@ -2432,6 +2460,7 @@ function renderQuick() {
     if (r.type === "slider") return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qbar"><i style="width:${sys[r.k]}%"></i></span><span class="qval">${sys[r.k]}</span></div>`;
     if (r.type === "seg") return `<div class="qrow wrap${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qval">${POWER.find(p => p[0] === sys.power)[2]}</span><span class="qseg">${POWER.map(([k, n, w]) => `<span class="${sys.power === k ? "on" : ""}">${n}</span>`).join("")}</span></div>`;
     if (r.type === "switch") return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qsw${sys[r.k] ? " on" : ""}"></span></div>`;
+    if (r.type === "media") return mediaCard(f);
     return "";
   };
   q.innerHTML = `<div class="qhead"><span class="qclock clock">${clockText()}</span><span class="qb"><span class="batt">${Math.round(deviceBatt * 100)} % ${battSvg(deviceBatt)}</span><span>${battEstimate()}</span></span></div>
@@ -2440,7 +2469,8 @@ function renderQuick() {
 }
 function openQuick() {
   if (QM.open || !["ui", "game"].includes(mode)) return;
-  QM.open = true; QM.i = 0; renderQuick();
+  QM.open = true; QM.i = 0; QM.m = 2; renderQuick(); tintQuick(); mediaTick();
+  if (Host.has) Host.call("media.state").then(m => setMedia(m)).catch(() => {});
   if (Host.has) Host.call("system.state").then(st => { if (st) { for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; saveSys(); } if (QM.open) renderQuick(); }).catch(() => {});
   $("#quick").classList.add("show"); $("#qshade").classList.add("show"); play("select");
 }
@@ -2468,6 +2498,14 @@ function qmInput(k) {
     if (i < 0 || i >= n || i === QM.i) { play("bump"); return; }
     QM.i = i; play("move"); return renderQuick();
   }
+  if (r.type === "media" && (k === "left" || k === "right")) {
+    const opts = mediaButtons().map((b, j) => b.ok ? j : -1).filter(j => j >= 0);
+    const at = opts.indexOf(QM.m), n2 = opts[at + (k === "right" ? 1 : -1)];
+    if (n2 == null) return play("bump");
+    QM.m = n2; play("move"); return renderQuick();
+  }
+  if (r.type === "media" && k === "a") { const b = mediaButtons()[QM.m]; if (!b || !b.ok) return play("bump"); play("select"); return b.run(); }
+  if (r.type === "media" && k === "y") { const b = mediaButtons()[0]; if (b.ok) { play("select"); b.run(); } return; }
   if (k === "left" || k === "right") {
     const d = k === "right" ? 1 : -1;
     if (r.type === "slider") { const v = clamp(sys[r.k] + d * 10, 0, 100); if (v === sys[r.k]) return play("bump"); sys[r.k] = v; play("tick", v / 50); applySys(r.k); }
@@ -2492,6 +2530,108 @@ function qmInput(k) {
   }
   play("bump");
 }
+/* ================= alpha 0.4: reproduciendo ahora (Apple Music y cualquier app que lo reporte a Windows) ================= */
+const MI = {
+  shuffle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h4v4M4 20 20 4M20 16v4h-4M14.5 14.5 20 20M4 4l5 5"/></svg>',
+  prev: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2.2v14H6zM20 5.5v13L9.5 12z"/></svg>',
+  next: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.8 5H18v14h-2.2zM4 5.5v13L14.5 12z"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="4.5" width="4.5" height="15" rx="1"/><rect x="14" y="4.5" width="4.5" height="15" rx="1"/></svg>'
+};
+let media = null, mediaTimer = 0;
+const mediaCmd = cmd => Host.has ? Host.call("media.cmd", { cmd }).catch(() => {}) : null;
+function mediaButtons() {
+  const m = media || {};
+  return [
+    { ok: !!m.canShuffle, cls: m.shuffle ? "on" : "", icon: MI.shuffle, run() { m.shuffle = !m.shuffle; mediaCmd("shuffle"); renderQuick(); } },
+    { ok: m.canPrev !== false, cls: "", icon: MI.prev, run() { mediaCmd("prev"); } },
+    { ok: true, cls: "big", icon: m.playing ? MI.pause : MI.play, run() { m.position = mediaPos(); m.at = Date.now(); m.playing = !m.playing; mediaCmd("toggle"); renderQuick(); } },
+    { ok: m.canNext !== false, cls: "", icon: MI.next, run() { mediaCmd("next"); } }
+  ];
+}
+/* La app manda la posición y cuándo la midió; mientras suena se avanza sola para que la barra se vea fluida. */
+function mediaPos() {
+  const m = media; if (!m) return 0;
+  const p = m.position + (m.playing ? Math.max(0, Date.now() - (m.at || Date.now())) / 1000 : 0);
+  return m.duration ? Math.min(p, m.duration) : p;
+}
+const mmss = s => !isFinite(s) || s < 0 ? "0:00" : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+function mediaCard(f) {
+  const m = media, p = mediaPos(), pct = m.duration ? p / m.duration * 100 : 0;
+  const btns = mediaButtons().map((b, j) => `<span class="qmb ${b.cls}${b.ok ? "" : " off"}${QM.m === j ? " sel" : ""}">${b.icon}</span>`).join("");
+  return `<div class="qrow qmedia${f}"><div class="qmtop"><span class="qmart" style="${m.art ? `background-image:url('${esc(m.art)}')` : ""}"></span>
+    <span class="qmtxt"><b>${esc(m.title)}</b><span>${esc(m.artist || m.album || "")}</span><em>${esc(m.app || "")}</em></span></div>
+    ${m.duration ? `<div class="qmprog"><span class="mcur">${mmss(p)}</span><span class="qbar"><i style="width:${pct}%"></i></span><span>${mmss(m.duration)}</span></div>` : ""}
+    <div class="qmbtns">${btns}</div></div>`;
+}
+/* Solo se mueve la barra (sin volver a dibujar todo el menú). */
+function mediaTick() {
+  clearInterval(mediaTimer);
+  mediaTimer = setInterval(() => {
+    if (!QM.open) return clearInterval(mediaTimer);
+    if (!media || !media.duration) return;
+    const p = mediaPos(), bar = $("#quick .qmprog .qbar i"), cur = $("#quick .qmprog .mcur");
+    if (bar) bar.style.width = p / media.duration * 100 + "%";
+    if (cur) cur.textContent = mmss(p);
+  }, 500);
+}
+function setMedia(m) {
+  if (m && !m.title) m = null;
+  if (m && m.now) m.at = (m.at || m.now) + (Date.now() - m.now);   // reloj de la app → reloj de la página
+  const had = !!media; media = m;
+  if (QM.open && had !== !!m) QM.i = clamp(QM.i + (m ? 1 : -1), 0, qmRows().length - 1);
+  if (QM.open) renderQuick();
+  tintQuick();
+}
+Events.on("media.changed", setMedia);
+function demoMedia() {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#0b0b0d"/><circle cx="62" cy="40" r="34" fill="#c4161c"/><rect y="70" width="100" height="30" fill="#7a0d12"/></svg>`;
+  setMedia({ app: "Apple Music", title: "Canción de ejemplo", artist: "Artista · Álbum", art: "data:image/svg+xml;base64," + btoa(svg), playing: true, position: 42, duration: 215, at: Date.now(), canShuffle: true, shuffle: false });
+}
+
+/* El menú se tiñe con los colores de la carátula (degradado que se mueve despacio, oscurecido para que se lea bien). */
+let tintFor = null;
+function tintQuick() {
+  const q = $("#quick"), art = media && media.art;
+  if (!art) { q.classList.remove("tinted"); tintFor = null; return; }
+  if (art === tintFor) return;
+  tintFor = art;
+  const img = new Image(); img.crossOrigin = "anonymous";
+  img.onload = () => {
+    if (tintFor !== art) return;
+    const cols = artColors(img);
+    if (!cols) return q.classList.remove("tinted");
+    cols.forEach((c, i) => q.style.setProperty(`--mt${i + 1}`, c));
+    q.classList.add("tinted");
+  };
+  img.onerror = () => q.classList.remove("tinted");
+  img.src = art;
+}
+/* Los 3 colores con más presencia (pesando más los vivos), llevados a un tono oscuro. */
+function artColors(img) {
+  try {
+    const c = document.createElement("canvas"); c.width = c.height = 40;
+    const x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(img, 0, 0, 40, 40);
+    const d = x.getImageData(0, 0, 40, 40).data, bins = new Map();
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2], key = (r >> 5) << 6 | (g >> 5) << 3 | (b >> 5);
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), sat = mx ? (mx - mn) / mx : 0;
+      const e = bins.get(key) || { r: 0, g: 0, b: 0, n: 0, w: 0 };
+      e.r += r; e.g += g; e.b += b; e.n++; e.w += 0.35 + sat * (mx / 255);
+      bins.set(key, e);
+    }
+    const top = [...bins.values()].sort((a, b) => b.w - a.w), pick = [];
+    for (const e of top) {
+      const col = [e.r / e.n, e.g / e.n, e.b / e.n];
+      if (pick.every(p => Math.hypot(p[0] - col[0], p[1] - col[1], p[2] - col[2]) > 60)) pick.push(col);
+      if (pick.length === 3) break;
+    }
+    while (pick.length < 3) pick.push(pick[0] || [40, 40, 40]);
+    // Oscurecidos parejo (se conserva qué color es más claro u oscuro) y con tope, para que el texto blanco siempre se lea.
+    return pick.map(([r, g, b]) => { const k = Math.min(0.5, 118 / Math.max(r, g, b, 1)); return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`; });
+  } catch { return null; }
+}
+
 /* botón Xbox: 1 toque = menú rápido · 2 toques = menú / juego · mantener = ventanas activas (en la consola) */
 let guideTimer = 0, guideHeldFired = false;
 function guideDown() {
@@ -2862,12 +3002,13 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
     const st = Host.has ? await Host.call("system.state").catch(() => null) : null;
     if (st) { Object.assign(sys, st); saveSys(); }
     if (Host.has) Host.call("sounds.list").then(m => { if (m && Object.keys(m).length) Snd.loadCustom(m); }).catch(() => {});
-    if (!Host.has) openQuick();
+    if (!Host.has) { demoMedia(); openQuick(); }
     return;
   }
   [profile, games, friends] = await Promise.all([Data.profile(), Data.games(), Data.friends()]);
   if (Host.has) {
     const pads = await Host.call("pads.list").catch(() => null); if (pads && pads.length) state.pads = pads;
+    Host.call("audio.mutebehind", { on: settings.muteBehind !== false }).catch(() => {});
     const st = await Host.call("system.state").catch(() => null); if (st) { Object.assign(sys, st); saveSys(); }
     Host.call("sounds.list").then(m => { if (m && Object.keys(m).length) Snd.loadCustom(m); }).catch(() => {});
     const gs = await Host.call("game.state").catch(() => null);

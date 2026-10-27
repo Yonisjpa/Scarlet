@@ -1,0 +1,179 @@
+using Windows.Media.Control;
+using Windows.Storage.Streams;
+
+namespace XboxScarlet;
+
+/// <summary>
+/// "Reproduciendo ahora": lee la música que suena (Apple Music primero; si no, cualquier app que la reporte a Windows,
+/// como Spotify o YouTube) y la controla. Es el mismo sistema que usan las teclas multimedia de Windows.
+/// </summary>
+sealed class MediaService
+{
+    GlobalSystemMediaTransportControlsSessionManager mgr;
+    GlobalSystemMediaTransportControlsSession session;
+    readonly ArtCache art;
+    public event Action<object> Changed;
+    object last;
+    string lastArtKey, lastArtUrl;
+
+    public MediaService(ArtCache art) { this.art = art; }
+
+    public async Task StartAsync()
+    {
+        try
+        {
+            mgr = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
+            mgr.SessionsChanged += (_, _) => _ = PickAsync();
+            mgr.CurrentSessionChanged += (_, _) => _ = PickAsync();
+            await PickAsync();
+        }
+        catch (Exception ex) { Log.Error("música", ex); }
+    }
+
+    static bool IsApple(GlobalSystemMediaTransportControlsSession s) =>
+        s?.SourceAppUserModelId?.Contains("AppleMusic", StringComparison.OrdinalIgnoreCase) == true;
+
+    static bool IsPlaying(GlobalSystemMediaTransportControlsSession s)
+    {
+        try { return s.GetPlaybackInfo()?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing; }
+        catch { return false; }
+    }
+
+    /// <summary>Apple Music si está abierta; si no, lo que esté sonando; si nada suena, lo que Windows marque como actual.</summary>
+    async Task PickAsync()
+    {
+        try
+        {
+            var all = mgr?.GetSessions()?.ToList() ?? new();
+            var pick = all.FirstOrDefault(IsApple) ?? all.FirstOrDefault(IsPlaying) ?? mgr?.GetCurrentSession();
+            if (!ReferenceEquals(pick, session))
+            {
+                if (session != null)
+                {
+                    session.MediaPropertiesChanged -= OnProps;
+                    session.PlaybackInfoChanged -= OnInfo;
+                    session.TimelinePropertiesChanged -= OnInfo;
+                }
+                session = pick;
+                if (session != null)
+                {
+                    session.MediaPropertiesChanged += OnProps;
+                    session.PlaybackInfoChanged += OnInfo;
+                    session.TimelinePropertiesChanged += OnInfo;
+                    Log.Write("música: " + session.SourceAppUserModelId);
+                }
+            }
+            await RefreshAsync();
+        }
+        catch (Exception ex) { Log.Error("música (sesión)", ex); }
+    }
+
+    void OnProps(GlobalSystemMediaTransportControlsSession s, MediaPropertiesChangedEventArgs e) => _ = RefreshAsync();
+    void OnInfo(GlobalSystemMediaTransportControlsSession s, object e) => _ = RefreshAsync();
+
+    readonly SemaphoreSlim busy = new(1, 1);
+
+    async Task RefreshAsync()
+    {
+        if (!await busy.WaitAsync(0)) { _ = Task.Delay(250).ContinueWith(_ => RefreshAsync()); return; }
+        try
+        {
+            object state = null;
+            var s = session;
+            if (s != null)
+            {
+                var props = await s.TryGetMediaPropertiesAsync();
+                var info = s.GetPlaybackInfo();
+                var tl = s.GetTimelineProperties();
+                if (props != null && !string.IsNullOrEmpty(props.Title))
+                {
+                    string artUrl = await ArtAsync(props);
+                    double dur = tl != null ? (tl.EndTime - tl.StartTime).TotalSeconds : 0;
+                    double pos = tl != null ? (tl.Position - tl.StartTime).TotalSeconds : 0;
+                    long at = tl != null && tl.LastUpdatedTime.Year > 2000 ? tl.LastUpdatedTime.ToUnixTimeMilliseconds() : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    var c = info?.Controls;
+                    state = new
+                    {
+                        app = AppName(s.SourceAppUserModelId),
+                        title = props.Title,
+                        artist = string.IsNullOrEmpty(props.Artist) ? props.AlbumArtist : props.Artist,
+                        album = props.AlbumTitle,
+                        art = artUrl,
+                        playing = info?.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing,
+                        position = Math.Max(0, pos),
+                        duration = Math.Max(0, dur),
+                        at,
+                        now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                        shuffle = info?.IsShuffleActive == true,
+                        canShuffle = c?.IsShuffleEnabled == true,
+                        canNext = c?.IsNextEnabled != false,
+                        canPrev = c?.IsPreviousEnabled != false,
+                        canSeek = c?.IsPlaybackPositionEnabled == true
+                    };
+                }
+            }
+            last = state;
+            Changed?.Invoke(state);
+        }
+        catch (Exception ex) { Log.Error("música (datos)", ex); }
+        finally { busy.Release(); }
+    }
+
+    static string AppName(string aumid) =>
+        aumid == null ? "" :
+        aumid.Contains("AppleMusic", StringComparison.OrdinalIgnoreCase) ? "Apple Music" :
+        aumid.Contains("Spotify", StringComparison.OrdinalIgnoreCase) ? "Spotify" :
+        aumid.Contains("msedge", StringComparison.OrdinalIgnoreCase) ? "Microsoft Edge" :
+        aumid.Contains("chrome", StringComparison.OrdinalIgnoreCase) ? "Chrome" : aumid.Split('!')[0].Split('_')[0];
+
+    /// <summary>La carátula se guarda en la caché (una vez por canción) y se sirve como archivo local.</summary>
+    async Task<string> ArtAsync(GlobalSystemMediaTransportControlsSessionMediaProperties props)
+    {
+        if (props.Thumbnail == null) return null;
+        string key = (props.Title + "|" + props.Artist + "|" + props.AlbumTitle);
+        if (key == lastArtKey) return lastArtUrl;
+        try
+        {
+            string dir = Path.Combine(Paths.Cache, "music");
+            Directory.CreateDirectory(dir);
+            string stem = "music_" + Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(key)))[..16];
+            string file = Directory.EnumerateFiles(dir, stem + ".*").FirstOrDefault();
+            if (file == null)
+            {
+                using IRandomAccessStreamWithContentType ras = await props.Thumbnail.OpenReadAsync();
+                string ext = ras.ContentType?.Contains("png", StringComparison.OrdinalIgnoreCase) == true ? ".png" : ".jpg";
+                file = Path.Combine(dir, stem + ext);
+                using var input = ras.AsStreamForRead();
+                using var fs = File.Create(file);
+                await input.CopyToAsync(fs);
+            }
+            lastArtKey = key;
+            lastArtUrl = ArtCache.LocalUrl(file);
+            return lastArtUrl;
+        }
+        catch (Exception ex) { Log.Error("música (carátula)", ex); return null; }
+    }
+
+    public object State => last;
+
+    public async Task<bool> CommandAsync(string cmd, double value)
+    {
+        var s = session;
+        if (s == null) return false;
+        try
+        {
+            switch (cmd)
+            {
+                case "toggle": return await s.TryTogglePlayPauseAsync();
+                case "next": return await s.TrySkipNextAsync();
+                case "prev": return await s.TrySkipPreviousAsync();
+                case "shuffle": return await s.TryChangeShuffleActiveAsync(!(s.GetPlaybackInfo()?.IsShuffleActive ?? false));
+                case "seek":
+                    var tl = s.GetTimelineProperties();
+                    return await s.TryChangePlaybackPositionAsync((tl.StartTime + TimeSpan.FromSeconds(Math.Max(0, value))).Ticks);
+            }
+        }
+        catch (Exception ex) { Log.Error("música " + cmd, ex); }
+        return false;
+    }
+}

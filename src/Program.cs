@@ -70,6 +70,7 @@ static class Program
         }) { IsBackground = true, Name = "show-request" };
         listener.Start();
         Application.Run(main);
+        AudioFocus.RestoreAll();   // al salir, nada se queda silenciado
         Log.Write("Scarlet se cerró normalmente");
     }
 

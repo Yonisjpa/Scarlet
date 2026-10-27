@@ -15,6 +15,7 @@ sealed class QuickOverlay : Form
     bool ready;
 
     public bool IsOpen { get; private set; }
+    public CoreWebView2 View => ready ? web.CoreWebView2 : null;
     public event Action Hidden;
 
     public QuickOverlay(Action<string, CoreWebView2> onMessage)
@@ -76,10 +77,10 @@ sealed class QuickOverlay : Form
     }
 
     /// <summary>¿El juego se quedó con el foco? Entonces los botones del mando le llegan al menú por la app (ver XInputService.ForwardKeys).</summary>
-    public bool LostFocus { get; private set; }
+    public bool FocusLost { get; private set; }
 
     /// <summary>Se cierra con su animación; mientras tanto se ignoran más toques del botón Xbox.</summary>
-    public bool Closing { get; private set; }
+    public bool IsClosing { get; private set; }
 
     /// <summary>Abre el panel encima de la ventana que estaba al frente (a la que se regresa al cerrar).</summary>
     public bool ShowOver(IntPtr front)
@@ -87,7 +88,7 @@ sealed class QuickOverlay : Form
         if (!ready) { Log.Write("menú rápido: todavía cargando"); return false; }
         returnTo = front;
         Place();
-        IsOpen = true; Closing = false; LostFocus = false;
+        IsOpen = true; IsClosing = false; FocusLost = false;
         Show();
         Native.SetWindowPos(Handle, new IntPtr(-1) /* HWND_TOPMOST */, 0, 0, 0, 0, 0x0001 | 0x0002 /* NOSIZE | NOMOVE */);
         bool got = Native.ForceForeground(Handle);
@@ -114,20 +115,20 @@ sealed class QuickOverlay : Form
             if (Native.ForceForeground(Handle)) web.Focus();
         }
         if (!IsOpen) return;
-        LostFocus = Native.GetForegroundWindow() != Handle;
-        if (tries > 0) Log.Write(LostFocus
+        FocusLost = Native.GetForegroundWindow() != Handle;
+        if (tries > 0) Log.Write(FocusLost
             ? $"menú rápido: {Native.Describe(Native.GetForegroundWindow())} no suelta el foco; el menú se maneja por la app{(Native.ExclusiveFullscreen() ? " (pantalla completa exclusiva)" : "")}"
             : $"menú rápido: el juego tomó el foco {tries} vez/veces, se recuperó");
     }
 
     /// <summary>Un botón del mando que llegó por la app (el menú no tiene el foco).</summary>
-    public void SendKey(string key) { if (IsOpen && !Closing) Post("pad.key", key); }
+    public void SendKey(string key) { if (IsOpen && !IsClosing) Post("pad.key", key); }
 
     /// <summary>Pide a la interfaz que se cierre con su animación (ella avisa con "quick.close" al terminar).</summary>
     public void RequestClose(string why)
     {
-        if (!IsOpen || Closing) return;
-        Closing = true;
+        if (!IsOpen || IsClosing) return;
+        IsClosing = true;
         closeReason = why;
         Post("quick.close");
         // Por si la interfaz no contesta, se cierra de todos modos.
@@ -139,7 +140,7 @@ sealed class QuickOverlay : Form
     public void HideNow(bool giveBack, string why = null)
     {
         if (!IsOpen) return;
-        IsOpen = false; Closing = false; LostFocus = false;
+        IsOpen = false; IsClosing = false; FocusLost = false;
         Hide();
         try { Hidden?.Invoke(); } catch { }
         Log.Write($"menú rápido cerrado ({why ?? closeReason ?? "interfaz"})");
