@@ -60,29 +60,62 @@ static class Native
 
     public static bool IsToolWindow(IntPtr hWnd) => (GetWindowLongPtr(hWnd, GWL_EXSTYLE).ToInt64() & WS_EX_TOOLWINDOW) != 0;
 
-    /// <summary>Trae una ventana al frente aunque otra app (un juego) tenga el foco.</summary>
-    public static void ForceForeground(IntPtr hWnd)
+    [DllImport("user32.dll")] static extern bool AllowSetForegroundWindow(int dwProcessId);
+    [DllImport("user32.dll")] static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
+    [DllImport("shell32.dll")] static extern int SHQueryUserNotificationState(out int state);
+
+    /// <summary>
+    /// Trae una ventana al frente aunque otra app (un juego) tenga el foco. Devuelve si lo consiguió.
+    /// Se intenta por pasos, del más suave al más insistente, para no molestar cuando no hace falta.
+    /// </summary>
+    public static bool ForceForeground(IntPtr hWnd)
     {
-        if (hWnd == IntPtr.Zero) return;
+        if (hWnd == IntPtr.Zero || !IsWindow(hWnd)) return false;
         if (IsIconic(hWnd)) ShowWindow(hWnd, SW_RESTORE);
         IntPtr fg = GetForegroundWindow();
-        if (fg == hWnd) return;
+        if (fg == hWnd) return true;
+        AllowSetForegroundWindow(-1 /* ASFW_ANY */);
 
-        uint fgThread = GetWindowThreadProcessId(fg, out _);
+        // 1) Compartir la entrada con la ventana del frente: Windows deja cambiar el foco.
+        uint fgThread = fg == IntPtr.Zero ? 0 : GetWindowThreadProcessId(fg, out _);
         uint me = GetCurrentThreadId();
-        bool attached = fgThread != 0 && fgThread != me && AttachThreadInput(me, fgThread, true);
-        BringWindowToTop(hWnd);
-        SetForegroundWindow(hWnd);
-        if (attached) AttachThreadInput(me, fgThread, false);
-
-        if (GetForegroundWindow() != hWnd)
+        bool attached = false;
+        try
         {
-            // Último recurso: una pulsación de Alt hace que Windows permita cambiar el foco.
-            keybd_event(0x12, 0, 0, UIntPtr.Zero);
-            keybd_event(0x12, 0, 0x0002, UIntPtr.Zero);
+            attached = fgThread != 0 && fgThread != me && AttachThreadInput(me, fgThread, true);
             BringWindowToTop(hWnd);
             SetForegroundWindow(hWnd);
         }
+        finally { if (attached) AttachThreadInput(me, fgThread, false); }
+        if (GetForegroundWindow() == hWnd) return true;
+
+        // 2) Una pulsación de Alt hace que Windows considere que hubo entrada del usuario.
+        keybd_event(0x12, 0, 0, UIntPtr.Zero);
+        keybd_event(0x12, 0, 0x0002, UIntPtr.Zero);
+        BringWindowToTop(hWnd);
+        SetForegroundWindow(hWnd);
+        if (GetForegroundWindow() == hWnd) return true;
+
+        // 3) Lo mismo que hace Alt+Tab.
+        SwitchToThisWindow(hWnd, true);
+        return GetForegroundWindow() == hWnd;
+    }
+
+    public static void Minimize(IntPtr hWnd) { if (hWnd != IntPtr.Zero && IsWindow(hWnd)) ShowWindow(hWnd, 6 /* SW_MINIMIZE */); }
+
+    /// <summary>¿Hay un juego en pantalla completa exclusiva? Ahí Windows no deja poner nada encima de forma estable.</summary>
+    public static bool ExclusiveFullscreen()
+    {
+        try { return SHQueryUserNotificationState(out int s) == 0 && s == 3 /* QUNS_RUNNING_D3D_FULL_SCREEN */; }
+        catch { return false; }
+    }
+
+    /// <summary>"juego.exe «Título»" para el log.</summary>
+    public static string Describe(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero) return "(nada)";
+        string exe = Path.GetFileName(WindowProcessPath(hWnd, out _) ?? "?");
+        return $"{exe} «{Title(hWnd)}»";
     }
 
     /// <summary>Manda la ventana al fondo sin activarla (deja ver lo que haya detrás).</summary>

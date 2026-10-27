@@ -25,6 +25,20 @@ sealed class XInputService : IDisposable
     const int HOLD_MS = 550, DOUBLE_MS = 330;   // un toque se confirma cuando pasan 330 ms sin el segundo
 
     public event Action GuideSingle, GuideDouble, GuideHold, GuideDown;
+
+    /// <summary>
+    /// Mientras está activo, los botones del mando se mandan como teclas ("up", "a", "b"…) aunque la app no tenga el foco.
+    /// Lo usa el menú rápido: si el juego se queda con el foco, el menú se sigue pudiendo usar y cerrar.
+    /// </summary>
+    public volatile bool ForwardKeys;
+    public event Action<string> PadKey;
+    static readonly (ushort bit, string key)[] KeyMap =
+    {
+        (0x0001, "up"), (0x0002, "down"), (0x0004, "left"), (0x0008, "right"),
+        (0x1000, "a"), (0x2000, "b"), (0x4000, "x"), (0x8000, "y"), (0x0100, "lb"), (0x0200, "rb"), (0x0010, "start")
+    };
+    const int REPEAT_FIRST_MS = 380, REPEAT_MS = 110;
+    const short STICK = 16000;
     Thread thread;
     volatile bool running = true;
     volatile int lastIndex;
@@ -82,11 +96,13 @@ sealed class XInputService : IDisposable
         long downAt = 0, lastTap = 0, tick = 0;
         bool chord = false, chordHold = false;
         long chordAt = 0;
-        int presses = 0;
         bool reported = false, xinputOk = true;
+        ushort fwdPrev = 0;
+        var fwdNext = new Dictionary<string, long>();
         while (running)
         {
             bool guide = false, viewMenu = false;
+            ushort pad = 0;
             if (xinputOk)
             {
                 try
@@ -98,6 +114,7 @@ sealed class XInputService : IDisposable
                         if (ok != connected[i]) Log.Write($"xinput: mando {(ok ? "conectado" : "desconectado")} en el puerto {i + 1}");
                         connected[i] = ok;
                         if (!ok) continue;
+                        pad |= Directional(s.Gamepad);
                         if ((s.Gamepad.wButtons & GUIDE) != 0) { guide = true; lastIndex = i; }
                         if ((s.Gamepad.wButtons & (START | BACK)) == (START | BACK)) { viewMenu = true; lastIndex = i; }
                     }
@@ -112,16 +129,17 @@ sealed class XInputService : IDisposable
             try
             {
                 if (tick % 120 == 0) RefreshWgi();   // cada 2 s
-                if (!guide && WgiGuide()) { guide = true; if (presses < 30 && !down) Log.Write("wgi: botón Xbox presionado"); }
+                if (!guide && WgiGuide()) { guide = true; if (!down) Log.Write("wgi: botón Xbox presionado"); }
             }
             catch (Exception ex) { if (tick % 600 == 0) Log.Error("wgi", ex); }
             tick++;
 
             long now = sw.ElapsedMilliseconds;
+            Forward(pad, ref fwdPrev, fwdNext, now);
             if (guide && !down)
             {
                 down = true; holdFired = false; downAt = now;
-                if (presses++ < 30) Log.Write($"botón Xbox presionado (puerto {lastIndex + 1})");   // para diagnosticar; solo las primeras
+                Log.Write($"botón Xbox presionado (puerto {lastIndex + 1})");
                 Raise(GuideDown);
             }
             else if (guide && down && !holdFired && now - downAt >= HOLD_MS) { holdFired = true; lastTap = 0; Raise(GuideHold); }
@@ -147,6 +165,33 @@ sealed class XInputService : IDisposable
             }
             Thread.Sleep(16);
         }
+    }
+
+    /// <summary>Botones + cruceta, con el stick izquierdo sumado a la cruceta.</summary>
+    static ushort Directional(XINPUT_GAMEPAD g)
+    {
+        ushort b = g.wButtons;
+        if (g.sThumbLY > STICK) b |= 0x0001; else if (g.sThumbLY < -STICK) b |= 0x0002;
+        if (g.sThumbLX < -STICK) b |= 0x0004; else if (g.sThumbLX > STICK) b |= 0x0008;
+        return b;
+    }
+
+    /// <summary>Manda cada botón recién apretado; las direcciones se repiten si se mantienen (como en la interfaz).</summary>
+    void Forward(ushort pad, ref ushort prev, Dictionary<string, long> next, long now)
+    {
+        if (!ForwardKeys) { prev = pad; next.Clear(); return; }   // al activarse no se manda lo que ya estaba apretado
+        foreach (var (bit, key) in KeyMap)
+        {
+            bool on = (pad & bit) != 0, was = (prev & bit) != 0;
+            if (on && !was) { next[key] = now + REPEAT_FIRST_MS; RaiseKey(key); }
+            else if (on && bit <= 0x0008 && next.TryGetValue(key, out long t) && now >= t) { next[key] = now + REPEAT_MS; RaiseKey(key); }
+        }
+        prev = pad;
+    }
+
+    void RaiseKey(string k)
+    {
+        try { PadKey?.Invoke(k); } catch (Exception ex) { Log.Error("mando → menú", ex); }
     }
 
     static void Raise(Action a)

@@ -15,6 +15,7 @@ sealed class QuickOverlay : Form
     bool ready;
 
     public bool IsOpen { get; private set; }
+    public event Action Hidden;
 
     public QuickOverlay(Action<string, CoreWebView2> onMessage)
     {
@@ -68,11 +69,17 @@ sealed class QuickOverlay : Form
         cw.Navigate("https://app.scarlet/index.html?overlay=quick");
     }
 
-    void Post(string ev)
+    void Post(string ev, object data = null)
     {
-        try { web.CoreWebView2?.PostWebMessageAsJson(JsonSerializer.Serialize(new Dictionary<string, object> { ["event"] = ev, ["data"] = null })); }
+        try { web.CoreWebView2?.PostWebMessageAsJson(JsonSerializer.Serialize(new Dictionary<string, object> { ["event"] = ev, ["data"] = data })); }
         catch (Exception ex) { Log.Error("menú rápido", ex); }
     }
+
+    /// <summary>¿El juego se quedó con el foco? Entonces los botones del mando le llegan al menú por la app (ver XInputService.ForwardKeys).</summary>
+    public bool LostFocus { get; private set; }
+
+    /// <summary>Se cierra con su animación; mientras tanto se ignoran más toques del botón Xbox.</summary>
+    public bool Closing { get; private set; }
 
     /// <summary>Abre el panel encima de la ventana que estaba al frente (a la que se regresa al cerrar).</summary>
     public bool ShowOver(IntPtr front)
@@ -80,43 +87,63 @@ sealed class QuickOverlay : Form
         if (!ready) { Log.Write("menú rápido: todavía cargando"); return false; }
         returnTo = front;
         Place();
-        IsOpen = true;
+        IsOpen = true; Closing = false; LostFocus = false;
         Show();
         Native.SetWindowPos(Handle, new IntPtr(-1) /* HWND_TOPMOST */, 0, 0, 0, 0, 0x0001 | 0x0002 /* NOSIZE | NOMOVE */);
-        Native.ForceForeground(Handle);
+        bool got = Native.ForceForeground(Handle);
         web.Focus();
-        _ = Reassert();
         Post("quick.open");
-        Log.Write("menú rápido abierto");
+        Log.Write($"menú rápido abierto sobre {Native.Describe(front)}{(got ? "" : " (sin foco todavía)")}");
+        _ = Reassert();
         return true;
     }
 
-    /// <summary>Algunos juegos recuperan el foco justo después; se vuelve a pedir un par de veces.</summary>
+    /// <summary>
+    /// Algunos juegos recuperan el foco justo después; se pide de nuevo un par de veces y, si el juego insiste,
+    /// ya no se pelea: el menú sigue funcionando con los botones que le pasa la app.
+    /// </summary>
     async Task Reassert()
     {
+        int tries = 0;
         foreach (int ms in new[] { 120, 300, 700 })
         {
             await Task.Delay(ms);
             if (!IsOpen) return;
-            if (Native.GetForegroundWindow() != Handle) { Native.ForceForeground(Handle); web.Focus(); Log.Write("menú rápido: el juego se quedó el foco, se recupera"); }
+            if (Native.GetForegroundWindow() == Handle) continue;
+            tries++;
+            if (Native.ForceForeground(Handle)) web.Focus();
         }
+        if (!IsOpen) return;
+        LostFocus = Native.GetForegroundWindow() != Handle;
+        if (tries > 0) Log.Write(LostFocus
+            ? $"menú rápido: {Native.Describe(Native.GetForegroundWindow())} no suelta el foco; el menú se maneja por la app{(Native.ExclusiveFullscreen() ? " (pantalla completa exclusiva)" : "")}"
+            : $"menú rápido: el juego tomó el foco {tries} vez/veces, se recuperó");
     }
+
+    /// <summary>Un botón del mando que llegó por la app (el menú no tiene el foco).</summary>
+    public void SendKey(string key) { if (IsOpen && !Closing) Post("pad.key", key); }
 
     /// <summary>Pide a la interfaz que se cierre con su animación (ella avisa con "quick.close" al terminar).</summary>
-    public void RequestClose()
+    public void RequestClose(string why)
     {
-        if (!IsOpen) return;
+        if (!IsOpen || Closing) return;
+        Closing = true;
+        closeReason = why;
         Post("quick.close");
         // Por si la interfaz no contesta, se cierra de todos modos.
-        _ = Task.Delay(700).ContinueWith(_ => { if (IsOpen) BeginInvoke(new Action(() => HideNow(true))); });
+        _ = Task.Delay(700).ContinueWith(_ => { if (IsOpen) BeginInvoke(new Action(() => HideNow(true, why + ", sin respuesta de la interfaz"))); });
     }
+    string closeReason;
 
     /// <summary>Oculta el panel ya; si se pide, regresa el foco a lo que estaba al frente (el juego).</summary>
-    public void HideNow(bool giveBack)
+    public void HideNow(bool giveBack, string why = null)
     {
         if (!IsOpen) return;
-        IsOpen = false;
+        IsOpen = false; Closing = false; LostFocus = false;
         Hide();
+        try { Hidden?.Invoke(); } catch { }
+        Log.Write($"menú rápido cerrado ({why ?? closeReason ?? "interfaz"})");
+        closeReason = null;
         if (giveBack && returnTo != IntPtr.Zero && Native.IsWindow(returnTo)) Native.ForceForeground(returnTo);
     }
 

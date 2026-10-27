@@ -2356,6 +2356,7 @@ function onGuideDouble() {
 }
 // La app avisa "hidden" cuando tuvo que traer el menú al frente (venías de un juego u otra ventana): ahí siempre se va al menú.
 Events.on("guide.double", d => {
+  setTimeout(flushExclusive, 900);
   if (!(d && d.hidden)) return onGuideDouble();
   if (mode === "game") goHome(); else if (mode === "ui") { play("select"); updateFocus(); }
 });
@@ -2443,10 +2444,10 @@ function openQuick() {
   if (Host.has) Host.call("system.state").then(st => { if (st) { for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; saveSys(); } if (QM.open) renderQuick(); }).catch(() => {});
   $("#quick").classList.add("show"); $("#qshade").classList.add("show"); play("select");
 }
-function closeQuick(stay) {
+function closeQuick(stay, why = "B") {
   if (!QM.open) return;
   QM.open = false; $("#quick").classList.remove("show"); $("#qshade").classList.remove("show"); play("back");
-  if (OVERLAY) { if (!stay) setTimeout(() => Host.call("quick.close").catch(() => {}), 240); return; }
+  if (OVERLAY) { if (!stay) setTimeout(() => Host.call("quick.close", { why }).catch(() => {}), 240); return; }
   if (!stay && Host.has && mode === "game") Host.call("game.focus").catch(() => {});
 }
 function applySys(k) {
@@ -2508,7 +2509,13 @@ Events.on("guide.hold", d => { if (QM.open) { if (!(d && d.hidden)) closeQuick()
 /* botón Xbox (app): 1 toque = menú rápido */
 Events.on("quick.toggle", () => QM.open ? closeQuick() : openQuick());
 Events.on("quick.open", () => { lastActivity = performance.now(); dimmed = false; mode = "ui"; QM.open = false; openQuick(); });
-Events.on("quick.close", () => { if (QM.open) closeQuick(); else Host.call("quick.close").catch(() => {}); });
+Events.on("quick.close", () => { if (QM.open) closeQuick(false, "botón Xbox"); else Host.call("quick.close", { why: "botón Xbox" }).catch(() => {}); });
+/* Botones que manda la app cuando el juego se quedó con el foco: así el menú siempre se puede usar y cerrar. */
+Events.on("pad.key", k => { if (OVERLAY && !document.hasFocus() && typeof k === "string") { lastActivity = performance.now(); input(k); } });
+/* El juego está en pantalla completa exclusiva: ahí el menú puede fallar. Encima del juego no se alcanza a ver, así que se avisa al volver al Inicio. */
+let exclusiveWarn = false;
+const flushExclusive = () => { if (!exclusiveWarn || mode !== "ui") return; exclusiveWarn = false; notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4.5" width="19" height="13" rx="2"/><path d="M8 21h8"/></svg>', title: "Pantalla completa exclusiva", text: "Pon el juego en «ventana sin bordes» para que el menú funcione siempre" }); };
+Events.on("game.exclusive", () => { if (OVERLAY) return; exclusiveWarn = true; setTimeout(flushExclusive, 900); });
 Events.on("ui.settings", () => {
   if (mode === "game") goHome();
   setTimeout(() => { if (mode === "ui" && !(topView() && topView().isSettings)) openView(settingsView()); }, 380);
@@ -2759,7 +2766,7 @@ addEventListener("keyup", e => {
 });
 const pad = { held: {}, next: {} };
 function pollPads(t) {
-  const list = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  const list = navigator.getGamepads && !(OVERLAY && Host.has && !document.hasFocus()) ? [...navigator.getGamepads()].filter(Boolean) : [];
   const p = list[0];
   if (p) {
     lastPad = p;

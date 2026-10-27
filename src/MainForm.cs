@@ -156,6 +156,9 @@ sealed class MainForm : Form
             xin.GuideDouble += () => Ui(OnGuideDouble);
             xin.GuideHold += () => Ui(OnGuideHold);
             xin.GuideDown += () => Ui(OnGuideDown);
+            // Con el menú rápido abierto, los botones del mando le llegan aunque el juego se quede con el foco.
+            xin.PadKey += k => Ui(() => quick?.SendKey(k));
+            if (quick != null) quick.Hidden += () => xin.ForwardKeys = false;
             xin.Start();
 
             SystemEvents.PowerModeChanged += OnPower;
@@ -313,14 +316,14 @@ sealed class MainForm : Form
 
             // ── Ventana y notificaciones
             case "ui.show": ShowUi(); return true;
-            case "quick.close": quick?.HideNow(true); return true;
+            case "quick.close": quick?.HideNow(true, P.S(p, "why")); return true;
             case "quick.action":
             {
                 // Botones del menú rápido encima del juego que necesitan la pantalla principal.
-                quick?.HideNow(false);
+                quick?.HideNow(false, "botón " + P.S(p, "action"));
                 string action = P.S(p, "action");
-                if (action == "settings") { ShowUi(); Emit("ui.settings", null); }
-                else if (action == "sleep") Emit("ui.sleep", null);
+                if (action == "settings") { BringUiToFront(); Emit("ui.settings", null); }
+                else if (action == "sleep") { BringUiToFront(); Emit("ui.sleep", null); }
                 return true;
             }
             case "overlay.notify":
@@ -688,23 +691,43 @@ sealed class MainForm : Form
     int guideActions;
     IntPtr beforeGuide;
 
+    // Freno: abrir y cerrar ventanas más rápido de lo que se alcanzan a dibujar llegó a tumbar la app (log-4, 16:31).
+    const int GUIDE_GAP_MS = 300;
+    readonly Stopwatch guideClock = Stopwatch.StartNew();
+    long lastGuideAt = -10_000;
+
+    bool GuideTooSoon(string what)
+    {
+        long now = guideClock.ElapsedMilliseconds;
+        if (now - lastGuideAt < GUIDE_GAP_MS) { Log.Write($"botón Xbox: {what} ignorado (muy seguido)"); return true; }
+        lastGuideAt = now;
+        return false;
+    }
+
     /// <summary>1 toque: menú rápido. Con la interfaz al frente se usa el suyo; con cualquier otra cosa (un juego), el panel encima.</summary>
     void OnGuideSingle()
     {
         guideActions++;
-        if (quick != null && quick.IsOpen) { quick.RequestClose(); return; }
+        if (quick != null && quick.Closing) { Log.Write("botón Xbox: toque ignorado (el menú se está cerrando)"); return; }
+        if (GuideTooSoon("toque")) return;
+        if (quick != null && quick.IsOpen) { quick.RequestClose("botón Xbox"); return; }
         var fg = Native.GetForegroundWindow();
-        if (fg == Handle && web.Visible) { Emit("quick.toggle", null); return; }
+        if (fg == Handle && web.Visible) { Log.Write("toque: menú rápido de la interfaz"); Emit("quick.toggle", null); return; }
         if (IsGameBar(fg)) fg = beforeGuide;
-        if (quick == null || !quick.ShowOver(fg)) { ShowUi(); Emit("quick.toggle", null); }
+        if (quick != null && quick.ShowOver(fg)) { xin.ForwardKeys = true; WarnExclusive(); return; }
+        Log.Write("toque: menú rápido en la interfaz (el panel no está listo)");
+        BringUiToFront(); Emit("quick.toggle", null);
     }
 
     void OnGuideDouble()
     {
         guideActions++;
-        if (quick != null && quick.IsOpen) quick.HideNow(false);
-        bool hidden = Native.GetForegroundWindow() != Handle || !web.Visible;
-        if (hidden) ShowUi();
+        if (GuideTooSoon("doble toque")) return;
+        if (quick != null && quick.IsOpen) quick.HideNow(false, "doble toque");
+        var fg = Native.GetForegroundWindow();
+        bool hidden = fg != Handle || !web.Visible;
+        Log.Write(hidden ? $"doble toque: al Inicio desde {Native.Describe(fg)}" : "doble toque: en la interfaz");
+        if (hidden) BringUiToFront();
         Emit("guide.double", new { hidden });
     }
 
@@ -712,9 +735,43 @@ sealed class MainForm : Form
     void OnGuideHold()
     {
         guideActions++;
-        if (quick != null && quick.IsOpen) quick.HideNow(false);
+        if (GuideTooSoon("mantener")) return;
+        if (quick != null && quick.IsOpen) quick.HideNow(false, "botón Xbox mantenido");
         Log.Write("botón Xbox mantenido: ventanas activas");
         Shell.Open("shell:::{3080F90E-D7AD-11D9-BD98-0000947B0257}");
+    }
+
+    /// <summary>
+    /// Trae la interfaz al frente. Si el juego no suelta la pantalla (le pasa a algunos en pantalla completa exclusiva),
+    /// se minimiza el juego, igual que haría Alt+Tab; al volver se restaura solo.
+    /// </summary>
+    async void BringUiToFront()
+    {
+        IntPtr game = Native.GetForegroundWindow();
+        ShowUi();
+        await Task.Delay(150);
+        if (Native.GetForegroundWindow() == Handle) return;
+        IntPtr now = Native.GetForegroundWindow();
+        Log.Write($"Scarlet no pudo pasar al frente: {Native.Describe(now)} no suelta la pantalla; se minimiza{(Native.ExclusiveFullscreen() ? " (pantalla completa exclusiva)" : "")}");
+        WarnExclusive();
+        if (now != IntPtr.Zero && now != Handle && !(quick != null && now == quick.Handle)) Native.Minimize(now);
+        else if (game != IntPtr.Zero && game != Handle) Native.Minimize(game);
+        await Task.Delay(120);
+        TopMost = true;
+        bool ok = Native.ForceForeground(Handle);
+        web.Focus();
+        await Task.Delay(400);
+        TopMost = false;   // solo un instante: luego el juego debe poder volver al frente
+        if (!ok && Native.GetForegroundWindow() != Handle) Log.Write($"Scarlet sigue detrás de {Native.Describe(Native.GetForegroundWindow())}");
+    }
+
+    /// <summary>Una vez por juego: si está en pantalla completa exclusiva, se avisa que conviene "ventana sin bordes".</summary>
+    readonly HashSet<long> warnedExclusive = new();
+    void WarnExclusive()
+    {
+        if (tracker == null || !tracker.Active || !Native.ExclusiveFullscreen() || !warnedExclusive.Add(tracker.AppId)) return;
+        Log.Write($"el juego {tracker.AppId} está en pantalla completa exclusiva");
+        Emit("game.exclusive", new { appid = tracker.AppId });
     }
 
     /// <summary>
