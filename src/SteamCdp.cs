@@ -176,14 +176,7 @@ static class SteamCdp
         try { File.WriteAllText(Path.Combine(steamPath, Marker), ""); }
         catch (Exception ex) { Log.Error("Steam: crear " + Marker, ex); return (false, "Windows no dejó escribir en la carpeta de Steam."); }
         Log.Write("Steam: se activa la conexión directa; Steam se reinicia una vez");
-        if (SteamRunning)
-        {
-            try { Process.Start(new ProcessStartInfo(Path.Combine(steamPath, "steam.exe"), "-shutdown") { UseShellExecute = true }); }
-            catch (Exception ex) { Log.Error("Steam: cerrar", ex); }
-            for (int i = 0; i < 60 && SteamRunning; i++) await Task.Delay(500);
-            if (SteamRunning) return (false, "Steam no se cerró. Ciérralo y vuelve a intentarlo.");
-            await Task.Delay(1500);
-        }
+        if (!await CloseSteamAsync(steamPath)) return (false, "Steam no se cerró. Ciérralo y vuelve a intentarlo.");
         lastFail = DateTime.MinValue;
         startSteam();
         for (int i = 0; i < 75; i++)
@@ -197,6 +190,36 @@ static class SteamCdp
         return (false, still ? "Steam no abrió la conexión. Se usará la ventanita de Steam." : "Algo (por ejemplo, Millennium) borró el archivo al abrir Steam. Se usará la ventanita de Steam.");
     }
 
+    /// <summary>Cierra Steam por las buenas (como "Salir" de su menú) y espera hasta 30 s.</summary>
+    public static async Task<bool> CloseSteamAsync(string steamPath)
+    {
+        if (!SteamRunning) return true;
+        try { Process.Start(new ProcessStartInfo(Path.Combine(steamPath, "steam.exe"), "-shutdown") { UseShellExecute = true }); }
+        catch (Exception ex) { Log.Error("Steam: cerrar", ex); }
+        for (int i = 0; i < 60 && SteamRunning; i++) await Task.Delay(500);
+        if (SteamRunning) return false;
+        try { ws?.Abort(); } catch { }
+        await Task.Delay(1500);
+        return true;
+    }
+
+    /// <summary>Reinicia Steam desde cero (para que detecte la conexión) y espera a que vuelva (hasta ~60 s).</summary>
+    public static async Task<bool> RestartSteamAsync(string steamPath, Action startSteam)
+    {
+        if (steamPath == null) return false;
+        if (!await CloseSteamAsync(steamPath)) { Log.Write("Steam: no se cerró para reiniciarse"); return false; }
+        lastFail = DateTime.MinValue;
+        startSteam();
+        for (int i = 0; i < 60; i++)
+        {
+            await Task.Delay(1000);
+            if (!MarkerPresent(steamPath)) { if (i > 15 && SteamRunning) return true; continue; }
+            if (i % 2 == 1) lastFail = DateTime.MinValue;
+            if (await ReadyAsync()) return true;
+        }
+        return SteamRunning;
+    }
+
     // ───── instalar ─────
 
     // Estados del asistente de Steam (EInstallMgrState).
@@ -208,12 +231,20 @@ static class SteamCdp
     const string Js = @"const I = SteamClient.Installs, sleep = ms => new Promise(r => setTimeout(r, ms));
 const NAMES = ['None','Setup','WaitLicense','FreeLicense','ShowCDKey','WaitAppInfo','ShowPassword','ShowConfig','ShowEULAs','CreateApps','ReadFromMedia','ShowChangeMedia','WaitLegacyCDKeys','ShowSignup','Complete','Failed','Canceled'];
 const sNum = v => typeof v === 'number' ? v : Math.max(0, NAMES.indexOf(String(v)));
-const appsOf = info => ((info && info.rgAppIDs) || []).map(a => a && typeof a === 'object' ? (a.nAppID ?? a.unAppID ?? a.appid ?? a.appId) : a);
+const appsOf = info => ((info && (info.rgApps || info.rgAppIDs)) || []).map(a => a && typeof a === 'object' ? (a.nAppID ?? a.unAppID ?? a.appid ?? a.appId) : a);
 const mine = (info, id) => !!info && (appsOf(info).some(a => a == id) || info.currentAppID == id);
 const raw = info => { try { return JSON.stringify(info).slice(0, 700); } catch (e) { return String(info); } };
 const pack = info => info ? { s: sNum(info.eInstallState), need: Number(info.nDiskSpaceRequired) || 0, folder: info.iInstallFolder ?? -1, canChange: info.bCanChangeInstallFolder !== false, err: Number(info.eAppError) || 0, detail: info.errorDetail || '', cur: info.currentAppID || 0, raw: raw(info) } : { s: 0, raw: 'null' };
 const ensureDl = () => { const w = window; if (!w.__scarletDl) { w.__scarletDl = { items: [], ov: null }; SteamClient.Downloads.RegisterForDownloadItems((on, items) => { w.__scarletDl.items = items || []; }); SteamClient.Downloads.RegisterForDownloadOverview(o => { w.__scarletDl.ov = o; }); } return w.__scarletDl; };
-const queued = id => { try { return (ensureDl().items || []).some(i => i.appid == id && !i.completed); } catch (e) { return false; } };";
+" + DlNorm + @"
+const queued = id => { try { return (ensureDl().items || []).map(dlItem).some(i => i.a == id && !i.done); } catch (e) { return false; } };";
+
+    // Los nombres de Steam cambian entre versiones (ya pasó con rgApps): se lee cada dato con sus nombres posibles.
+    const string DlNorm = @"
+const pick = (o, ...ks) => { for (const k of ks) if (o && o[k] !== undefined && o[k] !== null) return o[k]; return undefined; };
+const dlItem = i => ({ a: Number(pick(i, 'appid', 'appID', 'nAppID', 'unAppID', 'app_id')) || 0, on: !!pick(i, 'active', 'bActive'), done: !!pick(i, 'completed', 'bCompleted'),
+  p: !!pick(i, 'paused', 'bPaused'), q: Number(pick(i, 'queue_index', 'nQueueIndex', 'queueIndex') ?? -1), b: Number(pick(i, 'downloaded_bytes', 'nBytesDownloaded', 'bytes_downloaded')) || 0,
+  t: Number(pick(i, 'total_bytes', 'nBytesTotal', 'bytes_total')) || 0, inst: (Number(pick(i, 'buildid', 'nBuildID', 'build_id')) || 0) > 0 });";
 
     static readonly SemaphoreSlim installGate = new(1, 1);
 
@@ -230,11 +261,12 @@ const s0 = info ? sNum(info.eInstallState) : 0;
 if (s0 > 0 && s0 < {Complete}) {{ I.CancelInstall(); await sleep(500); }}
 I.OpenInstallWizard([id]);
 const t0 = Date.now();
-let last = -1, since = Date.now();
+let last = -1, since = Date.now(), opened = Date.now();
 while (Date.now() - t0 < 15000) {{
   await sleep(200);
   info = await I.GetInstallManagerInfo();
-  if (!mine(info, id)) continue;
+  // Steam recién abierto (o reconectando) a veces ignora la primera orden: se repite cada 3 s
+  if (!mine(info, id)) {{ if (Date.now() - opened > 3000 && (!info || sNum(info.eInstallState) === 0)) {{ opened = Date.now(); I.OpenInstallWizard([id]); }} continue; }}
   const s = sNum(info.eInstallState), need = Number(info.nDiskSpaceRequired) || 0;
   if (s !== last) {{ last = s; since = Date.now(); }}
   if (Number(info.eAppError) > 0 && s !== {ShowConfig}) break;
@@ -373,7 +405,7 @@ return r;
 
     // ───── descargas en vivo ─────
 
-    const string DownloadsJs = @"(() => {
+    static string DownloadsJs => @"(() => {
 const w = window;
 if (!w.__scarletDl) {
   w.__scarletDl = { items: [], ov: null };
@@ -381,11 +413,15 @@ if (!w.__scarletDl) {
   SteamClient.Downloads.RegisterForDownloadOverview(o => { w.__scarletDl.ov = o; });
 }
 const d = w.__scarletDl, ov = d.ov || {};
-return { paused: !!ov.paused, cur: ov.update_appid || 0, curDl: ov.update_bytes_downloaded || 0, curTotal: ov.update_bytes_to_download || 0, stage: ov.update_state || '',
-  items: (d.items || []).map(i => ({ a: i.appid, on: !!i.active, done: !!i.completed, p: !!i.paused, q: i.queue_index, b: i.downloaded_bytes || 0, t: i.total_bytes || 0, inst: (i.buildid || 0) > 0 })) };
+" + DlNorm + @"
+let sample = '';
+try { sample = JSON.stringify({ item: (d.items || [])[0] || null, ov: d.ov }).slice(0, 900); } catch (e) {}
+return { paused: !!pick(ov, 'paused', 'bPaused'), cur: Number(pick(ov, 'update_appid', 'unAppID', 'appid')) || 0, curDl: Number(pick(ov, 'update_bytes_downloaded')) || 0, curTotal: Number(pick(ov, 'update_bytes_to_download')) || 0,
+  items: (d.items || []).map(dlItem).filter(i => i.a > 0), sample };
 })()";
 
     public sealed record Dl(long AppId, double Progress, string Kind, string State);
+    static bool sampleLogged;
 
     /// <summary>Descargas según Steam en vivo; null si no hay conexión.</summary>
     public static async Task<(List<Dl> live, List<long> done, bool ok)> DownloadsAsync()
@@ -394,22 +430,31 @@ return { paused: !!ov.paused, cur: ov.update_appid || 0, curDl: ov.update_bytes_
         try { v = await EvalAsync(DownloadsJs, 3000); }
         catch { return (null, null, false); }
         if (v.ValueKind != JsonValueKind.Object) return (null, null, false);
-        bool allPaused = v.GetProperty("paused").GetBoolean();
-        long cur = (long)v.GetProperty("cur").GetDouble();
-        double curDl = v.GetProperty("curDl").GetDouble(), curTotal = v.GetProperty("curTotal").GetDouble();
-        var live = new List<Dl>(); var done = new List<long>();
-        foreach (var i in v.GetProperty("items").EnumerateArray())
+        static double N(JsonElement o, string k) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.Number ? x.GetDouble() : 0;
+        static bool B(JsonElement o, string k) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.True;
+        if (!sampleLogged && v.TryGetProperty("sample", out var smp) && smp.ValueKind == JsonValueKind.String && smp.GetString().Contains("\"item\":{"))
         {
-            long a = (long)i.GetProperty("a").GetDouble();
-            if (i.GetProperty("done").GetBoolean()) { done.Add(a); continue; }
-            bool on = i.GetProperty("on").GetBoolean();
-            int q = (int)i.GetProperty("q").GetDouble();
+            sampleLogged = true;
+            Log.Write("Steam: así llegan las descargas · " + smp.GetString());
+        }
+        bool allPaused = B(v, "paused");
+        long cur = (long)N(v, "cur");
+        double curDl = N(v, "curDl"), curTotal = N(v, "curTotal");
+        var live = new List<Dl>(); var done = new List<long>();
+        if (!v.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return (live, done, true);
+        foreach (var i in items.EnumerateArray())
+        {
+            long a = (long)N(i, "a");
+            if (a <= 0) continue;
+            if (B(i, "done")) { done.Add(a); continue; }
+            bool on = B(i, "on");
+            int q = (int)N(i, "q");
             if (!on && q < 0) continue;   // actualizaciones programadas para después: no se muestran
-            double b = i.GetProperty("b").GetDouble(), t = i.GetProperty("t").GetDouble();
+            double b = N(i, "b"), t = N(i, "t");
             double p = t > 0 ? b / t : 0;
             if (on && a == cur && curTotal > 0) p = curDl / curTotal;
-            string state = i.GetProperty("p").GetBoolean() || allPaused ? "paused" : on ? "active" : "queued";
-            live.Add(new Dl(a, Math.Clamp(p, 0, 1), i.GetProperty("inst").GetBoolean() ? "Actualizando" : "Descargando", state));
+            string state = B(i, "p") || allPaused ? "paused" : on ? "active" : "queued";
+            live.Add(new Dl(a, Math.Clamp(p, 0, 1), B(i, "inst") ? "Actualizando" : "Descargando", state));
         }
         return (live, done, true);
     }

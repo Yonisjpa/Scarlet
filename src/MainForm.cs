@@ -489,7 +489,14 @@ sealed class MainForm : Form
             // ── Red y VPN
             case "net.state": return new { internet = NetCheck.Internet, steam = NetCheck.SteamReachable };
             case "vpn.state": return await Vpn.StatusAsync(cfg);
-            case "vpn.set": return await Vpn.SetAsync(cfg, P.B(p, "on"));
+            case "vpn.set":
+            {
+                bool on = P.B(p, "on");
+                var r = await Vpn.SetAsync(cfg, on);
+                // Steam que arrancó sin conexión no se reconecta solo: con la VPN prendida se reinicia desde cero.
+                if (on && r.TryGetValue("status", out var stv) && (string)stv == "on") _ = ReconnectSteamAsync("se prendió la VPN", true);
+                return r;
+            }
             case "vpn.setup": { var (ok, error) = await Vpn.SetupWireGuardAsync(); ShowUi(); return new { ok, error }; }
             case "vpn.import":
             {
@@ -907,6 +914,7 @@ sealed class MainForm : Form
         TopMost = false;
         ShowUi();
         Emit("game.exited", new { appid });
+        if (reconnectPending) _ = Task.Delay(3000).ContinueWith(_ => ReconnectSteamAsync("ya se cerró el juego", true));
     }
 
     long detachedApp;   // la última app que dejaste abierta en segundo plano (para ponerle nombre e ícono en el mezclador)
@@ -1739,6 +1747,8 @@ sealed class MainForm : Form
     async Task<object> InstallPrepare(long appid)
     {
         if (appid <= 0 || steam.SteamPath == null) return new { mode = "steam", why = "Steam no está en este equipo" };
+        if (!NetCheck.Internet) return new { mode = "error", error = "No hay internet: no se puede descargar ahora." };
+        if (!NetCheck.SteamReachable) return new { mode = "error", error = "Esta red bloquea Steam. Prende la VPN en el menú rápido y vuelve a intentarlo." };
         if (!SteamCdp.MarkerPresent(steam.SteamPath))
             return new { mode = "setup", gameOpen = tracker != null && tracker.Active, millennium = SteamCdp.MillenniumInstalled(steam.SteamPath) };
         if (enabling) return new { mode = "wait" };
@@ -1995,9 +2005,50 @@ sealed class MainForm : Form
         return true;
     }
 
+    // ───── Steam se reconecta ─────
+    // Steam abierto sin internet (o con la red bloqueándolo) se queda "sin conexión" aunque después llegue el internet
+    // (por ejemplo, al prender la VPN): no deja instalar ni ver amigos. Por eso se reinicia desde cero.
+    bool reconnecting, reconnectPending;
+    DateTime badSince = DateTime.MinValue, lastReconnect = DateTime.MinValue;
+
+    async Task ReconnectSteamAsync(string why, bool force = false)
+    {
+        if (reconnecting || steam.SteamPath == null) return;
+        if (!force && DateTime.Now - lastReconnect < TimeSpan.FromMinutes(3)) return;
+        if (DateTime.Now - lastReconnect < TimeSpan.FromSeconds(45)) return;   // ni forzado: dos reinicios seguidos no
+        if (!SteamCdp.SteamRunning) { reconnectPending = false; Ui(StartSteamSilently); return; }
+        if (tracker != null && tracker.Active)   // reiniciar Steam cerraría el juego: se hace al salir de él
+        {
+            if (!reconnectPending) { Log.Write($"Steam: se reconectará al cerrar el juego ({why})"); Emit("steam.reconnect", new { state = "later" }); }
+            reconnectPending = true;
+            return;
+        }
+        if (installGuard.Enabled || enabling) { reconnectPending = true; return; }   // a media instalación, no
+        reconnecting = true; reconnectPending = false; lastReconnect = DateTime.Now; badSince = DateTime.MinValue;
+        Log.Write($"Steam: se reinicia para reconectarse ({why})");
+        Emit("steam.reconnect", new { state = "restarting" });
+        bool ok = false;
+        try { ok = await SteamCdp.RestartSteamAsync(steam.SteamPath, () => Ui(StartSteamSilently)); }
+        catch (Exception ex) { Log.Error("Steam: reiniciar", ex); }
+        reconnecting = false;
+        Log.Write("Steam: " + (ok ? "reiniciado y en línea" : "no terminó de reiniciarse"));
+        Emit("steam.reconnect", new { state = ok ? "done" : "failed" });
+        _ = NetCheck.CheckAsync();
+        if (ok) _ = Task.Delay(4000).ContinueWith(_ => Emit("library.changed", new { }));   // juegos y amigos al día
+    }
+
     void OnNetChanged()
     {
         EmitAll("net.state", new { internet = NetCheck.Internet, steam = NetCheck.SteamReachable });
+        bool good = NetCheck.Internet && NetCheck.SteamReachable;
+        if (!good) { if (badSince == DateTime.MinValue) badSince = DateTime.Now; }
+        else if (badSince != DateTime.MinValue)
+        {
+            var bad = DateTime.Now - badSince; badSince = DateTime.MinValue;
+            // Regresó la conexión tras un rato sin ella (VPN prendida desde su app, otra red): Steam se reinicia.
+            // Un tropiezo corto no: Steam se reconecta solo.
+            if (bad > TimeSpan.FromSeconds(40)) _ = ReconnectSteamAsync($"regresó la conexión tras {(int)bad.TotalSeconds} s");
+        }
         if (NetCheck.Internet) return;
         Ui(() =>   // se fue el internet con Steam arrancando: la ventanita que ya se había escondido vuelve a verse
         {

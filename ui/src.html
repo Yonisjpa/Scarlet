@@ -1710,7 +1710,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.22";
+let APP_VERSION = "0.4.23";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -3401,6 +3401,14 @@ Events.on("net.state", async d => {
   paintNet();
 });
 Events.on("steam.offline", () => notify({ icon: WIFI_OFF_IC, title: "Steam sin conexión", text: "Toca «Iniciar en modo sin conexión»" }));
+/* Steam se reinicia para reconectarse (al prender la VPN o al regresar el internet). */
+Events.on("steam.reconnect", d => {
+  const st = d && d.state;
+  if (st === "restarting") notify({ icon: SHIELD_IC, title: "Reconectando Steam", text: "Se reinicia para detectar la conexión (unos segundos)" });
+  else if (st === "done") notify({ icon: SHIELD_IC, title: "Steam en línea", text: "Ya puedes instalar y ver a tus amigos" });
+  else if (st === "later") notify({ icon: SHIELD_IC, title: "Steam se reconectará", text: "Cuando cierres el juego (reiniciarlo ahora lo cerraría)" });
+  else if (st === "failed") notify({ icon: WIFI_OFF_IC, title: "Steam no terminó de reiniciar", text: "Ábrelo desde la Tienda o espera un momento" });
+});
 if (Host.has) { Host.call("net.state").then(d => { if (d) { NET.internet = d.internet !== false; NET.steam = d.steam !== false; paintNet(); } }).catch(() => {}); loadVpn(); }
 
 /* Ajustes › VPN */

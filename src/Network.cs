@@ -86,7 +86,23 @@ static class Vpn
     const string Tunnel = "scarlet";
     static string Pf => Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
     static string Pf86 => Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-    public static string WarpCli => new[] { Path.Combine(Pf, "Cloudflare", "Cloudflare WARP", "warp-cli.exe"), Path.Combine(Pf86, "Cloudflare", "Cloudflare WARP", "warp-cli.exe") }.FirstOrDefault(File.Exists);
+    /// <summary>warp-cli de Cloudflare WARP (ahora "Cloudflare One Client"): se busca en cualquier carpeta de Cloudflare y en el PATH.</summary>
+    public static string WarpCli
+    {
+        get
+        {
+            foreach (var root in new[] { Pf, Pf86 }.Distinct())
+            {
+                string cf = Path.Combine(root, "Cloudflare");
+                foreach (var f in new[] { Path.Combine(cf, "Cloudflare WARP", "warp-cli.exe"), Path.Combine(cf, "Cloudflare One Client", "warp-cli.exe") })
+                    if (File.Exists(f)) return f;
+                try { if (Directory.Exists(cf)) foreach (var d in Directory.EnumerateDirectories(cf)) { string f = Path.Combine(d, "warp-cli.exe"); if (File.Exists(f)) return f; } } catch { }
+            }
+            foreach (var d in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
+                try { string f = Path.Combine(d.Trim(), "warp-cli.exe"); if (File.Exists(f)) return f; } catch { }
+            return null;
+        }
+    }
     public static string WireGuardExe => new[] { Path.Combine(Pf, "WireGuard", "wireguard.exe"), Path.Combine(Pf86, "WireGuard", "wireguard.exe") }.FirstOrDefault(File.Exists);
     static string Dir => Directory.CreateDirectory(Path.Combine(Paths.Local, "vpn")).FullName;
     public static string Conf => Path.Combine(Dir, Tunnel + ".conf");
