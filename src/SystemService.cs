@@ -8,25 +8,36 @@ sealed class SystemService
 {
     // ───── Brillo (WMI, pantallas integradas) ─────
 
-    static int? GetBrightness()
+    /// <summary>Brillo de la pantalla integrada. null = esta pantalla no deja cambiarlo (una TV o un monitor externo).</summary>
+    public static int? GetBrightness()
     {
         try
         {
-            using var s = new ManagementObjectSearcher(@"root\WMI", "SELECT CurrentBrightness FROM WmiMonitorBrightness");
+            using var s = new ManagementObjectSearcher(@"root\WMI", "SELECT CurrentBrightness, Active FROM WmiMonitorBrightness");
             foreach (ManagementObject o in s.Get())
-                using (o) return Convert.ToInt32(o["CurrentBrightness"]);
+                using (o) if (o["Active"] is not bool a || a) return Convert.ToInt32(o["CurrentBrightness"]);
         }
         catch { }
         return null;
     }
 
+    /// <summary>
+    /// Cambia el brillo y comprueba que haya quedado. Se llama a través de AudioMixer.Queue (solo el último valor): WMI
+    /// tarda y antes, al moverlo rápido, los cambios llegaban desordenados y quedaba un valor viejo.
+    /// </summary>
     public static void SetBrightness(int value)
     {
+        byte want = (byte)Math.Clamp(value, 0, 100);
         try
         {
             using var s = new ManagementObjectSearcher(@"root\WMI", "SELECT * FROM WmiMonitorBrightnessMethods");
+            int n = 0;
             foreach (ManagementObject o in s.Get())
-                using (o) o.InvokeMethod("WmiSetBrightness", new object[] { (uint)1, (byte)Math.Clamp(value, 0, 100) });
+                using (o) { o.InvokeMethod("WmiSetBrightness", new object[] { (uint)0, want }); n++; }
+            if (n == 0) { Log.Write("brillo: esta pantalla no deja cambiar el brillo"); return; }
+            int? now = GetBrightness();
+            if (now != null && Math.Abs(now.Value - want) > 3)
+                Log.Write($"brillo: se pidió {want} y quedó en {now} (¿brillo automático de Windows o del fabricante?)");
         }
         catch (Exception ex) { Log.Error("brillo", ex); }
     }
@@ -126,46 +137,82 @@ sealed class SystemService
     {
         try
         {
-            if (await Radio.RequestAccessAsync() != RadioAccessStatus.Allowed) return null;
+            lastAccess = await Radio.RequestAccessAsync();
+            if (lastAccess != RadioAccessStatus.Allowed) { Log.Write("radios: Windows no da acceso (" + lastAccess + ")"); return null; }
             return await Radio.GetRadiosAsync();
         }
         catch (Exception ex) { Log.Error("radios", ex); return null; }
     }
 
-    public async Task SetRadiosAsync(bool wifi, bool airplane)
+    static RadioAccessStatus lastAccess = RadioAccessStatus.Unspecified;
+    /// <summary>Para Diagnóstico: si Windows deja a Scarlet cambiar el Wi-Fi.</summary>
+    public static string RadioAccess => lastAccess switch
+    {
+        RadioAccessStatus.Allowed => "permitido",
+        RadioAccessStatus.DeniedByUser => "bloqueado en Configuración › Privacidad › Radios",
+        RadioAccessStatus.DeniedBySystem => "bloqueado por Windows",
+        _ => "sin revisar todavía"
+    };
+
+    /// <summary>
+    /// Wi-Fi y modo avión. Como en Windows: el modo avión apaga todo, pero con el modo avión puesto puedes volver a
+    /// prender solo el Wi-Fi (antes, prenderlo lo volvía a apagar). Devuelve cómo quedó de verdad, para que el menú no
+    /// muestre un interruptor que no corresponde; si Windows no deja, dice por qué.
+    /// </summary>
+    public async Task<Dictionary<string, object>> SetRadiosAsync(bool wifi, bool airplane)
     {
         var radios = await Radios();
-        if (radios == null) return;
+        if (radios == null || radios.Count == 0)
+            return new Dictionary<string, object> { ["error"] = lastAccess == RadioAccessStatus.DeniedByUser
+                ? "Windows no deja a Scarlet cambiar el Wi-Fi: Configuración › Privacidad › Radios › permitir"
+                : "No se encontró el Wi-Fi" };
         foreach (var r in radios)
         {
             try
             {
-                RadioState target = airplane ? RadioState.Off
-                    : r.Kind == RadioKind.WiFi ? (wifi ? RadioState.On : RadioState.Off)
-                    : RadioState.On;
-                if (r.State != target) await r.SetStateAsync(target);
+                RadioState target = r.Kind == RadioKind.WiFi ? (wifi ? RadioState.On : RadioState.Off) : (airplane ? RadioState.Off : RadioState.On);
+                if (r.State == target) continue;
+                var res = await r.SetStateAsync(target);
+                if (res != RadioAccessStatus.Allowed) Log.Write($"radio {r.Kind}: Windows no dejó cambiarla ({res})");
             }
             catch (Exception ex) { Log.Error("radio " + r.Kind, ex); }
         }
+        await Task.Delay(300);
+        var after = await Radios();
+        var w = after?.FirstOrDefault(r => r.Kind == RadioKind.WiFi);
+        return new Dictionary<string, object>
+        {
+            ["wifi"] = w?.State == RadioState.On,
+            ["airplane"] = AirplaneOf(after)
+        };
+    }
+
+    /// <summary>Modo avión: todo lo que no es Wi-Fi apagado (con el modo avión se puede volver a prender solo el Wi-Fi).</summary>
+    static bool AirplaneOf(IReadOnlyList<Radio> radios)
+    {
+        if (radios == null || radios.Count == 0) return false;
+        var others = radios.Where(r => r.Kind != RadioKind.WiFi).ToList();
+        return others.Count > 0 ? others.All(r => r.State != RadioState.On) : radios.All(r => r.State != RadioState.On);
     }
 
     // ───── Estado para el menú rápido ─────
 
     public async Task<Dictionary<string, object>> StateAsync()
     {
+        int? bri = await Task.Run(GetBrightness);
         var st = await Task.Run(() => new Dictionary<string, object>
         {
-            ["brightness"] = GetBrightness(),
+            ["brightness"] = bri,
+            ["brightnessOk"] = bri != null,   // false = esta pantalla no deja cambiarlo (TV, monitor externo)
             ["volume"] = AudioMixer.GetMaster() ?? GetVolume(),   // el real: 0 si está silenciado
             ["power"] = GetPower()
         });
         var radios = await Radios();
         if (radios != null && radios.Count > 0)
         {
-            bool anyOn = radios.Any(r => r.State == RadioState.On);
             var wifi = radios.FirstOrDefault(r => r.Kind == RadioKind.WiFi);
             if (wifi != null) st["wifi"] = wifi.State == RadioState.On;
-            st["airplane"] = !anyOn;
+            st["airplane"] = AirplaneOf(radios);
         }
         return st;
     }

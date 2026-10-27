@@ -312,16 +312,18 @@ static class AudioMixer
     // solo el último valor, uno detrás de otro, y las sesiones de cada app se recuerdan unos segundos.
     static readonly object vq = new();
     static readonly Dictionary<string, (int value, Action<int> apply)> pending = new();
-    static bool working;
+    static readonly HashSet<string> working = new();
 
-    /// <summary>Pide un cambio; si llegan varios seguidos para lo mismo, solo se aplica el último.</summary>
+    /// <summary>
+    /// Pide un cambio; si llegan varios seguidos para lo mismo, solo se aplica el último. Cada cosa (brillo, volumen,
+    /// cada app) va por su lado: el brillo tarda en Windows y no debe retrasar al volumen.
+    /// </summary>
     public static void Queue(string key, int value, Action<int> apply)
     {
         lock (vq)
         {
             pending[key] = (value, apply);
-            if (working) return;
-            working = true;
+            if (!working.Add(key)) return;   // ya hay quien lo aplique: tomará este valor
         }
         Task.Run(() =>
         {
@@ -330,11 +332,10 @@ static class AudioMixer
                 (int value, Action<int> apply) job;
                 lock (vq)
                 {
-                    if (pending.Count == 0) { working = false; return; }
-                    var k = pending.Keys.First();
-                    job = pending[k]; pending.Remove(k);
+                    if (!pending.TryGetValue(key, out job)) { working.Remove(key); return; }
+                    pending.Remove(key);
                 }
-                try { job.apply(job.value); } catch (Exception ex) { Log.Error("volumen", ex); }
+                try { job.apply(job.value); } catch (Exception ex) { Log.Error("ajuste " + key, ex); }
             }
         });
     }

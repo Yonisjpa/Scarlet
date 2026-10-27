@@ -523,11 +523,21 @@ sealed class MainForm : Form
                 var bat = full ? Timed("batería", BatteryInfo, 2500) : null;
                 var med = full ? Timed("música", () => media.State, 800) : null;
                 var stt = full ? sys.StateAsync() : null;
+                // Siempre (cada 2 s): volumen y brillo reales, por si los cambias con los botones de la consola con el menú abierto.
+                var vol = !full ? Timed("volumen", AudioMixer.GetMaster, 800) : null;
+                var bri = !full ? Timed("brillo", SystemService.GetBrightness, 1200) : null;
                 if (await mix is (true, var mv) && mv != null) r["mixer"] = mv;
                 if (await atm is (true, var av)) r["atmos"] = av;
                 if (bat != null && await bat is (true, var bv)) r["battery"] = bv;
                 if (med != null && await med is (true, var mdv)) r["media"] = mdv;
                 if (stt != null) try { if (await Task.WhenAny(stt, Task.Delay(1500)) == stt) r["system"] = await stt; } catch (Exception ex) { Log.Error("menú (sistema)", ex); }
+                if (vol != null)
+                {
+                    var live = new Dictionary<string, object>();
+                    if (await vol is (true, int vv)) live["volume"] = vv;
+                    if (await bri is (true, int bv)) live["brightness"] = bv;
+                    if (live.Count > 0) r["system"] = live;
+                }
                 return r;
             }
             case "audio.outputs": return await Task.Run(() => AudioMixer.Outputs());
@@ -544,10 +554,10 @@ sealed class MainForm : Form
                 cfg.Save();
                 return true;
             }
-            case "system.brightness": { int v = (int)P.L(p, "value"); _ = Task.Run(() => SystemService.SetBrightness(v)); return true; }
+            case "system.brightness": AudioMixer.Queue("brillo", (int)P.L(p, "value"), SystemService.SetBrightness); return true;   // solo el último valor
             case "system.volume": AudioMixer.Queue("sistema", (int)P.L(p, "value"), AudioMixer.SetMaster); return true;   // todas las salidas que suenan; solo el último valor
             case "system.power": SystemService.SetPower(P.S(p, "profile")); return true;
-            case "system.radio": await sys.SetRadiosAsync(P.B(p, "wifi"), P.B(p, "airplane")); return true;
+            case "system.radio": return await sys.SetRadiosAsync(P.B(p, "wifi"), P.B(p, "airplane"));
             case "storage.info": return SystemService.Storage(steam.SteamPath);
 
             // ── Mandos y Bluetooth
@@ -1130,6 +1140,10 @@ sealed class MainForm : Form
             ["Juego congelado"] = GameFreezer.IsFrozen ? "sí" : "no",
             ["Toque en pantalla"] = lastBlocked != IntPtr.Zero && Native.IsWindow(lastBlocked) ? "bloqueado por " + Native.Describe(lastBlocked) : "normal"
         };
+        int? briNow = SystemService.GetBrightness();
+        diag["Brillo"] = briNow is int bn ? bn + " %" : "esta pantalla no deja cambiarlo";
+        diag["Volumen general"] = AudioMixer.GetMaster() is int vn ? vn + " %" : "no se pudo leer";
+        diag["Wi-Fi (permiso)"] = SystemService.RadioAccess;
         // Cada salida de audio con su volumen y qué apps suenan por ella: para ver por dónde sale de verdad el sonido.
         int n = 0;
         foreach (var (device, detail) in AudioMixer.Inventory()) diag[$"Salida {++n}: {device}"] = detail;

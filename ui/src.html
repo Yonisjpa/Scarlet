@@ -442,6 +442,7 @@ html.overlay #quick{width:100%;box-shadow:none}
 .qhead .qb svg{height:1.9rem;width:auto}
 .qrows{display:flex;flex-direction:column;gap:.9rem;flex:1;overflow:hidden}
 .qrow{--r:.9rem;position:relative;display:flex;align-items:center;gap:1.4rem;padding:1.3rem 1.5rem;border-radius:.9rem;background:var(--bg2);font-size:1.6rem;font-weight:600}
+.qrow.qoff .qbar,.qrow.qoff .qval{opacity:.35}
 .qrow svg.qi{width:2.4rem;height:2.4rem;flex:0 0 auto;color:var(--accent)}
 .qrow .qlab{flex:0 0 10rem}
 .qbar{flex:1;height:.8rem;border-radius:99rem;background:var(--line);overflow:hidden}
@@ -473,6 +474,21 @@ html.overlay #quick{width:100%;box-shadow:none}
 #quick.dense .qmb.big{width:4.3rem;height:4.3rem}
 #quick.dense .qbtns{margin-top:.55rem;gap:.55rem}
 #quick.dense .qhint{padding-top:1rem;margin-top:1rem}
+/* Todavía más compacto (canción + varias barras): que siempre se vean Apagar y Ajustes */
+#quick.dense2 .qhead{padding-bottom:.7rem;margin-bottom:.6rem}
+#quick.dense2 .qhead .qclock{font-size:2.3rem}
+#quick.dense2 .qdolby{padding:.3rem 0;margin:-.2rem 0 .5rem}
+#quick.dense2 .qrows{gap:.4rem}
+#quick.dense2 .qrow{padding:.55rem 1.2rem;font-size:1.4rem}
+#quick.dense2 .qrow svg.qi{width:1.9rem;height:1.9rem}
+#quick.dense2 .qrow.qmedia{gap:.4rem;padding:.7rem 1.2rem .5rem}
+#quick.dense2 .qmart{width:4.4rem;height:4.4rem}
+#quick.dense2 .qmtxt em{display:none}
+#quick.dense2 .qmb{width:3.3rem;height:3.3rem}
+#quick.dense2 .qmb.big{width:3.8rem;height:3.8rem}
+#quick.dense2 .mico img{width:2.4rem;height:2.4rem}
+#quick.dense2 .qbtns{margin-top:.4rem;gap:.4rem}
+#quick.dense2 .qhint{padding-top:.6rem;margin-top:.6rem;font-size:1.35rem}
 .diag dd{white-space:pre-wrap;word-break:break-word}
 .qmix .mico{width:2.4rem;height:2.4rem;flex:0 0 auto;border-radius:.55rem;overflow:hidden;background:var(--line)}
 .qmix .mico img{width:100%;height:100%;object-fit:cover;display:block}
@@ -1610,7 +1626,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.15";
+let APP_VERSION = "0.4.16";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2913,7 +2929,7 @@ function renderQuick() {
   const rows = qmRows(), q = $("#quick");
   const row = (r, i) => {
     const f = QM.i === i ? " focused" : "";
-    if (r.type === "slider") return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qbar"><i style="width:${sys[r.k]}%"></i></span><span class="qval">${sys[r.k]}</span></div>`;
+    if (r.type === "slider") { const off = r.k === "brightness" && QM.noBri; return `<div class="qrow${f}${off ? " qoff" : ""}">${r.icon}<span class="qlab">${r.label}</span><span class="qbar"><i style="width:${off ? 0 : sys[r.k]}%"></i></span><span class="qval">${off ? "—" : sys[r.k]}</span></div>`; }
     if (r.type === "seg") return `<div class="qrow wrap${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qval">${POWER.find(p => p[0] === sys.power)[2]}</span><span class="qseg">${POWER.map(([k, n, w]) => `<span class="${sys.power === k ? "on" : ""}">${n}</span>`).join("")}</span></div>`;
     if (r.type === "switch") return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qsw${sys[r.k] ? " on" : ""}"></span></div>`;
     if (r.type === "media") return mediaCard(f);
@@ -2929,13 +2945,16 @@ function renderQuick() {
     <div class="qrows">${rows.map(rowAt).join("")}<div class="qbtns">${rows.map((r, i) => r.type === "btn" ? `<div data-qi="${i}" class="qrow${QM.i === i ? " focused" : ""}">${r.label}</div>` : "").join("")}</div></div>
     <div class="qhint"><span class="hint"><span class="glyph">B</span>Cerrar</span><span class="hint"><span class="glyph">◀▶</span>Ajustar</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
   const qr = $(".qrows", q);
+  q.classList.remove("dense2");
   if (qr && qr.scrollHeight > qr.clientHeight + 2) q.classList.add("dense");   // no cabe: versión compacta
+  if (qr && qr.scrollHeight > qr.clientHeight + 2) q.classList.add("dense2");  // todavía no: más compacta
   const fr = $(".qrows .focused", q); if (fr) fr.scrollIntoView({ block: "nearest" });
 }
 /* Pantalla táctil en el menú rápido: tocar una fila la elige y la acciona; en las barras, tocar o arrastrar fija el valor. */
 let qmDrag = null;
 function qmBarValue(bar, x) { const b = bar.getBoundingClientRect(); return clamp(Math.round((x - b.left) / b.width * 20) * 5, 0, 100); }
 function qmSetBar(r, v) {
+  if (r.type === "slider" && r.k === "brightness" && QM.noBri) return;
   if (r.type === "slider") { if (sys[r.k] === v) return; sys[r.k] = v; applySys(r.k); }
   else if (r.type === "mix") { if (r.m.volume === v) return; r.m.volume = v; QM.mixTouched = Date.now(); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {}); }
   renderQuick();
@@ -2980,7 +2999,8 @@ function openQuick() {
     clearInterval(QM.live); QM.live = setInterval(() => { if (!QM.open) return clearInterval(QM.live); liveQuick(false); }, 2000);
   }
   $("#quick").classList.add("show"); $("#qshade").classList.add("show"); play("qopen");
-  if (OVERLAY && Host.has) requestAnimationFrame(() => requestAnimationFrame(() => Host.call("quick.shown").catch(() => {})));   // ya se dibujó
+  // Ya está armado: se avisa enseguida (esperar al siguiente cuadro hacía que, tapado por el juego, se recargara sin necesidad).
+  if (OVERLAY && Host.has) setTimeout(() => Host.call("quick.shown").catch(() => {}), 0);
 }
 /* Cambia filas del menú sin que el foco brinque (si aparecen o desaparecen filas arriba del foco). */
 function qmPatch(fn) {
@@ -2993,8 +3013,13 @@ function qmPatch(fn) {
 }
 /* Barras de volumen y Dolby en vivo: cada 2 s mientras el menú está abierto. */
 function liveQuick(full) {
-  Host.call("quick.live", { full: !!full }).then(r => {
+  // Una lectura a la vez: si Windows tarda, no se amontonan pedidos.
+  if (QM.liveBusy && !full && Date.now() - QM.liveBusy < 6000) return;
+  QM.liveBusy = Date.now();
+  Host.call("quick.live", { full: !!full }).finally(() => { QM.liveBusy = 0; }).then(r => {
     if (!r || !QM.open) return;
+    if (r.system && typeof r.system.brightnessOk === "boolean") QM.noBri = !r.system.brightnessOk;
+    if (r.system && QM.radioBusy) { delete r.system.wifi; delete r.system.airplane; }   // está cambiando: no pisar
     const touching = Date.now() - (QM.mixTouched || 0) < 4000;
     // Lo que acabas de mover no se pisa con la lectura de Windows (que puede llegar con el valor de antes).
     if (r.system) { for (const k in r.system) if (r.system[k] != null && k in sys && !(Date.now() - ((QM.sysTouched || {})[k] || 0) < 4000)) sys[k] = r.system[k]; saveSys(); }
@@ -3023,8 +3048,23 @@ function applySys(k) {
   if (k === "brightness") Host.call("system.brightness", { value: sys.brightness }).catch(() => {});
   if (k === "volume") Host.call("system.volume", { value: sys.volume }).catch(() => {});
   if (k === "power") Host.call("system.power", { profile: sys.power }).catch(() => {});
-  if (k === "wifi" || k === "airplane") Host.call("system.radio", { wifi: sys.wifi, airplane: sys.airplane }).catch(() => {});
   $$(".wifi").forEach(w => w.style.opacity = sys.wifi && !sys.airplane && navigator.onLine ? 1 : .3);
+}
+/* Wi-Fi y modo avión como en Windows: el modo avión apaga el Wi-Fi (y quitarlo lo prende), pero con el modo avión puesto
+   se puede volver a prender solo el Wi-Fi. El interruptor se queda como Windows diga que quedó; si no deja, se avisa. */
+function setRadio(k, on) {
+  const prev = { wifi: sys.wifi, airplane: sys.airplane };
+  sys[k] = on;
+  if (k === "airplane") sys.wifi = !on;
+  play(on ? "on" : "off"); saveSys(); applySys("radio");
+  if (QM.open) renderQuick();
+  if (!Host.has) return;
+  QM.radioBusy = (QM.radioBusy || 0) + 1;
+  Host.call("system.radio", { wifi: sys.wifi, airplane: sys.airplane }).then(r => {
+    if (r && r.error) { Object.assign(sys, prev); toast(r.error); }
+    else if (r) { if (typeof r.wifi === "boolean") sys.wifi = r.wifi; if (typeof r.airplane === "boolean") sys.airplane = r.airplane; }
+  }).catch(() => { Object.assign(sys, prev); toast("No se pudo cambiar"); })
+    .finally(() => { QM.radioBusy--; saveSys(); applySys("radio"); if (QM.open) renderQuick(); });
 }
 function qmInput(k) {
   const rows = qmRows(), r = rows[QM.i], n = rows.length;
@@ -3058,14 +3098,15 @@ function qmInput(k) {
   }
   if (k === "left" || k === "right") {
     const d = k === "right" ? 1 : -1;
+    if (r.type === "slider" && r.k === "brightness" && QM.noBri) { play("bump"); return toast("Esta pantalla no deja cambiar el brillo desde Windows"); }
     if (r.type === "slider") { const v = clamp(sys[r.k] + d * 10, 0, 100); if (v === sys[r.k]) return play("bump"); sys[r.k] = v; play(r.k === "volume" ? "volume" : d > 0 ? "up" : "down", v / 50); applySys(r.k); }
     else if (r.type === "seg") { const j = POWER.findIndex(p => p[0] === sys.power) + d; if (j < 0 || j >= POWER.length) return play("bump"); sys.power = POWER[j][0]; play("move"); applySys("power"); }
     else if (r.type === "btn") { const j = r.k === "sleep" ? QM.i + 1 : QM.i - 1; QM.i = j; play("move"); }
-    else { sys[r.k] = d > 0; play(d > 0 ? "on" : "off"); applySys(r.k); }
+    else if (r.type === "switch") { if (sys[r.k] === (d > 0)) return play("bump"); return setRadio(r.k, d > 0); }
     return renderQuick();
   }
   if (k === "a") {
-    if (r.type === "switch") { sys[r.k] = !sys[r.k]; play(sys[r.k] ? "on" : "off"); applySys(r.k); return renderQuick(); }
+    if (r.type === "switch") return setRadio(r.k, !sys[r.k]);
     if (r.type === "seg") { const j = (POWER.findIndex(p => p[0] === sys.power) + 1) % POWER.length; sys.power = POWER[j][0]; play("select"); applySys("power"); return renderQuick(); }
     if (OVERLAY && (r.k === "sleep" || r.k === "settings")) {   // lo hace la pantalla principal
       closeQuick(true); return setTimeout(() => Host.call("quick.action", { action: r.k }).catch(() => {}), 240);
@@ -3089,7 +3130,8 @@ const MI = {
   pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="4.5" width="4.5" height="15" rx="1"/><rect x="14" y="4.5" width="4.5" height="15" rx="1"/></svg>'
 };
 let media = null, mediaTimer = 0;
-const mediaCmd = cmd => Host.has ? Host.call("media.cmd", { cmd }).catch(() => {}) : null;
+/* Si la app de música no acepta el botón, el menú vuelve a mostrar cómo está de verdad (no se queda en "pausa" falsa). */
+const mediaCmd = cmd => Host.has ? Host.call("media.cmd", { cmd }).then(ok => { if (ok === false) return Host.call("media.state").then(m => setMedia(m)); }).catch(() => {}) : null;
 function mediaButtons() {
   const m = media || {};
   return [
