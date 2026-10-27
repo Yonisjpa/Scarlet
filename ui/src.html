@@ -1591,7 +1591,7 @@ function checkAtmos() { if (!Host.has) return; Host.call("audio.atmos").then(a =
 /* --- diagnóstico: para mandar una foto cuando algo no cuadra --- */
 function diagView() {
   return {
-    hints: [["B", "Atrás"], ["A", "Actualizar"]],
+    hints: [["B", "Atrás"], ["▲▼", "Desplazar"], ["A", "Actualizar"]],
     render(el) { el.innerHTML = head(I.gear, "Diagnóstico", "alpha " + APP_VERSION) + `<div class="vbody"><dl class="kv diag"><dt>Revisando…</dt></dl></div>`; this.load(); },
     load() {
       Host.call("diag").then(d => {
@@ -1600,13 +1600,17 @@ function diagView() {
           `<dt>Música (Scarlet)</dt><dd>${media ? esc(`${media.title} · ${media.playing ? "sonando" : "en pausa"} · ${media.art ? "con carátula" : "sin carátula"}`) : "nada"}</dd>`;
       }).catch(() => {});
     },
-    onKey(k) { if (k === "a") { play("select"); this.load(); return true; } return false; },
+    onKey(k) {
+      if (k === "a") { play("select"); this.load(); return true; }
+      if (k === "up" || k === "down") { const b = $(".vbody", this.el); if (b) b.scrollBy({ top: k === "down" ? 220 : -220, behavior: "smooth" }); return true; }   // la lista de salidas es larga
+      return false;
+    },
     items() { return []; }
   };
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.14";
+let APP_VERSION = "0.4.15";
 const updState = { available: false, latest: null };
 function updateView() {
   return {

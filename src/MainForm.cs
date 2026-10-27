@@ -534,7 +534,7 @@ sealed class MainForm : Form
             case "battery.info": return await Task.Run(BatteryInfo);
             case "diag": return await Task.Run(Diagnostics);
             case "audio.reset": return await Task.Run(() => { int n = AudioMixer.ResetAll(); AudioFocus.ForgetMuted(); return n; });
-            case "mixer.set": { string exe = P.S(p, "exe"); AudioMixer.Queue("app:" + exe, (int)P.L(p, "value"), v => AudioMixer.SetVolume(exe, v)); return true; }
+            case "mixer.set": { string exe = P.S(p, "exe"), dir = AppDirOf(exe); AudioMixer.Queue("app:" + exe, (int)P.L(p, "value"), v => AudioMixer.SetVolume(exe, dir, v)); return true; }
             case "audio.output": return await Task.Run(() => AudioMixer.SetOutput(P.S(p, "id")));
             case "game.menufocus":
             {
@@ -545,7 +545,7 @@ sealed class MainForm : Form
                 return true;
             }
             case "system.brightness": { int v = (int)P.L(p, "value"); _ = Task.Run(() => SystemService.SetBrightness(v)); return true; }
-            case "system.volume": AudioMixer.Queue("sistema", (int)P.L(p, "value"), SystemService.SetVolume); return true;   // sin trabar la pantalla; solo el último valor
+            case "system.volume": AudioMixer.Queue("sistema", (int)P.L(p, "value"), AudioMixer.SetMaster); return true;   // todas las salidas que suenan; solo el último valor
             case "system.power": SystemService.SetPower(P.S(p, "profile")); return true;
             case "system.radio": await sys.SetRadiosAsync(P.B(p, "wifi"), P.B(p, "airplane")); return true;
             case "storage.info": return SystemService.Storage(steam.SteamPath);
@@ -933,14 +933,17 @@ sealed class MainForm : Form
             list.Add(Entry(gameId, gameExe, gameName, VolOf(gameExe), "game"));
         }
         // Música: siempre que la app tenga su sesión de sonido (abierta, aunque esté en pausa).
-        foreach (var m in sessions.Where(x => AudioFocus.IsMusic(x.exe) && !Is(x, gameExe)).GroupBy(x => x.exe, StringComparer.OrdinalIgnoreCase).Select(g => g.First()))
+        bool MusicSession(AudioMixer.Session x) => AudioFocus.IsMusic(x.exe) || (x.path != null && Regex.IsMatch(x.path, @"\\WindowsApps\\[^\\]*(AppleMusic|Spotify)", RegexOptions.IgnoreCase));
+        // Una barra por app (no por programa): Apple Music puede tener varios programas con sonido en su carpeta.
+        string Family(AudioMixer.Session x) => xbox.Games.FirstOrDefault(g => !string.IsNullOrEmpty(g.Dir) && x.path != null && Paths.Under(x.path, g.Dir))?.Dir ?? x.exe;
+        foreach (var m in sessions.Where(x => MusicSession(x) && !Is(x, gameExe)).GroupBy(Family, StringComparer.OrdinalIgnoreCase).Select(g => g.OrderByDescending(x => x.active).First()))
         {
             var (id, name) = AppInfo(m);
             list.Add(Entry(id, m.exe, name, VolOf(m.exe), "music"));
         }
         // Otra app que suena (YouTube, Netflix…); entre video y video (unos segundos sin sonar) se sigue mostrando.
         bool sticky = lastOtherExe != null && DateTime.Now - lastOtherAt < TimeSpan.FromSeconds(10);
-        var other = sessions.Where(x => !Is(x, gameExe) && !NotApps.Contains(x.exe) && !AudioFocus.IsMusic(x.exe)
+        var other = sessions.Where(x => !Is(x, gameExe) && !NotApps.Contains(x.exe) && !MusicSession(x)
                                         && (x.active || (sticky && Is(x, lastOtherExe))))
                             .OrderByDescending(x => x.active).FirstOrDefault();
         if (other != null)
@@ -951,6 +954,23 @@ sealed class MainForm : Form
         }
         if (list.Count == 1 && (string)list[0]["key"] == "game") list.Clear();
         return list;
+    }
+
+    /// <summary>Carpeta de una app de la Store (Apple Music…) a partir del nombre de su programa: sus otros programas también cuentan.</summary>
+    string AppDirOf(string exe)
+    {
+        try
+        {
+            foreach (var pr in Process.GetProcessesByName(exe))
+                using (pr)
+                {
+                    string path = Native.ProcessPath((uint)pr.Id) ?? "";
+                    var store = xbox.Games.FirstOrDefault(g => !string.IsNullOrEmpty(g.Dir) && Paths.Under(path, g.Dir));
+                    if (store != null) return store.Dir;
+                }
+        }
+        catch { }
+        return null;
     }
 
     /// <summary>¿Qué app es? Apps de la Store por su carpeta; Edge/YouTube por la que dejaste abierta; si no, el nombre del programa.</summary>
@@ -1095,7 +1115,7 @@ sealed class MainForm : Form
         string gameExe = null;
         try { gameExe = GameProcess(IntPtr.Zero, AudioMixer.Sessions()).exe; } catch { }
         var outs = AudioMixer.Outputs();
-        return new Dictionary<string, object>
+        var diag = new Dictionary<string, object>
         {
             ["Versión"] = "alpha " + Application.ProductVersion,
             ["Juego en curso"] = tracker != null && tracker.Active ? $"{NameOfApp(tracker.AppId)} · {(tracker.IsReady ? "listo" : "abriendo")} · {gameExe ?? "proceso sin detectar"}" : "ninguno",
@@ -1110,6 +1130,10 @@ sealed class MainForm : Form
             ["Juego congelado"] = GameFreezer.IsFrozen ? "sí" : "no",
             ["Toque en pantalla"] = lastBlocked != IntPtr.Zero && Native.IsWindow(lastBlocked) ? "bloqueado por " + Native.Describe(lastBlocked) : "normal"
         };
+        // Cada salida de audio con su volumen y qué apps suenan por ella: para ver por dónde sale de verdad el sonido.
+        int n = 0;
+        foreach (var (device, detail) in AudioMixer.Inventory()) diag[$"Salida {++n}: {device}"] = detail;
+        return diag;
     }
 
     string NameOfApp(long appid) => lastGames.FirstOrDefault(e => (long)e["appid"] == appid)?["name"] as string ?? appid.ToString();

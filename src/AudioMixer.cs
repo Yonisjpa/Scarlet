@@ -166,9 +166,123 @@ static class AudioMixer
         catch (Exception ex) { Log.Error("cambiar salida de audio", ex); return false; }
     }
 
+    [ComImport, Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IAudioEndpointVolume
+    {
+        [PreserveSig] int RegisterControlChangeNotify(IntPtr notify);
+        [PreserveSig] int UnregisterControlChangeNotify(IntPtr notify);
+        [PreserveSig] int GetChannelCount(out uint count);
+        [PreserveSig] int SetMasterVolumeLevel(float levelDb, ref Guid ctx);
+        [PreserveSig] int SetMasterVolumeLevelScalar(float level, ref Guid ctx);
+        [PreserveSig] int GetMasterVolumeLevel(out float levelDb);
+        [PreserveSig] int GetMasterVolumeLevelScalar(out float level);
+        [PreserveSig] int SetChannelVolumeLevel(uint ch, float levelDb, ref Guid ctx);
+        [PreserveSig] int SetChannelVolumeLevelScalar(uint ch, float level, ref Guid ctx);
+        [PreserveSig] int GetChannelVolumeLevel(uint ch, out float levelDb);
+        [PreserveSig] int GetChannelVolumeLevelScalar(uint ch, out float level);
+        [PreserveSig] int SetMute([MarshalAs(UnmanagedType.Bool)] bool mute, ref Guid ctx);
+        [PreserveSig] int GetMute([MarshalAs(UnmanagedType.Bool)] out bool mute);
+    }
+
+    /// <summary>Salidas activas: el dispositivo, su nombre y si es la predeterminada de Windows (para algún uso).</summary>
+    static List<(IMMDevice dev, string id, string name, bool isDefault)> Devices()
+    {
+        var list = new List<(IMMDevice, string, string, bool)>();
+        var en = Enumerator();
+        var defaults = new HashSet<string>();
+        for (int role = 0; role < 3; role++)
+            if (en.GetDefaultAudioEndpoint(0, role, out var d) == 0 && d != null && d.GetId(out string did) == 0) defaults.Add(did);
+        if (en.EnumAudioEndpoints(0, 1 /* ACTIVE */, out var col) != 0 || col == null) return list;
+        col.GetCount(out uint n);
+        for (uint i = 0; i < n; i++)
+        {
+            if (col.Item(i, out var dev) != 0 || dev == null) continue;
+            dev.GetId(out string id);
+            list.Add((dev, id, FriendlyName(dev) ?? "Salida de audio", defaults.Contains(id)));
+        }
+        return list;
+    }
+
+    static IAudioEndpointVolume EndpointVolume(IMMDevice dev)
+    {
+        var iid = typeof(IAudioEndpointVolume).GUID;
+        return dev.Activate(ref iid, 23, IntPtr.Zero, out object o) == 0 ? o as IAudioEndpointVolume : null;
+    }
+
+    /// <summary>Salidas que tienen alguna app sonando ahora mismo.</summary>
+    static HashSet<string> DevicesWithSound()
+    {
+        var ids = new HashSet<string>();
+        foreach (var (dev, id, _, _) in Devices())
+            EachOn(dev, (c2, vol, pid, name) => { if (c2.GetState(out int st) == 0 && st == 1) ids.Add(id); });
+        return ids;
+    }
+
+    /// <summary>
+    /// Volumen general: se pone en la salida predeterminada (para todos sus usos) y TAMBIÉN en cualquier otra salida
+    /// por la que esté sonando algo. Antes solo se cambiaba la principal y, si una app sonaba por otra salida (Windows
+    /// deja elegir una salida por app), seguía oyéndose con el volumen en 0. En 0 además se silencia.
+    /// </summary>
+    public static void SetMaster(int value)
+    {
+        var ctx = Guid.Empty;
+        float level = Math.Clamp(value, 0, 100) / 100f;
+        var sounding = DevicesWithSound();
+        int done = 0;
+        foreach (var (dev, id, name, isDefault) in Devices())
+        {
+            if (!isDefault && !sounding.Contains(id)) continue;
+            var ev = EndpointVolume(dev); if (ev == null) continue;
+            ev.SetMasterVolumeLevelScalar(level, ref ctx);
+            ev.SetMute(value == 0, ref ctx);
+            done++;
+            if (ev.GetMasterVolumeLevelScalar(out float now) == 0 && Math.Abs(now - level) > 0.02f) Log.Write($"volumen: {name} no aceptó {value} % (quedó en {(int)Math.Round(now * 100)} %)");
+        }
+        if (done == 0) Log.Write("volumen: no encontré ninguna salida de audio");
+    }
+
+    /// <summary>Volumen general real (el de la salida predeterminada; 0 si está silenciada). null si no se pudo leer.</summary>
+    public static int? GetMaster()
+    {
+        try
+        {
+            var en = Enumerator();
+            if (en.GetDefaultAudioEndpoint(0, 1, out var dev) != 0 || dev == null) return null;
+            var ev = EndpointVolume(dev); if (ev == null) return null;
+            if (ev.GetMute(out bool m) == 0 && m) return 0;
+            return ev.GetMasterVolumeLevelScalar(out float l) == 0 ? (int)Math.Round(l * 100) : null;
+        }
+        catch (Exception ex) { Log.Error("volumen", ex); return null; }
+    }
+
+    /// <summary>Para Diagnóstico: cada salida, su volumen y qué apps suenan por ella (con su volumen real).</summary>
+    public static List<(string device, string detail)> Inventory()
+    {
+        var rows = new List<(string, string)>();
+        try
+        {
+            foreach (var (dev, id, name, isDefault) in Devices())
+            {
+                var ev = EndpointVolume(dev);
+                string vol = "?";
+                if (ev != null && ev.GetMasterVolumeLevelScalar(out float l) == 0) { ev.GetMute(out bool m); vol = $"{(int)Math.Round(l * 100)} %{(m ? " silenciada" : "")}"; }
+                var apps = new List<string>();
+                EachOn(dev, (c2, sv, pid, pname) =>
+                {
+                    sv.GetMasterVolume(out float av); sv.GetMute(out bool am); c2.GetState(out int st);
+                    string path = Native.ProcessPath(pid) ?? "";
+                    apps.Add($"{pname} (pid {pid}) {(int)Math.Round(av * 100)} %{(am ? " silenciada" : "")}{(st == 1 ? " ▶ sonando" : "")}{(path.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase) ? " · app de la Store" : "")}");
+                });
+                rows.Add(($"{name}{(isDefault ? " (predeterminada)" : "")}", $"volumen {vol} · " + (apps.Count == 0 ? "ninguna app" : string.Join(" · ", apps))));
+            }
+        }
+        catch (Exception ex) { rows.Add(("Salidas", "error: " + ex.Message)); }
+        return rows;
+    }
+
     // ───── Volumen por app ─────
 
-    public sealed record Session(string exe, uint pid, bool active, int volume);
+    public sealed record Session(string exe, uint pid, bool active, int volume, string path = null);
 
     /// <summary>Apps con sonido ahora mismo (sesiones del mezclador), con su volumen 0–100.</summary>
     /// <param name="strict">Si Windows no contesta, lanza error en vez de devolver la lista vacía (el menú distingue "nada suena" de "no se pudo leer").</param>
@@ -179,7 +293,7 @@ static class AudioMixer
         {
             c2.GetState(out int state);
             vol.GetMasterVolume(out float level);
-            list.Add(new Session(exe, pid, state == 1 /* activa */, (int)Math.Round(level * 100)));
+            list.Add(new Session(exe, pid, state == 1 /* activa */, (int)Math.Round(level * 100), Native.ProcessPath(pid)));
         });
         if (!ok && strict) throw new InvalidOperationException("Windows no dio las apps con sonido");
         return list;
@@ -227,11 +341,16 @@ static class AudioMixer
 
     static readonly Dictionary<string, (DateTime at, List<ISimpleAudioVolume> vols)> volCache = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Las sesiones de sonido de una app en todas las salidas (se guardan 8 s para que mover la barra sea instantáneo).</summary>
-    static List<ISimpleAudioVolume> VolumesOf(string exe, bool fresh)
+    /// <summary>
+    /// Las sesiones de sonido de una app en todas las salidas (se guardan 8 s para que mover la barra sea instantáneo).
+    /// dir: la carpeta de la app (apps de la Store como Apple Music): cuentan también sus otros programas, que pueden ser
+    /// los que de verdad suenan.
+    /// </summary>
+    static List<ISimpleAudioVolume> VolumesOf(string exe, string dir, bool fresh)
     {
+        string key = exe + "|" + dir;
         lock (volCache)
-            if (!fresh && volCache.TryGetValue(exe, out var c) && DateTime.Now - c.at < TimeSpan.FromSeconds(8) && c.vols.Count > 0) return c.vols;
+            if (!fresh && volCache.TryGetValue(key, out var c) && DateTime.Now - c.at < TimeSpan.FromSeconds(8) && c.vols.Count > 0) return c.vols;
         var list = new List<ISimpleAudioVolume>();
         try
         {
@@ -255,7 +374,9 @@ static class AudioMixer
                         {
                             string name = null;
                             try { using var p = Process.GetProcessById((int)pid); name = p.ProcessName; } catch { }
-                            if (name != null && name.Equals(exe, StringComparison.OrdinalIgnoreCase)) { list.Add(vol); keep = true; }
+                            bool mine = name != null && name.Equals(exe, StringComparison.OrdinalIgnoreCase)
+                                        || (!string.IsNullOrEmpty(dir) && Paths.Under(Native.ProcessPath(pid) ?? "", dir));
+                            if (mine) { list.Add(vol); keep = true; }
                         }
                     }
                     finally { if (!keep) Marshal.ReleaseComObject(s); }
@@ -263,21 +384,33 @@ static class AudioMixer
             }
         }
         catch (Exception ex) { Log.Error("mezclador", ex); }
-        lock (volCache) volCache[exe] = (DateTime.Now, list);
+        lock (volCache) volCache[key] = (DateTime.Now, list);
         return list;
     }
 
-    /// <summary>Volumen de una app: todas sus sesiones (Edge suena desde otro proceso con el mismo nombre) en todas las salidas.</summary>
-    public static void SetVolume(string exe, int value)
+    /// <summary>
+    /// Volumen de una app: todas sus sesiones (Edge suena desde otro proceso con el mismo nombre; Apple Music puede sonar
+    /// desde otro programa de su carpeta) en todas las salidas. En 0 además se silencia, por si la app no respeta el
+    /// volumen; al subirlo se le quita el silencio. Después se comprueba que de verdad haya quedado así.
+    /// </summary>
+    public static void SetVolume(string exe, string dir, int value)
     {
         var ctx = Guid.Empty;
         float level = Math.Clamp(value, 0, 100) / 100f;
         for (int attempt = 0; attempt < 2; attempt++)
         {
-            var vols = VolumesOf(exe, fresh: attempt > 0);
-            int ok = 0;
+            var vols = VolumesOf(exe, dir, fresh: attempt > 0);
+            int ok = 0, wrong = 0;
             foreach (var v in vols)
-                try { if (v.SetMasterVolume(level, ref ctx) == 0) ok++; } catch { }
+                try
+                {
+                    if (v.SetMasterVolume(level, ref ctx) != 0) continue;
+                    v.SetMute(value == 0, ref ctx);
+                    ok++;
+                    if (v.GetMasterVolume(out float now) == 0 && Math.Abs(now - level) > 0.02f) wrong++;
+                }
+                catch { }
+            if (wrong > 0) Log.Write($"mezclador: {exe} no aceptó el volumen {value} en {wrong} de {vols.Count} sesión/es");
             if (ok > 0 && ok == vols.Count) return;
             // Alguna sesión ya no existe (la app se cerró o abrió otra): se vuelven a buscar una vez.
         }

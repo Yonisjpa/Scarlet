@@ -156,7 +156,7 @@ sealed class SystemService
         var st = await Task.Run(() => new Dictionary<string, object>
         {
             ["brightness"] = GetBrightness(),
-            ["volume"] = GetVolume(),
+            ["volume"] = AudioMixer.GetMaster() ?? GetVolume(),   // el real: 0 si está silenciado
             ["power"] = GetPower()
         });
         var radios = await Radios();

@@ -1,6 +1,6 @@
-Novedades de la alpha 0.4.14
+Novedades de la alpha 0.4.15
 
-- Volumen al instante: al mover una barra se aplica solo el último valor (antes los cambios se formaban en fila y se sentía retraso), y la lectura de Windows ya no regresa la barra a su valor anterior.
-- Se quitó la fila "Salida" del menú rápido.
-- La barra de Apple Music o Spotify aparece siempre que la app esté abierta (aunque no haya juego o esté en pausa) y se quita al cerrarla. El juego tiene su barra, y YouTube u otras apps mientras suenan.
-- Juegos y apps cerrados por fuera de Scarlet: ahora se mira su ventana y no su proceso, y Windows avisa al instante cuando se cierra. Ya no se quedan "Jugando" las apps de la Microsoft Store (que quedan dormidas al cerrarlas) ni YouTube (que corre dentro de Edge).
+- Volumen general: se aplica en la salida predeterminada (para todos sus usos) y también en cualquier otra salida por la que esté sonando algo. En 0 además se silencia. Antes, si una app sonaba por otra salida, se seguía oyendo con el volumen en 0.
+- Barra de cada app: controla todos los programas de la app (Apple Music puede sonar desde otro programa de su carpeta, no desde el que tiene la ventana), en todas las salidas. En 0 además se silencia, y al subirla se le quita el silencio. Después se comprueba que Windows lo haya aplicado.
+- Las barras muestran el volumen real de Windows (si está silenciado, 0).
+- Diagnóstico: cada salida de audio con su volumen y qué apps suenan por ella, con su volumen real. Se desplaza con ▲▼.
