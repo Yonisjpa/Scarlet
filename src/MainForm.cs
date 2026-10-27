@@ -1771,14 +1771,14 @@ sealed class MainForm : Form
         catch (Exception ex) { Log.Write("Steam: preparar instalación: " + ex.Message); await SteamCdp.CancelAsync(); GuardSteam(3); return new { mode = "steam", why = ex.Message }; }
         int s = State(r);
         Num(r, "need", out var need); Num(r, "folder", out var cur); Num(r, "err", out var err);
-        Log.Write($"Steam: instalar {appid}: asistente en estado {s} · {Str(r, "raw")}");
+        Log.Write($"Steam: instalar {appid}: asistente en estado {s} (abierto con: {Str(r, "how")}) · {Str(r, "raw")}");
         bool fresh = Flag(r, "fresh");
         if (!fresh && !(s == 15 && err > 0))   // nunca se vio al asistente nuevo (Steam sin conexión, o no hizo caso)
         {
             await SteamCdp.CancelAsync(); GuardSteam(3);
             if (!NetCheck.Internet || !NetCheck.SteamReachable) return new { mode = "error", error = "Steam no tiene conexión ahora mismo. Prende la VPN o revisa el internet y vuelve a intentarlo." };
-            _ = Task.Delay(4000).ContinueWith(_ => ReconnectSteamAsync("no abrió el asistente de instalación", true));   // probablemente se quedó sin conexión: se reinicia
-            return new { mode = "error", error = "Steam no contestó: se está reiniciando para reconectarse. Intenta de nuevo en un minuto." };
+            // (Aquí ya no se reinicia Steam: Steam estaba bien y el reinicio solo lo metía en un círculo.)
+            return new { mode = "error", error = "Steam no abrió su asistente de instalación. Vuelve a intentarlo en unos segundos." };
         }
         if (!Flag(r, "mine")) { await SteamCdp.CancelAsync(); GuardSteam(3); return new { mode = "steam", why = "Steam no abrió su asistente" }; }
         if (s == 15 || (err > 0 && s != 7 && need <= 0)) { await SteamCdp.CancelAsync(); GuardSteam(3); return new { mode = "error", error = SteamCdp.ErrorText(err > 0 ? (int)err : 1, Str(r, "detail")) }; }

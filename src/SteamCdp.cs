@@ -259,7 +259,16 @@ const id = {appid};
 let info = await I.GetInstallManagerInfo();
 const s0 = info ? sNum(info.eInstallState) : 0;
 if (s0 > 0 && s0 < {Complete}) {{ I.CancelInstall(); await sleep(500); }}
-I.OpenInstallWizard([id]);
+// En la Steam de escritorio, OpenInstallWizard no hace nada (log-7: siempre estado 0); el enlace steam://install sí abre el
+// asistente. Se usa desde dentro de Steam (su ventanita la esconde el guardián de Scarlet) y la función como respaldo.
+let tries = 0, how = '';
+const openWizard = () => {{
+  tries++;
+  const url = SteamClient.URL && SteamClient.URL.ExecuteSteamURL;
+  if (url && tries % 2 === 1) {{ try {{ SteamClient.URL.ExecuteSteamURL('steam://install/' + id); how += 'url '; return; }} catch (e) {{}} }}
+  try {{ I.OpenInstallWizard([id]); how += 'api '; }} catch (e) {{ how += 'error '; }}
+}};
+openWizard();
 const t0 = Date.now();
 let last = -1, since = Date.now(), opened = Date.now(), fresh = false;
 while (Date.now() - t0 < 15000) {{
@@ -270,7 +279,7 @@ while (Date.now() - t0 < 15000) {{
   // al asistente nuevo en camino. Steam recién abierto a veces ignora la orden: se repite cada 2.5 s.
   if (!fresh) {{
     if (mine(info, id) && ![0, {Complete}, {Failed}, {Canceled}].includes(s)) fresh = true;
-    else {{ if (Date.now() - opened > 2500) {{ opened = Date.now(); I.OpenInstallWizard([id]); }} continue; }}
+    else {{ if (Date.now() - opened > 2500) {{ opened = Date.now(); openWizard(); }} continue; }}
   }}
   if (s !== last) {{ last = s; since = Date.now(); }}
   if (Number(info.eAppError) > 0 && s !== {ShowConfig}) break;
@@ -281,7 +290,7 @@ while (Date.now() - t0 < 15000) {{
 }}
 let folders = [];
 try {{ folders = (await SteamClient.InstallFolder.GetInstallFolders()) || []; }} catch (e) {{}}
-return Object.assign(pack(info), {{ mine: mine(info, id), fresh, folders: folders.map(f => ({{ i: f.nFolderIndex, path: f.strFolderPath || '', label: f.strUserLabel || '', drive: f.strDriveName || '', free: String(f.strFreeSpace || ''), def: !!f.bIsDefaultFolder, mounted: f.bIsMounted !== false }})) }});
+return Object.assign(pack(info), {{ mine: mine(info, id), fresh, how: how.trim(), folders: folders.map(f => ({{ i: f.nFolderIndex, path: f.strFolderPath || '', label: f.strUserLabel || '', drive: f.strDriveName || '', free: String(f.strFreeSpace || ''), def: !!f.bIsDefaultFolder, mounted: f.bIsMounted !== false }})) }});
 }})()", 26000);
         }
         finally { installGate.Release(); }
