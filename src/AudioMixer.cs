@@ -192,25 +192,96 @@ static class AudioMixer
         return v;
     }
 
-    /// <summary>
-    /// Volumen de una app: todas sus sesiones (Edge suena desde otro proceso con el mismo nombre) en TODAS las salidas.
-    /// Antes solo se cambiaba en la salida principal y, si la app sonaba por otra, la barra no hacía nada.
-    /// Después se comprueba que de verdad haya cambiado.
-    /// </summary>
+    // ───── Cambios de volumen al instante ─────
+    // Antes cada movimiento de la barra recorría todas las salidas y apps, y si la movías varias veces los cambios se
+    // formaban en fila (y a veces llegaban desordenados): se sentía retraso o se quedaba en otro valor. Ahora se aplica
+    // solo el último valor, uno detrás de otro, y las sesiones de cada app se recuerdan unos segundos.
+    static readonly object vq = new();
+    static readonly Dictionary<string, (int value, Action<int> apply)> pending = new();
+    static bool working;
+
+    /// <summary>Pide un cambio; si llegan varios seguidos para lo mismo, solo se aplica el último.</summary>
+    public static void Queue(string key, int value, Action<int> apply)
+    {
+        lock (vq)
+        {
+            pending[key] = (value, apply);
+            if (working) return;
+            working = true;
+        }
+        Task.Run(() =>
+        {
+            while (true)
+            {
+                (int value, Action<int> apply) job;
+                lock (vq)
+                {
+                    if (pending.Count == 0) { working = false; return; }
+                    var k = pending.Keys.First();
+                    job = pending[k]; pending.Remove(k);
+                }
+                try { job.apply(job.value); } catch (Exception ex) { Log.Error("volumen", ex); }
+            }
+        });
+    }
+
+    static readonly Dictionary<string, (DateTime at, List<ISimpleAudioVolume> vols)> volCache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Las sesiones de sonido de una app en todas las salidas (se guardan 8 s para que mover la barra sea instantáneo).</summary>
+    static List<ISimpleAudioVolume> VolumesOf(string exe, bool fresh)
+    {
+        lock (volCache)
+            if (!fresh && volCache.TryGetValue(exe, out var c) && DateTime.Now - c.at < TimeSpan.FromSeconds(8) && c.vols.Count > 0) return c.vols;
+        var list = new List<ISimpleAudioVolume>();
+        try
+        {
+            var en = Enumerator();
+            if (en.EnumAudioEndpoints(0, 1 /* ACTIVE */, out var col) != 0 || col == null) return list;
+            col.GetCount(out uint nd);
+            var iid = typeof(IAudioSessionManager2).GUID;
+            for (uint d = 0; d < nd; d++)
+            {
+                if (col.Item(d, out var dev) != 0 || dev == null) continue;
+                if (dev.Activate(ref iid, 23, IntPtr.Zero, out object o) != 0 || o is not IAudioSessionManager2 mgr) continue;
+                if (mgr.GetSessionEnumerator(out var sessions) != 0 || sessions == null) continue;
+                sessions.GetCount(out int count);
+                for (int i = 0; i < count; i++)
+                {
+                    if (sessions.GetSession(i, out object s) != 0 || s == null) continue;
+                    bool keep = false;
+                    try
+                    {
+                        if (s is IAudioSessionControl2 c2 && s is ISimpleAudioVolume vol && c2.IsSystemSoundsSession() != 0 && c2.GetProcessId(out uint pid) == 0 && pid != 0)
+                        {
+                            string name = null;
+                            try { using var p = Process.GetProcessById((int)pid); name = p.ProcessName; } catch { }
+                            if (name != null && name.Equals(exe, StringComparison.OrdinalIgnoreCase)) { list.Add(vol); keep = true; }
+                        }
+                    }
+                    finally { if (!keep) Marshal.ReleaseComObject(s); }
+                }
+            }
+        }
+        catch (Exception ex) { Log.Error("mezclador", ex); }
+        lock (volCache) volCache[exe] = (DateTime.Now, list);
+        return list;
+    }
+
+    /// <summary>Volumen de una app: todas sus sesiones (Edge suena desde otro proceso con el mismo nombre) en todas las salidas.</summary>
     public static void SetVolume(string exe, int value)
     {
         var ctx = Guid.Empty;
         float level = Math.Clamp(value, 0, 100) / 100f;
-        int touched = 0, wrong = 0;
-        Each((c2, vol, pid, name) =>
+        for (int attempt = 0; attempt < 2; attempt++)
         {
-            if (!name.Equals(exe, StringComparison.OrdinalIgnoreCase)) return;
-            vol.SetMasterVolume(level, ref ctx);
-            touched++;
-            if (vol.GetMasterVolume(out float now) == 0 && Math.Abs(now - level) > 0.02f) wrong++;
-        }, allOutputs: true);
-        if (touched == 0) Log.Write($"mezclador: {exe} no tiene sonido en ninguna salida; la barra no tiene qué mover");
-        else if (wrong > 0) Log.Write($"mezclador: {exe} no aceptó el volumen {value} en {wrong} de {touched} sesión/es");
+            var vols = VolumesOf(exe, fresh: attempt > 0);
+            int ok = 0;
+            foreach (var v in vols)
+                try { if (v.SetMasterVolume(level, ref ctx) == 0) ok++; } catch { }
+            if (ok > 0 && ok == vols.Count) return;
+            // Alguna sesión ya no existe (la app se cerró o abrió otra): se vuelven a buscar una vez.
+        }
+        Log.Write($"mezclador: {exe} no tiene sonido en ninguna salida; la barra no tiene qué mover");
     }
 
     /// <summary>"Restablecer sonido": quita el silencio a todas las apps y sube las que quedaron casi en cero. Devuelve cuántas tocó.</summary>

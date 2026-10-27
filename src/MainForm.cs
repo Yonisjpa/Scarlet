@@ -519,13 +519,12 @@ sealed class MainForm : Form
                 var r = new Dictionary<string, object>();
                 var mix = Timed("mezclador", () => MixerState(hint), 1500);
                 var atm = Timed("Dolby", () => AtmosActive() && AudioMixer.Sessions().Any(x => x.active && !NotApps.Contains(x.exe)), 1500);
-                var outs = Timed("salidas", AudioMixer.Outputs, 1500);
+
                 var bat = full ? Timed("batería", BatteryInfo, 2500) : null;
                 var med = full ? Timed("música", () => media.State, 800) : null;
                 var stt = full ? sys.StateAsync() : null;
                 if (await mix is (true, var mv) && mv != null) r["mixer"] = mv;
                 if (await atm is (true, var av)) r["atmos"] = av;
-                if (await outs is (true, List<AudioMixer.Output> ol) && ol.Count > 0) r["outputs"] = ol;
                 if (bat != null && await bat is (true, var bv)) r["battery"] = bv;
                 if (med != null && await med is (true, var mdv)) r["media"] = mdv;
                 if (stt != null) try { if (await Task.WhenAny(stt, Task.Delay(1500)) == stt) r["system"] = await stt; } catch (Exception ex) { Log.Error("menú (sistema)", ex); }
@@ -535,7 +534,7 @@ sealed class MainForm : Form
             case "battery.info": return await Task.Run(BatteryInfo);
             case "diag": return await Task.Run(Diagnostics);
             case "audio.reset": return await Task.Run(() => { int n = AudioMixer.ResetAll(); AudioFocus.ForgetMuted(); return n; });
-            case "mixer.set": { string exe = P.S(p, "exe"); int v = (int)P.L(p, "value"); _ = Task.Run(() => AudioMixer.SetVolume(exe, v)); return true; }
+            case "mixer.set": { string exe = P.S(p, "exe"); AudioMixer.Queue("app:" + exe, (int)P.L(p, "value"), v => AudioMixer.SetVolume(exe, v)); return true; }
             case "audio.output": return await Task.Run(() => AudioMixer.SetOutput(P.S(p, "id")));
             case "game.menufocus":
             {
@@ -546,7 +545,7 @@ sealed class MainForm : Form
                 return true;
             }
             case "system.brightness": { int v = (int)P.L(p, "value"); _ = Task.Run(() => SystemService.SetBrightness(v)); return true; }
-            case "system.volume": SystemService.SetVolume((int)P.L(p, "value")); return true;
+            case "system.volume": AudioMixer.Queue("sistema", (int)P.L(p, "value"), SystemService.SetVolume); return true;   // sin trabar la pantalla; solo el último valor
             case "system.power": SystemService.SetPower(P.S(p, "profile")); return true;
             case "system.radio": await sys.SetRadiosAsync(P.B(p, "wifi"), P.B(p, "airplane")); return true;
             case "storage.info": return SystemService.Storage(steam.SteamPath);
@@ -914,44 +913,57 @@ sealed class MainForm : Form
     string lastOtherExe; DateTime lastOtherAt;
 
     /// <summary>
-    /// Dos barras de volumen solo si suenan dos cosas a la vez: el juego (o app) en curso y otra app (Apple Music, YouTube…).
-    /// Lista vacía = de verdad no hay dos cosas sonando; null = no se pudo leer (la interfaz se queda con lo último).
+    /// Barras de volumen del menú: la de Apple Music / Spotify siempre que esté abierta (se quita al cerrarla); la del
+    /// juego si hay uno; y la de otra app (YouTube…) mientras suena. Solo el juego, sin nada más, no lleva barra (para eso
+    /// está el volumen general). Lista vacía = nada que mostrar; null = no se pudo leer (la interfaz se queda con lo último).
     /// </summary>
     List<Dictionary<string, object>> MixerState(IntPtr hint)
     {
-        var empty = new List<Dictionary<string, object>>();
+        var list = new List<Dictionary<string, object>>();
         var sessions = AudioMixer.Sessions(strict: true);
         var (gameExe, _, tracked) = GameProcess(hint, sessions);
-        if (gameExe == null) return empty;
-        // La otra app: la que suena ahora; entre canción y canción (unos segundos sin sonar) se sigue mostrando.
-        bool sticky = lastOtherExe != null && DateTime.Now - lastOtherAt < TimeSpan.FromSeconds(10);
-        var other = sessions.Where(s => !s.exe.Equals(gameExe, StringComparison.OrdinalIgnoreCase) && !NotApps.Contains(s.exe)
-                                        && (s.active || (sticky && s.exe.Equals(lastOtherExe, StringComparison.OrdinalIgnoreCase))))
-                            .OrderByDescending(s => s.active).ThenByDescending(s => AudioFocus.IsMusic(s.exe)).FirstOrDefault();
-        if (other == null) return empty;
-        if (other.active) { lastOtherExe = other.exe; lastOtherAt = DateTime.Now; }
-        int gameVol = sessions.FirstOrDefault(s => s.exe.Equals(gameExe, StringComparison.OrdinalIgnoreCase))?.volume ?? 100;
+        bool Is(AudioMixer.Session x, string exe) => exe != null && x.exe.Equals(exe, StringComparison.OrdinalIgnoreCase);
+        int VolOf(string exe) => sessions.Where(x => Is(x, exe)).Select(x => x.volume).DefaultIfEmpty(100).Max();
 
-        // ¿Qué app es? Apps de la Store por su carpeta; Edge/YouTube por la que dejaste abierta; si no, el nombre del programa.
-        long otherId = 0; string otherName = other.exe;
-        string path = Native.ProcessPath(other.pid) ?? "";
-        var store = xbox.Games.FirstOrDefault(x => x.IsApp && !string.IsNullOrEmpty(x.Dir) && Paths.Under(path, x.Dir));
-        if (store != null) { otherId = store.AppId; otherName = store.Name; }
-        else
+        if (gameExe != null)
         {
-            var app = apps.FirstOrDefault(a => a.AppId == detachedApp) is AppEntry d && Path.GetFileNameWithoutExtension(d.Exec ?? "").Equals(other.exe, StringComparison.OrdinalIgnoreCase)
-                ? d : apps.FirstOrDefault(a => Path.GetFileNameWithoutExtension(a.Exec ?? "").Equals(other.exe, StringComparison.OrdinalIgnoreCase));
-            if (app != null) { otherId = app.AppId; otherName = app.Name; }
-            else try { otherName = FileVersionInfo.GetVersionInfo(path).FileDescription is string fd && fd.Length > 0 ? fd : other.exe; } catch { }
+            long gameId = tracked ? tracker.AppId : 0;   // si se detectó por la ventana del frente, no se le pone el nombre de otro juego
+            string gameName = gameExe;
+            if (gameId == 0) try { var gp = Native.ProcessPath(sessions.FirstOrDefault(x => Is(x, gameExe))?.pid ?? 0); if (gp != null && FileVersionInfo.GetVersionInfo(gp).FileDescription is string gd && gd.Length > 0) gameName = gd; } catch { }
+            list.Add(Entry(gameId, gameExe, gameName, VolOf(gameExe), "game"));
         }
-        long gameId = tracked ? tracker.AppId : 0;   // si se detectó por la ventana del frente, no se le pone el nombre de otro juego
-        string gameName = gameExe;
-        if (gameId == 0) try { var gp = Native.ProcessPath(sessions.FirstOrDefault(s => s.exe.Equals(gameExe, StringComparison.OrdinalIgnoreCase))?.pid ?? 0); if (gp != null && FileVersionInfo.GetVersionInfo(gp).FileDescription is string gd && gd.Length > 0) gameName = gd; } catch { }
-        return new List<Dictionary<string, object>>
+        // Música: siempre que la app tenga su sesión de sonido (abierta, aunque esté en pausa).
+        foreach (var m in sessions.Where(x => AudioFocus.IsMusic(x.exe) && !Is(x, gameExe)).GroupBy(x => x.exe, StringComparer.OrdinalIgnoreCase).Select(g => g.First()))
         {
-            Entry(gameId, gameExe, gameName, gameVol, "game"),
-            Entry(otherId, other.exe, otherName, other.volume, "app")
-        };
+            var (id, name) = AppInfo(m);
+            list.Add(Entry(id, m.exe, name, VolOf(m.exe), "music"));
+        }
+        // Otra app que suena (YouTube, Netflix…); entre video y video (unos segundos sin sonar) se sigue mostrando.
+        bool sticky = lastOtherExe != null && DateTime.Now - lastOtherAt < TimeSpan.FromSeconds(10);
+        var other = sessions.Where(x => !Is(x, gameExe) && !NotApps.Contains(x.exe) && !AudioFocus.IsMusic(x.exe)
+                                        && (x.active || (sticky && Is(x, lastOtherExe))))
+                            .OrderByDescending(x => x.active).FirstOrDefault();
+        if (other != null)
+        {
+            if (other.active) { lastOtherExe = other.exe; lastOtherAt = DateTime.Now; }
+            var (id, name) = AppInfo(other);
+            list.Add(Entry(id, other.exe, name, VolOf(other.exe), "app"));
+        }
+        if (list.Count == 1 && (string)list[0]["key"] == "game") list.Clear();
+        return list;
+    }
+
+    /// <summary>¿Qué app es? Apps de la Store por su carpeta; Edge/YouTube por la que dejaste abierta; si no, el nombre del programa.</summary>
+    (long id, string name) AppInfo(AudioMixer.Session x)
+    {
+        string path = Native.ProcessPath(x.pid) ?? "";
+        var store = xbox.Games.FirstOrDefault(g => g.IsApp && !string.IsNullOrEmpty(g.Dir) && Paths.Under(path, g.Dir));
+        if (store != null) return (store.AppId, store.Name);
+        var app = apps.FirstOrDefault(a => a.AppId == detachedApp) is AppEntry d && Path.GetFileNameWithoutExtension(d.Exec ?? "").Equals(x.exe, StringComparison.OrdinalIgnoreCase)
+            ? d : apps.FirstOrDefault(a => Path.GetFileNameWithoutExtension(a.Exec ?? "").Equals(x.exe, StringComparison.OrdinalIgnoreCase));
+        if (app != null) return (app.AppId, app.Name);
+        try { if (FileVersionInfo.GetVersionInfo(path).FileDescription is string fd && fd.Length > 0) return (0, fd); } catch { }
+        return (0, x.exe);
     }
 
     bool muting;
@@ -1369,7 +1381,7 @@ sealed class MainForm : Form
     {
         if (sideAppId == 0) return;
         // Con su ventana conocida se mira esa (Edge sigue abierto aunque cierres YouTube); si no, su programa.
-        bool alive = sideWindow != IntPtr.Zero ? Native.IsWindow(sideWindow) && Native.IsWindowVisible(sideWindow)
+        bool alive = sideWindow != IntPtr.Zero ? Native.WindowOpen(sideWindow)
                      : sideExe != null && Process.GetProcessesByName(sideExe).Any(p => { using (p) return p.MainWindowHandle != IntPtr.Zero; });
         if (alive || DateTime.Now - sideSince < TimeSpan.FromSeconds(15)) return;
         Log.Write($"la app {sideAppId} que estaba junto al juego se cerró");
@@ -1536,7 +1548,7 @@ sealed class MainForm : Form
     // ───── Ventanas de Steam: se esconden en el instante en que aparecen ("Iniciando juego…", avisos) ─────
     delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
     [DllImport("user32.dll")] static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr mod, WinEventProc proc, uint pid, uint tid, uint flags);
-    WinEventProc winEventProc;   // se guarda para que no lo recoja el recolector de basura
+    WinEventProc winEventProc, winDestroyProc;   // se guardan para que no los recoja el recolector de basura
     readonly HashSet<uint> steamPids = new();
     DateTime steamPidsAt = DateTime.MinValue;
 
@@ -1545,6 +1557,14 @@ sealed class MainForm : Form
         winEventProc = OnWindowShown;
         // EVENT_OBJECT_SHOW, fuera de proceso: Windows avisa en este mismo hilo cada vez que una ventana se hace visible.
         if (SetWinEventHook(0x8002, 0x8002, IntPtr.Zero, winEventProc, 0, 0, 0 /* OUTOFCONTEXT */) == IntPtr.Zero) Log.Write("no se pudo vigilar ventanas nuevas");
+        // EVENT_OBJECT_DESTROY: si se cierra la ventana del juego o de la app (también desde fuera de Scarlet), se nota al instante.
+        winDestroyProc = (hook, ev, hwnd, idObject, idChild, thread, time) =>
+        {
+            if (idObject != 0 || hwnd == IntPtr.Zero || tracker == null || !tracker.Active) return;
+            if (hwnd == tracker.Window) tracker.WindowDestroyed(hwnd);
+            if (hwnd == sideWindow) CheckSideApp();
+        };
+        if (SetWinEventHook(0x8001, 0x8001, IntPtr.Zero, winDestroyProc, 0, 0, 0) == IntPtr.Zero) Log.Write("no se pudo vigilar ventanas cerradas");
     }
 
     void OnWindowShown(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)

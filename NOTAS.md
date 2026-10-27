@@ -1,7 +1,6 @@
-Novedades de la alpha 0.4.13
+Novedades de la alpha 0.4.14
 
-- Corrige el menú rápido encima de juegos y apps, que en la 0.4.12 no respondía a ningún botón. Ahora los botones le llegan por dos caminos, el del navegador y el de Scarlet (también por Windows.Gaming.Input, para consolas donde XInput no da los botones), y se usa el que llegue primero.
-- Pantalla táctil en el menú rápido: toca una fila para elegirla y accionarla, toca o arrastra las barras de brillo, volumen y apps, toca los interruptores, la salida de audio, los botones de la música y "Cerrar".
-- Ya no aparece "Volumen null" cuando Windows no alcanza a dar el volumen: se queda el último valor.
-
-Incluye todo lo de la 0.4.12 (barras de volumen en todas las salidas, juego instalado primero en el Inicio, compatibilidad de pantalla y menú que ya no pelea el foco).
+- Volumen al instante: al mover una barra se aplica solo el último valor (antes los cambios se formaban en fila y se sentía retraso), y la lectura de Windows ya no regresa la barra a su valor anterior.
+- Se quitó la fila "Salida" del menú rápido.
+- La barra de Apple Music o Spotify aparece siempre que la app esté abierta (aunque no haya juego o esté en pausa) y se quita al cerrarla. El juego tiene su barra, y YouTube u otras apps mientras suenan.
+- Juegos y apps cerrados por fuera de Scarlet: ahora se mira su ventana y no su proceso, y Windows avisa al instante cuando se cierra. Ya no se quedan "Jugando" las apps de la Microsoft Store (que quedan dormidas al cerrarlas) ni YouTube (que corre dentro de Edge).

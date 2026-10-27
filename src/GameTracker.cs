@@ -196,21 +196,42 @@ sealed class GameTracker
     /// </summary>
     void AliveTick()
     {
-        bool known = hwnd != IntPtr.Zero || pid != 0;
-        bool alive = (hwnd != IntPtr.Zero && Native.IsWindow(hwnd)) || (pid != 0 && ProcessAlive(pid));
-        if (!alive && known)
+        bool alive;
+        if (hwnd != IntPtr.Zero)
         {
-            // ¿Cambió de ventana o de proceso (un launcher que abre el juego de verdad)? Se sigue a la nueva.
-            var w = FindGameWindow(anyProcessInDir: true);
-            if (w != IntPtr.Zero) { hwnd = w; Native.GetWindowThreadProcessId(w, out pid); alive = true; Log.Write($"el juego cambió de ventana: {Native.Describe(w)}"); }
+            // Se mira su ventana, no su proceso: las apps de la Store quedan "dormidas" con el proceso vivo al cerrarlas, y
+            // YouTube corre dentro de Edge, que casi siempre sigue abierto. Sin su ventana, se cerró (venga de donde venga).
+            alive = Native.WindowOpen(hwnd);
+            if (!alive)
+            {
+                // ¿Cambió de ventana (un launcher que abre el juego de verdad, o al cambiar de resolución)? Se sigue a la nueva.
+                var w = FindGameWindow(anyProcessInDir: true);
+                if (w != IntPtr.Zero) { hwnd = w; Native.GetWindowThreadProcessId(w, out pid); alive = true; Log.Write($"el juego cambió de ventana: {Native.Describe(w)}"); }
+            }
         }
-        else if (!alive)
-        {
-            // Juegos marcados "listos" sin ventana ni proceso conocidos: Steam o lo que corra desde su carpeta.
-            alive = !string.IsNullOrEmpty(installDir) ? AnyProcessIn(installDir) : isSteam && steam.RunningAppId() == AppId;
-        }
+        else if (pid != 0) alive = ProcessAlive(pid) && !SharedHost(pid);
+        else alive = !string.IsNullOrEmpty(installDir) ? AnyProcessIn(installDir) : isSteam && steam.RunningAppId() == AppId;   // sin ventana ni proceso conocidos
         if (alive) { deadTicks = 0; return; }
-        if (++deadTicks >= 3) { long id = AppId; Stop(); Log.Write($"juego cerrado {id} (ya no está su proceso)"); Exited?.Invoke(id); }
+        if (++deadTicks >= 3) { long id = AppId; Stop(); Log.Write($"juego cerrado {id} (ya no está su ventana ni su proceso)"); Exited?.Invoke(id); }
+    }
+
+    /// <summary>Windows avisó que se destruyó una ventana: si era la del juego, se revisa ya (sin esperar 3 s).</summary>
+    public void WindowDestroyed(IntPtr h)
+    {
+        if (!IsReady || h == IntPtr.Zero || h != hwnd) return;
+        deadTicks = Math.Max(deadTicks, 2);
+        try { AliveTick(); } catch (Exception ex) { Log.Error("tracker", ex); }
+    }
+
+    /// <summary>Programas que comparten muchas ventanas (Edge, el contenedor de apps de la Store): su proceso no dice nada del juego.</summary>
+    static bool SharedHost(uint p)
+    {
+        try
+        {
+            using var pr = Process.GetProcessById((int)p);
+            return pr.ProcessName.ToLowerInvariant() is "msedge" or "chrome" or "firefox" or "brave" or "opera" or "applicationframehost" or "wwahost" or "explorer" or "steamwebhelper";
+        }
+        catch { return false; }
     }
 
     /// <summary>Procesos que no son el juego aunque estén en su carpeta.</summary>
@@ -252,7 +273,8 @@ sealed class GameTracker
             if (h == own) continue;
             string path = Native.WindowProcessPath(h, out uint wp);
             bool inDir = !string.IsNullOrEmpty(installDir) && Paths.Under(path, installDir) && !IsHelper(path);
-            bool mine = (pid != 0 && wp == pid) || ((isSteam || anyProcessInDir) && inDir);
+            if (!Native.WindowOpen(h)) continue;
+            bool mine = (pid != 0 && wp == pid && !SharedHost(wp)) || ((isSteam || anyProcessInDir) && inDir);
             if (!mine) continue;
             long a = Native.Area(h);
             if (a > bestArea) { bestArea = a; best = h; }

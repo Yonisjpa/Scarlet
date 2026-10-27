@@ -166,6 +166,14 @@ static class Native
         return p == hWnd ? IntPtr.Zero : p;
     }
 
+    [DllImport("dwmapi.dll")] static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
+
+    /// <summary>Ventana escondida por Windows aunque "exista" (apps de la Store cerradas o en otro escritorio).</summary>
+    public static bool IsCloaked(IntPtr h) { try { return DwmGetWindowAttribute(h, 14 /* DWMWA_CLOAKED */, out int c, 4) == 0 && c != 0; } catch { return false; } }
+
+    /// <summary>¿La ventana sigue abierta de verdad (existe, se ve y Windows no la escondió)?</summary>
+    public static bool WindowOpen(IntPtr h) => h != IntPtr.Zero && IsWindow(h) && IsWindowVisible(h) && !IsCloaked(h);
+
     public static string Title(IntPtr hWnd)
     {
         var sb = new StringBuilder(256);

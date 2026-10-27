@@ -1606,7 +1606,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.13";
+let APP_VERSION = "0.4.14";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2879,8 +2879,7 @@ const qmRows = () => [
   ...(media ? [{ k: "media", type: "media" }] : []),
   { k: "brightness", type: "slider", icon: QI.sun, label: "Brillo" },
   { k: "volume", type: "slider", icon: QI.vol, label: "Volumen" },
-  ...((QM.mix || []).length === 2 ? QM.mix.map((m, j) => ({ k: "mix" + j, type: "mix", m })) : []),
-  ...((QM.outs || []).length > 1 ? [{ k: "output", type: "output", icon: QI.out, label: "Salida" }] : []),
+  ...(QM.mix || []).map(m => ({ k: "mix:" + m.exe, type: "mix", m })),
   { k: "wifi", type: "switch", icon: QI.wifi, label: "Wi-Fi" },
   { k: "airplane", type: "switch", icon: QI.plane, label: "Modo avión" },
   { k: "sleep", type: "btn", label: "Apagar…" }, { k: "settings", type: "btn", label: "Ajustes" }
@@ -2992,13 +2991,14 @@ function qmPatch(fn) {
 function liveQuick(full) {
   Host.call("quick.live", { full: !!full }).then(r => {
     if (!r || !QM.open) return;
-    const touching = Date.now() - (QM.mixTouched || 0) < 2500;
-    if (r.system) { for (const k in r.system) if (r.system[k] != null && k in sys) sys[k] = r.system[k]; saveSys(); }
+    const touching = Date.now() - (QM.mixTouched || 0) < 4000;
+    // Lo que acabas de mover no se pisa con la lectura de Windows (que puede llegar con el valor de antes).
+    if (r.system) { for (const k in r.system) if (r.system[k] != null && k in sys && !(Date.now() - ((QM.sysTouched || {})[k] || 0) < 4000)) sys[k] = r.system[k]; saveSys(); }
     if ("battery" in r) battInfo = r.battery;
     if ("media" in r) setMedia(r.media);
     qmPatch(() => {
       if (Array.isArray(r.mixer)) {
-        if (touching && QM.mix && QM.mix.length === r.mixer.length) r.mixer.forEach((m, j) => m.volume = QM.mix[j].volume);   // no pelear con lo que estás moviendo
+        if (touching && QM.mix) r.mixer.forEach(m => { const o = QM.mix.find(x => x.exe === m.exe); if (o) m.volume = o.volume; });   // no pelear con lo que estás moviendo
         QM.mix = r.mixer;
       }
       if (Array.isArray(r.outputs)) QM.outs = r.outputs;
@@ -3015,6 +3015,7 @@ function closeQuick(stay, why = "B") {
 }
 function applySys(k) {
   saveSys();
+  QM.sysTouched = Object.assign(QM.sysTouched || {}, { [k]: Date.now() });
   if (k === "brightness") Host.call("system.brightness", { value: sys.brightness }).catch(() => {});
   if (k === "volume") Host.call("system.volume", { value: sys.volume }).catch(() => {});
   if (k === "power") Host.call("system.power", { profile: sys.power }).catch(() => {});
