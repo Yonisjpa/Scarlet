@@ -210,6 +210,28 @@ svg{display:block}
 .vwrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.6rem;padding:2.4rem var(--pad);min-height:0}
 .vwrap img,.vwrap video{max-width:100%;max-height:calc(100% - 4rem);border-radius:.6rem;animation:fadeIn .25s ease both}
 .vcap{font-size:1.5rem;color:#cfcfd4;font-weight:600}
+/* selección para enviar al celular */
+.shot .chk{position:absolute;z-index:2;left:.7rem;top:.7rem;width:2.6rem;height:2.6rem;border-radius:50%;border:.25rem solid #fff;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;color:#111;font-weight:800;font-size:1.5rem}
+.agrid.sel .shot .chk{display:flex}
+.shot.on .chk{background:var(--accent);border-color:var(--accent)}
+.shot.on img,.shot.on video{opacity:.75}
+/* compartir por QR */
+.qrbox{flex:1;display:flex;align-items:center;justify-content:center;gap:5rem;padding:2rem var(--pad)}
+.qrbox .qr{width:34rem;height:34rem;border-radius:1.6rem;background:#fff;padding:1.6rem;flex:none}
+.qrbox .qr img{width:100%;height:100%;display:block;image-rendering:pixelated}
+.qrbox ol{margin:0;padding-left:2.4rem;font-size:1.9rem;line-height:1.7;max-width:56rem}
+.qrbox .url{font-size:1.4rem;color:var(--fg2);margin-top:1.6rem;word-break:break-all}
+.qrbox .left{font-size:1.5rem;color:var(--fg2);margin-top:.8rem}
+/* recortar video */
+.trim{flex:1;display:flex;flex-direction:column;gap:1.8rem;padding:2rem var(--pad);min-height:0}
+.trim video{flex:1;min-height:0;width:100%;object-fit:contain;background:#000;border-radius:.8rem}
+.tline{position:relative;height:5.2rem;border-radius:.8rem;background:var(--bg3,#333)}
+.tline .sel{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 28%,transparent);border:.3rem solid var(--accent);border-radius:.8rem}
+.tline .h{position:absolute;top:-.6rem;bottom:-.6rem;width:1rem;margin-left:-.5rem;border-radius:.5rem;background:#fff;opacity:.55}
+.tline .h.on{opacity:1;box-shadow:0 0 0 .3rem var(--accent)}
+.tline .ph{position:absolute;top:0;bottom:0;width:.3rem;background:#fff;margin-left:-.15rem}
+.tinfo{display:flex;justify-content:space-between;font-size:1.6rem;font-variant-numeric:tabular-nums;color:var(--fg2)}
+.tinfo b{color:var(--fg)}
 /* reproductor de video estilo Switch: sin controles de Chromium */
 .vplayer{position:relative;flex:1;width:100%;min-height:0;display:flex;align-items:center;justify-content:center;animation:fadeIn .25s ease both}
 .vwrap .vplayer video{width:100%;height:100%;max-height:none;object-fit:contain;border-radius:0;background:#000;animation:none}
@@ -1739,7 +1761,8 @@ const albumFilter = { type: 0, game: null };
 const albumList = () => (albumData || []).filter(c => (albumFilter.type === 0 || (albumFilter.type === 1 ? c.type !== "video" : c.type === "video")) && (!albumFilter.game || c.game === albumFilter.game));
 function albumView() {
   return {
-    cols: 5, hints: [["B", "Atrás"], ["Y", "Tipo"], ["X", "Juego"], ["A", "Ver"]],
+    cols: 5,
+    hints() { return this.sel ? [["B", "Cancelar"], ["A", "Marcar"], ["☰", `Enviar (${this.sel.size})`]] : [["B", "Atrás"], ["Y", "Tipo"], ["X", "Juego"], ["☰", "Enviar al celular"], ["A", "Ver"]]; },
     render(el) {
       el.innerHTML = head(I.album, "Álbum", "Cargando…") + `<div class="vbody"><div class="agrid"></div></div>`;
       (albumData ? Promise.resolve(albumData) : Data.album()).then(list => { albumData = list; this.refresh(); });
@@ -1749,14 +1772,29 @@ function albumView() {
       this.list = albumList();
       $(".vhead .sub", this.el).textContent = `${ATYPES[albumFilter.type]}${albumFilter.game ? " · " + albumFilter.game : ""} · ${this.list.length}`;
       const g = $(".agrid", this.el);
-      g.innerHTML = this.list.length ? this.list.map((c, i) => `<button class="shot fi" style="--k:${i % 15}" data-i="${i}">${c.type === "video" && !c.thumb && !c.url.startsWith("data:") ? `<video src="${esc(c.url)}#t=0.5" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block"></video>` : `<img alt="" src="${esc(c.thumb || c.url)}">`}${c.type === "video" ? '<span class="vid">▶ Video</span>' : ""}<span class="cap">${esc(c.game)} · ${esc(c.date)}</span></button>`).join("") : `<p class="empty" style="grid-column:1/-1">No hay capturas con este filtro.</p>`;
-      fis(this.el).forEach(b => b.onclick = () => openView(viewerView(this, +b.dataset.i)));
+      g.classList.toggle("sel", !!this.sel);
+      g.innerHTML = this.list.length ? this.list.map((c, i) => `<button class="shot fi${this.sel && this.sel.has(c.path) ? " on" : ""}" style="--k:${i % 15}" data-i="${i}"><span class="chk">✓</span>${c.type === "video" && !c.thumb && !c.url.startsWith("data:") ? `<video src="${esc(c.url)}#t=0.5" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block"></video>` : `<img alt="" src="${esc(c.thumb || c.url)}">`}${c.type === "video" ? '<span class="vid">▶ Video</span>' : ""}<span class="cap">${esc(c.game)} · ${esc(c.date)}</span></button>`).join("") : `<p class="empty" style="grid-column:1/-1">No hay capturas con este filtro.</p>`;
+      fis(this.el).forEach(b => b.onclick = () => {
+        if (!this.sel) return openView(viewerView(this, +b.dataset.i));
+        const c = this.list[+b.dataset.i]; if (!c || c.url.startsWith("data:") && Host.has) return play("bump");
+        if (this.sel.has(c.path)) this.sel.delete(c.path); else this.sel.add(c.path);
+        b.classList.toggle("on", this.sel.has(c.path)); play("select"); updateFocus();
+      });
       this.i = clamp(this.i, 0, Math.max(0, this.list.length - 1)); updateFocus();
     },
     onKey(k) {
+      if (k === "start") {   // ☰: elegir varias y mandarlas al celular
+        if (!this.list || !this.list.length) return play("bump"), true;
+        if (!this.sel) { this.sel = new Set([this.list[this.i].path]); play("select"); toast("Marca con A lo que quieras enviar y presiona ☰"); }
+        else if (!this.sel.size) { play("bump"); return true; }
+        else { const paths = [...this.sel]; this.sel = null; openView(shareView(paths)); }
+        this.refresh(); this.i = clamp(this.i, 0, this.list.length - 1); updateFocus(); return true;
+      }
+      if (this.sel) return false;
       if (k === "y") { albumFilter.type = (albumFilter.type + 1) % ATYPES.length; play("select"); this.i = 0; this.refresh(); return true; }
       return false;
     },
+    onB() { if (!this.sel) return false; this.sel = null; play("back"); const i = this.i; this.refresh(); this.i = i; updateFocus(); return true; },
     onX() {
       const names = [...new Set((albumData || []).map(c => c.game))];
       const opts = [{ label: "Todos los juegos", value: null }, ...names.map(n => ({ label: n, value: n, extra: (albumData || []).filter(c => c.game === n).length + "" }))];
@@ -1771,8 +1809,8 @@ function viewerView(album, idx) {
     cls: "viewer", idx,
     hints() {
       return this.vid
-        ? [["B", "Atrás"], ["X", "Borrar"], ["A", this.vid.paused ? "Reproducir" : "Pausa"], ["◀", "−5 s"], ["▶", "+5 s"], ["LB", "Anterior"], ["RB", "Siguiente"]]
-        : [["B", "Atrás"], ["X", "Borrar"], ["◀", "Anterior"], ["▶", "Siguiente"]];
+        ? [["B", "Atrás"], ["☰", "Más"], ["A", this.vid.paused ? "Reproducir" : "Pausa"], ["◀", "−5 s"], ["▶", "+5 s"], ["LB", "Anterior"], ["RB", "Siguiente"]]
+        : [["B", "Atrás"], ["☰", "Más"], ["X", "Borrar"], ["◀", "Anterior"], ["▶", "Siguiente"]];
     },
     render(el) { el.innerHTML = `<div class="vwrap"><div class="media" style="display:contents"></div><div class="vcap"></div></div>`; this.show(); },
     show() {
@@ -1823,8 +1861,22 @@ function viewerView(album, idx) {
       if (n < 0 || n >= album.list.length) return bump($(".vwrap img, .vwrap .vplayer", this.el), d > 0 ? "right" : "left");
       this.idx = n; play("move"); this.show();
     },
+    more() {
+      const c = album.list[this.idx]; if (!c) return;
+      if (this.vid && !this.vid.paused) this.vid.pause();
+      const opts = [{ label: "Enviar al celular (código QR)", value: "share" }, { label: "Copiar (para pegar en Discord, WhatsApp…)", value: "copy" }];
+      if (c.type === "video") opts.push({ label: "Recortar video", value: "trim" });
+      opts.push({ label: c.type === "video" ? "Borrar grabación" : "Borrar captura", value: "del" });
+      openView(pickerView("Opciones", I.album, opts, null, v => {
+        if (v === "share") openView(shareView([c.path]));
+        else if (v === "copy") Host.has ? Host.call("album.copy", { path: c.path }).then(ok => toast(ok ? "Copiada: pégala con Ctrl+V" : "No se pudo copiar")).catch(() => toast("No se pudo copiar")) : toast("Copiada (demo)");
+        else if (v === "trim") { this.stop(); openView(trimView(c, item => { albumData.unshift(item); album.refresh(); this.idx = Math.max(0, album.list.indexOf(c)); this.show(); })); }
+        else if (v === "del") this.onX();
+      }));
+    },
     onKey(k) {
       if (this.vid) this.wake();
+      if (k === "start") { this.more(); return true; }
       if (k === "a" && this.vid) { this.toggle(); return true; }
       if (k === "lb" || k === "rb") { this.go(k === "lb" ? -1 : 1); return true; }
       return false;
@@ -1846,6 +1898,80 @@ function viewerView(album, idx) {
       });
       return true;
     },
+    items() { return []; }
+  };
+}
+
+/* Enviar al celular: código QR con una página en tu red Wi-Fi (como la Switch 2). */
+function shareView(paths) {
+  return {
+    hints: [["B", "Terminar"]],
+    render(el) {
+      el.innerHTML = head(I.album, "Enviar al celular", `${paths.length} archivo${paths.length === 1 ? "" : "s"}`) + `<div class="qrbox"><div class="qr"></div><div><ol>
+        <li>Conecta tu iPhone a la misma red Wi-Fi<span class="ssid"></span>.</li><li>Abre la cámara y apunta al código.</li><li>Toca el aviso que aparece: se abre una página con tus capturas.</li><li>En fotos, mantén presionada la imagen › «Guardar en Fotos». En videos, «Descargar».</li></ol>
+        <p class="url">Preparando…</p><p class="left"></p></div></div>`;
+      if (!Host.has) { $(".url", el).textContent = "En la consola aquí aparece el código QR."; return; }
+      Host.call("album.share", { paths }).then(r => {
+        if (!r || r.error) { $(".url", el).textContent = (r && r.error) || "No se pudo compartir."; return; }
+        $(".qr", el).innerHTML = `<img alt="Código QR" src="${r.qr}">`;
+        $(".url", el).textContent = r.url;
+        if (r.ssid) $(".ssid", el).textContent = ` (${r.ssid})`;
+        const until = Date.now() + r.minutes * 6e4;
+        const t = () => { const s = Math.max(0, Math.round((until - Date.now()) / 1000)); const l = $(".left", el); if (l) l.textContent = s ? `El enlace caduca en ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : "El enlace caducó."; };
+        t(); this.timer = setInterval(t, 1000);
+        play("popup");
+      }).catch(() => { $(".url", el).textContent = "No se pudo compartir."; });
+    },
+    onB() { clearInterval(this.timer); if (Host.has) Host.call("album.shareStop").catch(() => {}); return false; },
+    items() { return []; }
+  };
+}
+
+/* Recortar video: dos marcas (inicio y fin) sobre la línea de tiempo; se guarda como un video nuevo. */
+function trimView(c, onSaved) {
+  return {
+    hints() { return [["B", "Cancelar"], ["A", this.h ? "Mover inicio" : "Mover fin"], ["◀▶", "±1 s"], ["LB RB", "±5 s"], ["Y", "Ver recorte"], ["☰", "Guardar"]]; },
+    render(el) {
+      el.innerHTML = head(I.album, "Recortar video", c.game) + `<div class="trim"><video src="${esc(c.url)}" playsinline preload="auto"></video>
+        <div class="tline"><i class="sel"></i><i class="ph"></i><i class="h a on"></i><i class="h b"></i></div>
+        <div class="tinfo"><span>Inicio <b class="ta">0:00</b></span><span>Duración <b class="td">0:00</b></span><span>Fin <b class="tb">0:00</b></span></div></div>`;
+      const v = $("video", el);
+      this.v = v; this.a = 0; this.b = 0; this.h = 0;
+      v.addEventListener("loadedmetadata", () => { this.b = v.duration || 0; this.paint(); });
+      v.addEventListener("timeupdate", () => { if (this.preview && v.currentTime >= this.b) { v.pause(); this.preview = false; } this.paint(); });
+    },
+    paint() {
+      const d = this.v.duration || 1, el = this.el, pa = this.a / d * 100, pb = this.b / d * 100;
+      $(".sel", el).style.cssText = `left:${pa}%;width:${pb - pa}%`;
+      $(".h.a", el).style.left = pa + "%"; $(".h.b", el).style.left = pb + "%";
+      $(".h.a", el).classList.toggle("on", this.h === 0); $(".h.b", el).classList.toggle("on", this.h === 1);
+      $(".ph", el).style.left = this.v.currentTime / d * 100 + "%";
+      $(".ta", el).textContent = mmss(this.a); $(".tb", el).textContent = mmss(this.b); $(".td", el).textContent = mmss(this.b - this.a);
+    },
+    move(s) {
+      const d = this.v.duration || 0; if (!d) return play("bump");
+      if (this.h === 0) this.a = clamp(this.a + s, 0, Math.max(0, this.b - 1)); else this.b = clamp(this.b + s, Math.min(d, this.a + 1), d);
+      this.v.pause(); this.preview = false; this.v.currentTime = this.h === 0 ? this.a : this.b;
+      play("tick"); this.paint();
+    },
+    nav(d) { if (d === "left" || d === "right") { this.move(d === "right" ? 1 : -1); return; } return false; },
+    onKey(k) {
+      if (k === "a") { this.h = 1 - this.h; play("move"); this.v.currentTime = this.h ? this.b : this.a; this.paint(); updateFocus(); return true; }
+      if (k === "lb" || k === "rb") { this.move(k === "rb" ? 5 : -5); return true; }
+      if (k === "y") { this.v.currentTime = this.a; this.preview = true; this.v.play().catch(() => {}); play("select"); return true; }
+      if (k === "start") { this.save(); return true; }
+      return false;
+    },
+    async save() {
+      if (this.saving) return;
+      if (!Host.has) { toast("En la consola aquí se guarda el recorte"); return; }
+      this.saving = true; this.v.pause(); toast("Guardando recorte…");
+      const r = await Host.call("album.trim", { path: c.path, start: this.a, end: this.b }).catch(() => null);
+      this.saving = false;
+      if (!r || !r.ok) { play("bump"); return toast((r && r.error) || "No se pudo recortar"); }
+      play("select"); toast("Recorte guardado en el Álbum"); closeView(); onSaved && onSaved(r.item);
+    },
+    onB() { this.v.pause(); return false; },
     items() { return []; }
   };
 }
@@ -2751,7 +2877,11 @@ function saveCapture(type, hostItem) {
   notify({ icon: item.type === "video" && !item.thumb ? I.album : `<img alt="" src="${esc(item.thumb || item.url)}">`, image: item.type === "video" ? "" : (item.path || ""), letter: "▣", title: type === "video" ? "Video guardado" : "Captura guardada", text: type === "video" ? "Últimos 30 segundos · en el Álbum" : "Guardada en el Álbum" });
   if (!hostItem) Host.call("capture.take", { type }).catch(() => {});
 }
-Events.on("capture.saved", d => saveCapture(d.type || "image", d));
+Events.on("capture.saved", d => {
+  if (/ \(recorte\)/.test(d.path || "")) return;            // los recortes los agrega el editor, sin aviso de "últimos 30 s"
+  if (albumData && albumData.some(x => x.path === d.path)) return;
+  saveCapture(d.type || "image", d);
+});
 
 /* ================= v2.9.8: ahorro de energía ================= */
 const DIM_OPTS = [["Nunca", 0], ["15 s (prueba)", 15e3], ["1 min", 6e4], ["3 min", 18e4], ["5 min", 3e5]];
