@@ -94,14 +94,17 @@ static class UpdateService
             var r = await LatestAsync();
             if (r == null || r.Version <= Current) return new { ok = false, error = "Ya tienes la versión más nueva." };
 
-            string zip = Path.Combine(Dir, Asset);
+            // Zips de intentos anteriores (si el antivirus los tenía ocupados no se pudieron borrar).
+            foreach (var old in Directory.EnumerateFiles(Dir, "Scarlet-*.zip")) try { File.Delete(old); } catch { }
+            // Nombre nuevo en cada intento: si el antivirus todavía revisa uno anterior, no choca.
+            string zip = Path.Combine(Dir, $"Scarlet-{Display(r.Version)}-{DateTime.Now:HHmmss}.zip");
             Log.Write($"actualizaciones: descargando {Display(r.Version)} ({r.Size / 1048576} MB)");
             using (var resp = await http.GetAsync(r.Url, HttpCompletionOption.ResponseHeadersRead))
             {
                 resp.EnsureSuccessStatusCode();
                 long total = resp.Content.Headers.ContentLength ?? r.Size, done = 0;
                 using var src = await resp.Content.ReadAsStreamAsync();
-                using var dst = File.Create(zip);
+                using var dst = new FileStream(zip, FileMode.Create, FileAccess.Write, FileShare.None, 1 << 16, true);
                 var buf = new byte[1 << 16];
                 int n, lastPct = -1;
                 while ((n = await src.ReadAsync(buf)) > 0)
@@ -114,9 +117,16 @@ static class UpdateService
                 if (done != r.Size) throw new IOException($"La descarga quedó incompleta ({done} de {r.Size} bytes).");
             }
 
-            if (Directory.Exists(StagedDir)) Directory.Delete(StagedDir, true);
-            ZipFile.ExtractToDirectory(zip, StagedDir);
-            File.Delete(zip);
+            progress?.Invoke(1);
+            // Windows Defender revisa el zip recién descargado y lo tiene ocupado unos segundos: se reintenta.
+            await Retry(() => { if (Directory.Exists(StagedDir)) Directory.Delete(StagedDir, true); });
+            await Retry(() =>
+            {
+                using var fs = new FileStream(zip, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var archive = new ZipArchive(fs, ZipArchiveMode.Read);
+                archive.ExtractToDirectory(StagedDir, true);
+            });
+            try { File.Delete(zip); } catch { }   // si sigue ocupado, se borra en el próximo intento
             if (!File.Exists(Path.Combine(StagedDir, "Scarlet.exe"))) throw new IOException("El paquete no trae Scarlet.exe.");
 
             File.WriteAllText(ProbationFile, $"{Display(r.Version)}\n0");
@@ -129,6 +139,20 @@ static class UpdateService
         {
             Log.Error("actualizar", ex);
             return new { ok = false, error = "No se pudo actualizar: " + ex.Message };
+        }
+    }
+
+    /// <summary>Repite una operación de archivos si algo (el antivirus, OneDrive) los tiene ocupados: hasta ~30 s.</summary>
+    static async Task Retry(Action a)
+    {
+        for (int i = 0; ; i++)
+        {
+            try { a(); return; }
+            catch (Exception ex) when ((ex is IOException || ex is UnauthorizedAccessException) && i < 15)
+            {
+                if (i == 0) Log.Write("actualizaciones: archivo ocupado (antivirus), se reintenta…");
+                await Task.Delay(2000);
+            }
         }
     }
 
