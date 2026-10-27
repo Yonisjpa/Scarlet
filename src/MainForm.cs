@@ -485,6 +485,10 @@ sealed class MainForm : Form
             case "install.go": return await InstallStep(P.L(p, "appid"), SteamCdp.ContinueAsync(P.L(p, "appid"), (int)P.L(p, "folder")));
             case "install.eula": return await InstallStep(P.L(p, "appid"), SteamCdp.EulaAsync(P.L(p, "appid"), Flag(p, "accept"), EulaIds(p)));
             case "install.cancel": await SteamCdp.CancelAsync(); GuardSteam(3); return true;
+            // ── Descargas: pausar, reanudar, cancelar instalación (= desinstalar en Steam)
+            case "download.pause": return new { ok = await SteamCdp.PauseAsync(P.L(p, "appid")) };
+            case "download.resume": return new { ok = await SteamCdp.ResumeAsync(P.L(p, "appid")) };
+            case "download.cancel": return await CancelDownload(P.L(p, "appid"));
             case "install.enable": return InstallEnable();
             // ── Red y VPN
             case "net.state": return new { internet = NetCheck.Internet, steam = NetCheck.SteamReachable };
@@ -1941,10 +1945,44 @@ sealed class MainForm : Form
         catch (Exception ex) { Log.Error("guardia de instalación", ex); }
     }
 
+    /// <summary>
+    /// Cancelar instalación: Steam la quita de sus descargas y la desinstala (borra lo descargado). Su ventanita, si sale,
+    /// se esconde. Se confirma mirando que ya no esté en sus archivos ni en la lista (hasta ~20 s).
+    /// </summary>
+    async Task<object> CancelDownload(long appid)
+    {
+        if (appid <= 0) return new { ok = false, error = "Juego no válido" };
+        if (!await SteamCdp.ReadyAsync()) return new { ok = false, error = "Steam no está conectado con Scarlet ahora mismo." };
+        GuardSteam(30);
+        string how = await SteamCdp.CancelDownloadAsync(appid);
+        Log.Write($"Steam: cancelar instalación de {appid} ({how ?? "falló"})");
+        if (how == null) { GuardSteam(3); return new { ok = false, error = "Steam no contestó." }; }
+        for (int i = 0; i < 40; i++)
+        {
+            await Task.Delay(500);
+            bool inFiles = steam.LocalApps().Any(a => a.AppId == appid);
+            var (live, _, ok) = await SteamCdp.DownloadsAsync();
+            bool inList = ok && live != null && live.Any(d => d.AppId == appid);
+            if (!inFiles && !inList)
+            {
+                Ui(() => steam.Installed.Remove(appid));
+                GuardSteam(3);
+                Log.Write($"Steam: instalación de {appid} cancelada y borrada");
+                Emit("download.removed", new { appid });
+                return new { ok = true };
+            }
+        }
+        GuardSteam(3);
+        Log.Write($"Steam: la instalación de {appid} sigue ahí tras cancelar");
+        return new { ok = false, error = "Steam no terminó de cancelarla. Intenta de nuevo en unos segundos." };
+    }
+
     /// <summary>Progreso de descargas en vivo desde Steam (cada segundo mientras hay conexión directa).</summary>
     async Task DownloadLoop()
     {
-        var last = new Dictionary<long, (double p, string state)>();
+        var last = new Dictionary<long, (double p, string state, DateTime at)>();
+        int tick = 0;
+        List<LocalApp> acf = new();
         while (!IsDisposed)
         {
             await Task.Delay(1000);
@@ -1955,13 +1993,20 @@ sealed class MainForm : Form
                 var (live, done, ok) = await SteamCdp.DownloadsAsync();
                 if (!ok) { await Task.Delay(4000); continue; }
                 cdpLiveAt = DateTime.UtcNow;
+                // Respaldo: lo que dicen los archivos de Steam (cada 3 s), por si su lista en vivo no trae algún juego.
+                if (tick++ % 3 == 0) acf = steam.LocalApps().Where(a => a.BytesToDownload > 0 && a.BytesDownloaded < a.BytesToDownload).ToList();
+                foreach (var a in acf)
+                    if (!live.Any(x => x.AppId == a.AppId) && !done.Contains(a.AppId))
+                        live.Add(new SteamCdp.Dl(a.AppId, Math.Clamp((double)a.BytesDownloaded / a.BytesToDownload, 0, 1), a.FullyInstalled ? "Actualizando" : "Descargando",
+                            SteamCdp.PausedAll ? "paused" : "active", a.BytesDownloaded, a.BytesToDownload, -1, 0, "download"));
                 var now = new HashSet<long>();
                 foreach (var d in live)
                 {
                     now.Add(d.AppId);
-                    if (last.TryGetValue(d.AppId, out var prev) && Math.Abs(prev.p - d.Progress) < 0.001 && prev.state == d.State) continue;
-                    last[d.AppId] = (d.Progress, d.State);
-                    Emit("download.progress", new { appid = d.AppId, progress = d.Progress, kind = d.Kind, state = d.State });
+                    // Se manda si cambió el avance o el estado, y cada 3 s de todos modos (tiempo restante y velocidad).
+                    if (last.TryGetValue(d.AppId, out var prev) && Math.Abs(prev.p - d.Progress) < 0.001 && prev.state == d.State && DateTime.Now - prev.at < TimeSpan.FromSeconds(3)) continue;
+                    last[d.AppId] = (d.Progress, d.State, DateTime.Now);
+                    Emit("download.progress", new { appid = d.AppId, progress = d.Progress, kind = d.Kind, state = d.State, bytes = d.Bytes, total = d.Total, eta = d.Eta, rate = d.Rate, phase = d.Phase });
                 }
                 foreach (long id in last.Keys.Where(k => !now.Contains(k)).ToList())
                 {

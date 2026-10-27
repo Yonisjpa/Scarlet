@@ -657,8 +657,6 @@ body{font-weight:400}
 #gameTitle .gt-ic{flex:0 0 auto;width:1.7rem;height:2.1rem;display:block;color:var(--accent)}
 #gameTitle .mqbox{min-width:0;overflow:hidden}
 #gameTitle .gt-ic.cloud{width:2.5rem;height:2.5rem}
-#gameTitle .gt-pct{flex:0 0 auto;color:var(--fg2);font-size:1.75rem;min-width:5.5ch;padding-left:.3rem}
-#gameTitle .gt-pct:empty{display:none}
 .rowwrap{padding:1rem 0}
 .track{gap:1.37rem;padding:0 4.6rem 0 9.94rem}
 .tile{--r:1.12rem;width:23.85rem;height:23.85rem;border-radius:1.12rem;box-shadow:none}
@@ -780,6 +778,22 @@ body{font-weight:400}
 .dbox .etext p{margin:0 0 1rem;padding:0;font-size:1.55rem;line-height:1.6;text-align:left;white-space:pre-line;overflow-wrap:anywhere}
 .etext .eload{display:flex;flex-direction:column;align-items:center;gap:1.6rem;color:var(--fg2);padding:5rem 0}
 .etext .eload i{width:3.6rem;height:3.6rem;border-radius:50%;border:.3rem solid var(--line);border-top-color:var(--accent);animation:vspin .8s linear infinite}
+/* menú "Descargando datos…" */
+.dbox.dlg{width:62rem;max-width:92vw}
+.dlg .dlh{font-size:2.3rem;font-weight:400;margin:0;padding:3.6rem 4.4rem .8rem}
+.dbox.dlg .dls{font-size:1.5rem;line-height:1.45;color:var(--fg2);padding:0 4.4rem;margin:0;text-align:left}
+.dlp{display:flex;align-items:center;gap:1.6rem;padding:2.6rem 4.4rem .8rem}
+.dlp i.sp{width:2.2rem;height:2.2rem;border-radius:50%;border:.25rem solid var(--line);border-top-color:var(--accent);animation:vspin .9s linear infinite;flex:0 0 auto}
+.dlp i.sp.still{animation:none;border-top-color:var(--fg2)}
+.dlp .bar{flex:1;height:.7rem;border-radius:99rem;background:var(--line);overflow:hidden;display:block}
+.dlp .bar i{display:block;height:100%;width:0;background:var(--accent);border-radius:inherit;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.dlp .pc{min-width:5ch;text-align:right;font-size:1.6rem;color:var(--fg2)}
+.dle{text-align:center;font-size:1.6rem;padding:.4rem 4.4rem 0}
+.dlz{text-align:center;font-size:1.35rem;color:var(--fg2);padding:.5rem 4.4rem 0;min-height:1.6rem}
+.dlo{display:flex;justify-content:center;padding:2.4rem 4.4rem 2.6rem}
+.dlo button{--r:.7rem;min-width:28rem;padding:1.3rem 2.4rem;border:.15rem solid var(--accent);border-radius:.7rem;color:var(--accent);font-size:1.7rem;position:relative}
+.dlo button.focused{background:var(--bg3)}
+.dbtns.one{grid-template-columns:1fr}
 </style>
 </head>
 <body>
@@ -1341,8 +1355,6 @@ function paintTitleState() {
   const g = focusedGame(), d = g && state.downloads[g.appid];
   const kind = !g ? "card" : d ? "dl" : !g.installed ? "cloud" : "card";
   if (t.dataset.ic !== kind) { t.dataset.ic = kind; const ic = t.querySelector(".gt-ic"); if (ic) ic.outerHTML = kind === "dl" ? GT_DL : kind === "cloud" ? GT_CLOUD : GT_CARD; }
-  let pc = $("#gtPct"); if (!pc) { pc = document.createElement("span"); pc.id = "gtPct"; pc.className = "gt-pct"; t.append(pc); }
-  pc.textContent = d ? dlLabel(d) : "";
 }
 /* texto que se desplaza (como en la consola) si no cabe en su espacio */
 function marquee(box, text, active) {
@@ -2730,9 +2742,11 @@ function paintDownloads() {
   });
   paintTitleState();
 }
+/* La descarga ya no existe (terminó o se quitó): su menú "Descargando datos…" se cierra. */
+function closeDlView(appid) { const v = views.find(x => x.isDownload && x.appid == appid); if (v) dropView(v); }
 function finishDownload(appid) {
   const g = byId(appid), d = state.downloads[appid]; if (!d) return;
-  delete state.downloads[appid];
+  delete state.downloads[appid]; closeDlView(appid);
   if (g) { g.installed = true; notify({ icon: I.cloud, title: d.kind === "Descargando" ? "Descarga completada" : "Actualización completada", text: g.name }); }
   renderHome(); const lv = views.find(v => v.refresh && v.list && v.cols === 6); if (lv) lv.refresh(true);
 }
@@ -2761,15 +2775,117 @@ function installViaSteam(g) {
 }
 Events.on("download.progress", d => {
   const prev = state.downloads[d.appid];
-  const now = state.downloads[d.appid] = { p: clamp(+d.progress || 0, 0, 1), kind: d.kind || (prev && prev.kind) || "Actualizando", st: d.state || "active" };
+  const now = state.downloads[d.appid] = { p: clamp(+d.progress || 0, 0, 1), kind: d.kind || (prev && prev.kind) || "Actualizando", st: d.state || "active",
+    bytes: +d.bytes || 0, total: +d.total || 0, eta: d.eta == null ? -1 : +d.eta, rate: +d.rate || 0, phase: d.phase || "download" };
   if (!prev || prev.st !== now.st) { renderHome(); refreshLibrary(); } else paintDownloads();
+  const v = topView(); if (v && v.isDownload && v.appid == d.appid) v.paint();
 });
 Events.on("download.done", d => finishDownload(d.appid));
 Events.on("download.removed", d => {   // la quitaste de la lista de Steam (cancelada)
   if (!state.downloads[d.appid]) return;
-  delete state.downloads[d.appid]; unpin(d.appid);
+  delete state.downloads[d.appid]; unpin(d.appid); closeDlView(d.appid);
   renderHome(); refreshLibrary();
 });
+/* ================= menú de descarga (como en la consola) =================
+   A sobre un juego que se descarga: "Descargando datos…" con barra, porcentaje y tiempo restante, y "Opciones de descarga"
+   (pausar / reanudar / cancelar instalación). Se actualiza en vivo con lo que manda Steam. */
+const fmtEta = s => !(s >= 0) ? "Calculando…" : s < 60 ? "menos de 1 min" : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min`;
+const fmtRate = b => b > 0 ? (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB/s` : `${Math.max(1, Math.round(b / 1024))} KB/s`) : "";
+function dlTitle(d) {
+  if (!d) return "Descarga terminada";
+  if (d.st === "pending") return "Preparando la descarga…";
+  if (d.st === "paused") return "Descarga en pausa";
+  if (d.st === "queued") return "En la cola de descargas";
+  if (d.phase === "install") return "Instalando archivos…";
+  return d.kind === "Actualizando" ? "Descargando actualización…" : "Descargando datos…";
+}
+function downloadView(g) {
+  return {
+    cls: "dialog", isDownload: true, appid: g.appid, cols: 1, i: 1,
+    hints: [["B", "Cerrar"], ["A", "Aceptar"]],
+    render(el) {
+      el.innerHTML = `<div class="dbox dlg"><h3 class="dlh"></h3><p class="dls">Si abres otro juego, Scarlet te preguntará si pausar la descarga.</p>
+        <div class="dlp"><i class="sp"></i><b class="bar"><i></i></b><span class="pc"></span></div><div class="dle"></div><div class="dlz"></div>
+        <div class="dlo"><button class="fi" data-b="opt">Opciones de descarga</button></div>
+        <div class="dbtns one"><button class="fi" data-b="close">Cerrar</button></div></div>`;
+      $('[data-b="close"]', el).onclick = () => closeView();
+      $('[data-b="opt"]', el).onclick = () => downloadOptions(g);
+      this.paint();
+    },
+    paint() {
+      const el = this.el; if (!el) return;   // (al abrir todavía no está en pantalla: se pinta igual)
+      const d = state.downloads[g.appid];
+      $(".dlh", el).textContent = dlTitle(d);
+      const p = d ? d.p : 1, pending = !d || d.st === "pending";
+      $(".bar i", el).style.width = (p * 100).toFixed(1) + "%";
+      $(".pc", el).textContent = pending ? "" : `${Math.floor(p * 100)} %`;
+      $(".sp", el).classList.toggle("still", !d || d.st === "paused" || d.st === "queued");
+      $(".dle", el).textContent = !d ? "" : d.st === "paused" ? "En pausa" : d.st === "queued" ? "Empieza cuando terminen las de antes" : pending ? "Steam está preparando el juego" : `Tiempo restante: ${fmtEta(d.eta)}`;
+      $(".dlz", el).textContent = d && d.total > 0 ? `${fmtBytes(d.bytes)} de ${fmtBytes(d.total)}${d.st === "active" && fmtRate(d.rate) ? " · " + fmtRate(d.rate) : ""}` : "";
+    },
+    items() { return fis(this.el); }
+  };
+}
+async function downloadOptions(g) {
+  const d = state.downloads[g.appid]; if (!d) return;
+  const paused = d.st === "paused";
+  const c = await choiceDialog(`Opciones de descarga\n${g.name}`, [{ label: "Atrás", value: null }, { label: "Cancelar instalación", value: "cancel" }, { label: paused ? "Reanudar descarga" : "Pausar descarga", value: paused ? "resume" : "pause" }], 2);
+  if (c === "pause" || c === "resume") return setDownloadPaused(g, c === "pause");
+  if (c === "cancel") return cancelDownload(g);
+}
+async function setDownloadPaused(g, pause) {
+  const d = state.downloads[g.appid];
+  const r = await steamDl(pause ? "download.pause" : "download.resume", g.appid);
+  if (!r || !r.ok) return toast(`No se pudo ${pause ? "pausar" : "reanudar"} la descarga`);
+  for (const id in state.downloads) if (state.downloads[id].st !== "pending") state.downloads[id].st = pause ? "paused" : "active";
+  if (d) d.st = pause ? "paused" : "active";
+  play(pause ? "off" : "on"); toast(pause ? "Descarga en pausa" : "Descarga reanudada");
+  renderHome(); refreshLibrary();
+  const v = topView(); if (v && v.isDownload) v.paint();
+}
+async function cancelDownload(g, quiet) {
+  if (!quiet) {
+    const ok = await confirmDialog(`¿Cancelar la instalación de ${g.name}?\nSe borrará lo que ya se descargó.`, "Cancelar instalación");
+    if (!ok) return false;
+  }
+  toast(`Cancelando ${g.name}…`);
+  const r = await steamDl("download.cancel", g.appid);
+  if (!r || !r.ok) { await alertDialog(`No se pudo cancelar la instalación de ${g.name}.\n${(r && r.error) || ""}`); return false; }
+  delete state.downloads[g.appid]; g.installed = false; unpin(g.appid);
+  const v = views.find(x => x.isDownload && x.appid == g.appid); if (v) dropView(v);
+  renderHome(); refreshLibrary(); toast(`Se canceló la instalación de ${g.name}`);
+  return true;
+}
+const steamDl = (type, appid) => Host.has ? Host.call(type, { appid }).catch(e => ({ ok: false, error: e.message })) : wait(500).then(() => ({ ok: true }));
+/* Abrir un juego con descargas en curso: pausar y jugar, cancelar y jugar, o seguir descargando (no abre el juego). */
+const autoPaused = new Set();
+async function askDownloadsBeforePlay(g) {
+  const act = Object.keys(state.downloads).filter(id => id != g.appid && ["active", "pending", "queued"].includes(state.downloads[id].st)).map(id => byId(id)).filter(Boolean);
+  if (!act.length) return true;
+  const one = act.length === 1 ? act[0] : null;
+  const opts = [{ label: "Seguir descargando", value: "keep" }, ...(one ? [{ label: "Cancelar y jugar", value: "cancel" }] : []), { label: "Pausar y jugar", value: "pause" }];
+  const c = await choiceDialog(`${one ? one.name + " se está descargando" : `Se están descargando ${act.length} juegos`}.\n¿Qué hacemos con la descarga para abrir ${g.name}?`, opts, opts.length - 1);
+  if (!c || c === "keep") return false;   // sigue la descarga y el juego no se abre
+  if (c === "cancel") return cancelDownload(one);
+  const r = await steamDl("download.pause", one ? one.appid : act[0].appid);
+  if (!r || !r.ok) { toast("No se pudo pausar la descarga"); return false; }
+  act.forEach(x => { autoPaused.add(x.appid); state.downloads[x.appid].st = "paused"; });
+  renderHome();
+  return true;
+}
+/* Al terminar de jugar, lo que se pausó para jugar sigue solo. */
+function resumeAfterPlay() {
+  if (!autoPaused.size) return;
+  const ids = [...autoPaused]; autoPaused.clear();
+  setTimeout(() => {
+    steamDl("download.resume", ids[0]).then(r => {
+      if (!r || !r.ok) return toast("No se pudo reanudar la descarga");
+      ids.forEach(id => { if (state.downloads[id]) state.downloads[id].st = "active"; });
+      renderHome(); notify({ icon: I.cloud, title: "Descarga reanudada", text: ids.map(id => (byId(id) || {}).name).filter(Boolean).join(", ") });
+    });
+  }, 1500);
+}
+
 /* ================= instalar con Steam, directo (sin sus ventanas) =================
    Scarlet le pide a Steam su asistente de instalación (escondido) y muestra el suyo: portada, tamaño, disco con su
    espacio libre y, si el juego lo tiene, el contrato de licencia. Si Steam pide algo que Scarlet no maneja (clave de
@@ -3159,8 +3275,9 @@ async function launchGame(g, el, opt = {}) {
   if (mode !== "ui") return;
   if (state.running === g.appid) return resumeGame(el);
   const d = state.downloads[g.appid];
-  if (d) { bump(el); return toast(d.st === "queued" ? `${g.name} está en la cola de descargas de Steam` : d.st === "paused" ? `La descarga de ${g.name} está en pausa en Steam` : d.st === "pending" ? `Steam está preparando ${g.name}` : `Espera a que termine: ${d.kind.toLowerCase()} ${Math.round(d.p * 100)} %`); }
+  if (d) return openView(downloadView(g), el);
   if (!g.installed) return startInstall(g);
+  if (g.kind !== "app" && !opt.dlAsked) { const go = await askDownloadsBeforePlay(g); if (!go) return; }
   if (state.running) {
     const r = runningGame();
     // Con un juego abierto, las apps (Apple Music, YouTube para ver una guía…) se abren junto a él: el juego se queda
@@ -3247,6 +3364,7 @@ function syncRunning() {
 }
 function closeRunning(silent) {
   const g = runningGame(); if (!g) return;
+  resumeAfterPlay();
   goneAt[g.appid] = Date.now();
   Host.call("game.close", { appid: g.appid }).catch(() => {});
   state.running = null; renderHome();
@@ -3264,6 +3382,7 @@ Events.on("game.hung", async d => {
   else { Host.call("game.wait").catch(() => {}); const g = runningGame(); if (g) { showGame(g); mode = "game"; } }
 });
 Events.on("game.exited", d => {
+  resumeAfterPlay();
   if (d && d.appid) goneAt[d.appid] = Date.now();
   if (!state.running || (d && d.appid != state.running)) return;
   state.running = null;      // ya se cerró solo: no hace falta pedir a Windows que lo cierre
@@ -4047,7 +4166,7 @@ function articleView(n) {
   return {
     hints: [["B", "Atrás"], ["A", "Abrir en Steam"]],
     render(el) {
-      el.innerHTML = head(I.news, n.game) + `<div class="vbody"><article class="article"><img class="ahero" alt=""><h1>${esc(n.title)}</h1><div class="ameta">${esc(n.game)} · ${esc(n.date)}</div>${n.body.map(p => `<p>${esc(p)}</p>`).join("")}<div class="btnrow"><button class="btn primary fi">Abrir en Steam</button></div></article></div>`;
+      el.innerHTML = head(I.news, n.game) + `<div class="vbody"><article class="article"><img class="ahero" alt=""><h1>${esc(n.title)}</h1><div class="ameta">${esc(n.game)} · ${esc(n.date)}</div>${(Array.isArray(n.body) && n.body.length ? n.body : [n.summary || ""]).map(p => `<p>${esc(p)}</p>`).join("")}<div class="btnrow"><button class="btn primary fi">Abrir en Steam</button></div></article></div>`;
       Art.apply($(".ahero", el), byId(n.appid) || { appid: n.appid, name: n.game }, "hero");
       $(".btn", el).onclick = () => openSystemApp({ ...SYS.news, name: n.title, url: n.url });
     },
