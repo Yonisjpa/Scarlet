@@ -14,6 +14,7 @@ sealed class XboxGame
     public string StoreId { get; set; }      // id de la Microsoft Store (9N…)
     public string LocalLogo { get; set; }    // logo cuadrado que trae el juego
     public double SizeGb { get; set; }
+    public bool IsApp { get; set; }          // app de la Store (Apple Music…), no juego
 }
 
 /// <summary>
@@ -61,9 +62,10 @@ sealed class XboxService
 
                     string config = Path.Combine(dir, "MicrosoftGame.config");
                     bool isGame = File.Exists(config) || dir.Contains(@"\XboxGames\", StringComparison.OrdinalIgnoreCase);
-                    if (!isGame) continue;
+                    string known = KnownApps.FirstOrDefault(k => pkg.Id.FamilyName.StartsWith(k.Key, StringComparison.OrdinalIgnoreCase)).Value;
+                    if (!isGame && known == null) continue;
 
-                    var g = new XboxGame { Pfn = pkg.Id.FamilyName, Dir = dir, Name = SafeName(pkg) };
+                    var g = new XboxGame { Pfn = pkg.Id.FamilyName, Dir = dir, Name = known ?? SafeName(pkg), IsApp = !isGame };
                     if (File.Exists(config)) ReadConfig(config, g);
                     var entries = await pkg.GetAppListEntriesAsync();
                     var entry = entries.FirstOrDefault();
@@ -72,7 +74,7 @@ sealed class XboxService
                     if (string.IsNullOrWhiteSpace(g.Name) || g.Name.StartsWith("ms-resource", StringComparison.OrdinalIgnoreCase))
                         g.Name = entry.DisplayInfo?.DisplayName ?? pkg.Id.Name;
                     g.AppId = IdFor(g.Pfn);
-                    g.SizeGb = FolderSizeGb(dir);
+                    g.SizeGb = g.IsApp ? 0 : FolderSizeGb(dir);
                     list.Add(g);
                 }
                 catch (Exception ex) { Log.Error("xbox: paquete", ex); }
@@ -85,6 +87,16 @@ sealed class XboxService
         _ = FetchArtAsync();
         return list;
     }
+
+    /// <summary>Apps de la Microsoft Store que aparecen en la biblioteca como apps (inicio del nombre del paquete → nombre).</summary>
+    static readonly Dictionary<string, string> KnownApps = new()
+    {
+        ["AppleInc.AppleMusicWin"] = "Apple Music",
+        ["SpotifyAB.SpotifyMusic"] = "Spotify",
+        ["4DF9E0F8.Netflix"] = "Netflix",
+        ["Disney.37853FC22B2CE"] = "Disney+",
+        ["AmazonVideo.PrimeVideo"] = "Prime Video"
+    };
 
     static string SafeName(Windows.ApplicationModel.Package pkg)
     {

@@ -631,7 +631,7 @@ body{font-weight:400}
       <span class="clock">--:--</span>
       <svg class="wifi" viewBox="0 0 24 18" fill="currentColor"><path d="M12 15.5a1.8 1.8 0 1 1 0 .01z"/><path d="M6.6 10.6a7.7 7.7 0 0 1 10.8 0l-1.6 1.6a5.4 5.4 0 0 0-7.6 0z"/><path d="M3.3 7.3a12.4 12.4 0 0 1 17.4 0l-1.6 1.6a10.1 10.1 0 0 0-14.2 0z"/><path d="M0 4a17 17 0 0 1 24 0l-1.6 1.6a14.8 14.8 0 0 0-20.8 0z"/></svg>
       <span class="batt"><span class="battPct">--%</span>
-        <svg viewBox="0 0 30 16"><rect x=".8" y=".8" width="25" height="14.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="27.2" y="5" width="2.2" height="6" rx="1" fill="currentColor"/><rect class="battFill" x="3" y="3" width="20.6" height="10" rx="1.5" fill="currentColor"/></svg>
+        <svg viewBox="0 0 30 16"><rect x=".8" y=".8" width="25" height="14.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="27.2" y="5" width="2.2" height="6" rx="1" fill="currentColor"/><rect class="battFill" x="3" y="3" width="20.6" height="10" rx="1.5" fill="currentColor"/><path class="battBolt" style="display:none" d="M15.6 1.6 9.8 9h3.6l-1.6 5.4L17.8 7h-3.7z" fill="#3ad16b" stroke="var(--bg,#000)" stroke-width="1.1" stroke-linejoin="round"/></svg>
       </span>
     </div>
   </header>
@@ -661,7 +661,7 @@ body{font-weight:400}
 </div></div>
 
 <div id="lock"><div class="lbg"></div>
-  <div class="ltop"><span class="clock">--:--</span><span class="batt"><span class="battPct">--%</span><svg viewBox="0 0 30 16"><rect x=".8" y=".8" width="25" height="14.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="27.2" y="5" width="2.2" height="6" rx="1" fill="currentColor"/><rect class="battFill" x="3" y="3" width="20.6" height="10" rx="1.5" fill="currentColor"/></svg></span></div>
+  <div class="ltop"><span class="clock">--:--</span><span class="batt"><span class="battPct">--%</span><svg viewBox="0 0 30 16"><rect x=".8" y=".8" width="25" height="14.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="27.2" y="5" width="2.2" height="6" rx="1" fill="currentColor"/><rect class="battFill" x="3" y="3" width="20.6" height="10" rx="1.5" fill="currentColor"/><path class="battBolt" style="display:none" d="M15.6 1.6 9.8 9h3.6l-1.6 5.4L17.8 7h-3.7z" fill="#3ad16b" stroke="var(--bg,#000)" stroke-width="1.1" stroke-linejoin="round"/></svg></span></div>
   <div class="lcenter"><div class="lclock clock">--:--</div><div class="licon" id="licon"></div><div class="ldots"><i></i><i></i><i></i></div><p>Presiona el mismo botón tres veces</p></div>
 </div>
 
@@ -973,12 +973,19 @@ const Art = {
         if (url) { this.cache[key] = url; store.set("artCache", this.cache); return url; }
       } catch (e) {}
     }
-    const n = this.alt[g.appid] || 0, key = `${kind}:${g.appid}:${n}`;
+    const n = this.alt[g.appid] || 0, key = `${kind}:${g.appid}:${n}${g.kind === "app" ? ":i" : ""}`;
     if (this.cache[key]) return this.cache[key];
     if (!Host.has && !settings.sgdbKey) return null;
     try {
       const steam = (g.source || "steam") === "steam";
       const id = steam ? g.appid : await this.gameId(g); if (!id) return null;
+      if (g.kind === "app" && kind === "grid") {   // YouTube, Apple Music…: el ícono de la app se ve mejor que una portada
+        const ic = await this.sgdb(`icons/game/${id}?mimes=image/png`).catch(() => null);
+        const il = (ic && ic.data) || [], big = il.filter(x => (x.width || 0) >= 256);
+        let iu = (big.length ? big : il).length ? (big.length ? big : il)[n % (big.length ? big : il).length].url : null;
+        if (iu && Host.has) iu = await Host.call("cache.image", { url: iu });
+        if (iu) { this.cache[key] = iu; store.set("artCache", this.cache); return iu; }
+      }
       const base = `${kind === "hero" ? "heroes" : "grids"}/${steam ? "steam" : "game"}/${id}`;
       const j = await this.sgdb(kind === "hero" ? base : base + "?dimensions=512x512,1024x1024");
       const list = (j && j.data) || []; let url = list.length && list[n % list.length].url;
@@ -1015,6 +1022,7 @@ const Art = {
 
 /* ================= íconos (originales) ================= */
 const I = {
+  ally: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.6 6.4h12.8c1.5 0 2.8 1 3.2 2.4l1.5 5.9c.5 2-1.9 3.4-3.4 2l-1.6-1.6H5.9l-1.6 1.6c-1.5 1.4-3.9 0-3.4-2l1.5-5.9c.4-1.4 1.7-2.4 3.2-2.4z"/><rect x="7" y="7.9" width="10" height="5.6" rx=".6"/><circle cx="4.5" cy="9.3" r=".95"/><path d="M4.5 11.6v1.6M3.7 12.4h1.6" stroke-width="1.2"/><path d="M19.5 8.5v.01M18.7 9.3v.01M20.3 9.3v.01M19.5 10.1v.01" stroke-width="1.4"/><circle cx="19.5" cy="12.4" r=".8"/></svg>',
   friends: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.4 3.3-5.3 6.2-5.3s5.4 1.9 6.2 5.3"/><circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.3c2.6-.2 4.5 1.4 5 4.3"/></svg>',
   news: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h12v14H6a2 2 0 0 1-2-2z"/><path d="M16 9h4v8a2 2 0 0 1-2 2h-2"/><path d="M7.5 9h5M7.5 12.5h5M7.5 16h3" stroke-linecap="round"/></svg>',
   store: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3z"/><path d="M9 10V7a3 3 0 0 1 6 0v3" stroke-linecap="round"/></svg>',
@@ -1042,7 +1050,7 @@ const APPS = [
   { label: "Tienda", icon: I.store, c: "#e23839", act: el => openSystemApp(SYS.store, el) },
   { label: "Álbum", icon: I.album, c: "#499fed", act: el => openView(albumView(), el) },
   { label: "Amigos", icon: I.friends, c: "#1ac4a9", act: el => openView(friendsView(), el) },
-  { label: "Controles", icon: I.pad, act: el => openView(controlsView(), el) },
+  { label: "Controles", icon: I.ally, act: el => openView(controlsView(), el) },
   { label: "Logros", icon: I.trophy, act: el => openView(achHubView(), el) },
   { label: "Ajustes", icon: I.gear, act: el => openView(settingsView(), el) },
   { label: "Apagar", icon: I.power, act: () => powerMenu() }
@@ -1054,6 +1062,11 @@ let mode = "boot";                     // boot | ui | launching | game | sleep |
 const state = { running: null, sleptFromGame: false, downloads: {}, overlay: null,
   pads: [{ key: "ally", name: "ROG Xbox Ally X", type: "Integrado", player: 1 }] };
 const HOME_MAX = 12;
+/* Juegos ocultos (no salen en el Inicio ni en "Todos") y grupos propios, como en la Switch 2. */
+const isHidden = g => (settings.hidden || []).includes(g.appid);
+const homeGames = () => games.filter(g => !isHidden(g) || g.appid === state.running).slice(0, HOME_MAX);
+const groupNames = () => Object.keys(settings.groups || {});
+const inGroup = (g, name) => ((settings.groups || {})[name] || []).includes(g.appid);
 const home = { zone: "games", g: 0, a: 0, t: 0, offset: 0 };
 const views = [];
 const topView = () => views[views.length - 1];
@@ -1094,10 +1107,10 @@ function avatarHTML() {
 function renderUsers() { $("#users").innerHTML = `<button class="avatar" data-z="t" data-i="0" aria-label="Perfil">${avatarHTML()}${avatarFrame()}</button>`; }
 function renderHome() {
   const track = $("#track"); track.innerHTML = "";
-  games.slice(0, HOME_MAX).forEach((g, i) => {
+  homeGames().forEach((g, i) => {
     const b = buildTile(g); b.style.setProperty("--k", i); b.dataset.z = "g"; b.dataset.i = i; track.append(b);
   });
-  const n = Math.min(games.length, HOME_MAX), all = document.createElement("button");
+  const n = homeGames().length, all = document.createElement("button");
   all.className = "tile all"; all.style.setProperty("--k", n); all.dataset.z = "g"; all.dataset.i = n;
   all.innerHTML = I.all; all.setAttribute("aria-label", "Biblioteca");
   track.append(all);
@@ -1112,7 +1125,7 @@ function homeEl() {
   if (home.zone === "apps") return $("#apps").children[home.a];
   return $("#users").children[home.t];
 }
-const focusedGame = () => home.zone === "games" && home.g < Math.min(games.length, HOME_MAX) ? games[home.g] : null;
+const focusedGame = () => home.zone === "games" && home.g < homeGames().length ? homeGames()[home.g] : null;
 const primaryLabel = g => g.appid === state.running ? "Reanudar" : !g.installed && !state.downloads[g.appid] ? "Instalar" : g.kind === "app" ? "Abrir" : "Iniciar";
 
 /* texto que se desplaza (como en la consola) si no cabe en su espacio */
@@ -1247,7 +1260,7 @@ function onHomeClick(e) {
   const z = el.dataset.z, i = +el.dataset.i;
   if (z === "g") {
     home.zone = "games"; home.g = i; updateFocus();
-    if (i < Math.min(games.length, HOME_MAX)) launchGame(games[i], el); else openView(libraryView(), el);
+    if (i < homeGames().length) launchGame(homeGames()[i], el); else openView(libraryView(), el);
   } else if (z === "a") { home.zone = "apps"; home.a = i; updateFocus(); APPS[i].act(el); }
   else if (z === "t") { home.zone = "top"; home.t = i; updateFocus(); openView(profileView(), el); }
 }
@@ -1331,11 +1344,14 @@ function propsView(g) {
     if (!g.installed && g.source === "steam") s.push({ k: "install", label: "Instalar" });
     if (g.source === "steam" && g.kind !== "app") s.push({ k: "controls", label: "Controles (Steam Input)" });
     if (g.source === "steam" || (g.source === "xbox" && g.storeId)) s.push({ k: "store", label: "Ver en la tienda" });
+    s.push({ k: "groups", label: "Grupos" });
+    s.push({ k: "hide", label: isHidden(g) ? "Mostrar en el Inicio" : "Ocultar" });
+    if (Host.has && g.kind !== "app") s.push({ k: "pause", label: "Pausar al ir al Inicio" });
     if (state.running === g.appid) s.push({ k: "close", label: g.kind === "app" ? "Cerrar aplicación" : "Cerrar juego" });
     return s;
   };
   return {
-    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
+    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
     render(el) {
       this.s = sections();
       el.innerHTML = head(I.gear, g.name, "Opciones") + `<div class="props"><div class="pmenu">${this.s.map((s, i) => `<button class="lrow fi" data-i="${i}"><span class="meta"><b>${esc(s.label)}</b></span></button>`).join("")}</div><div class="ppane"></div></div>`;
@@ -1370,6 +1386,13 @@ function propsView(g) {
         p.innerHTML = `<h2>Controles (Steam Input)</h2><p class="note">Abre la configuración de controles de Steam para este juego: remapear botones, sensibilidad de sticks, giroscopio y plantillas de la comunidad. Solo aplica mientras juegas con Steam; el esquema general de la consola se cambia en Armoury Crate.</p>`;
       } else if (k === "store") {
         p.innerHTML = `<h2>Ver en la tienda</h2><p class="note">${g.source === "xbox" ? "Abre la página del juego en la Microsoft Store (Xbox): actualizaciones, DLC y reseñas." : "Abre la página del juego en Steam: actualizaciones, DLC y reseñas."}</p>`;
+      } else if (k === "groups") {
+        const mine = groupNames().filter(n => inGroup(g, n));
+        p.innerHTML = `<h2>Grupos</h2><p class="note">Ordena tu biblioteca en grupos propios (por ejemplo "Terminados" o "Por jugar"). Aparecen como pestañas en la Biblioteca.</p><p class="note">${mine.length ? "Está en: " + esc(mine.join(", ")) : "No está en ningún grupo."}</p>`;
+      } else if (k === "hide") {
+        p.innerHTML = isHidden(g) ? `<h2>Mostrar en el Inicio</h2><p class="note">Ahora está oculto: solo aparece en la pestaña "Ocultos" de la Biblioteca.</p>` : `<h2>Ocultar</h2><p class="note">Deja de aparecer en el Inicio y en la Biblioteca. Lo encuentras en la pestaña "Ocultos" para volver a mostrarlo.</p>`;
+      } else if (k === "pause") {
+        p.innerHTML = `<h2>Pausar al ir al Inicio</h2><p class="note">${g.pause ? "<b>Activado.</b> " : ""}Al regresar al Inicio con el botón Xbox, el juego se congela (no gasta batería) y sigue justo donde estaba al volver. No lo actives en juegos en línea: congelarlos puede desconectarte.</p>`;
       } else if (k === "close") {
         p.innerHTML = `<h2>${g.kind === "app" ? "Cerrar aplicación" : "Cerrar juego"}</h2><p class="note">Está abierto en segundo plano. Al cerrarlo se perderá el progreso que no hayas guardado.</p>`;
       }
@@ -1381,6 +1404,21 @@ function propsView(g) {
         else openView(artPickerView(g, () => { if (this.cur === "art") this.pane("art"); }));
       }
       else if (k === "install") { closeView(); startInstall(g); }
+      else if (k === "groups") openView(groupsView(g, () => this.pane("groups")));
+      else if (k === "hide") {
+        const h = new Set(settings.hidden || []);
+        if (h.has(g.appid)) h.delete(g.appid); else h.add(g.appid);
+        settings.hidden = [...h]; saveSettings(); play("select");
+        toast(isHidden(g) ? `${g.name} se ocultó` : `${g.name} vuelve al Inicio`);
+        renderHome(); const lv = views.find(v => v.cols === 6 && v.refresh); if (lv) lv.refresh(true);
+        this.render(this.el); updateFocus();
+      }
+      else if (k === "pause") {
+        g.pause = !g.pause; play("select");
+        Host.call("game.pausepref", { appid: g.appid, on: g.pause }).catch(() => {});
+        toast(g.pause ? "Se pausará al ir al Inicio" : "Ya no se pausará");
+        this.pane("pause"); updateFocus();
+      }
       else if (k === "store" && g.source === "xbox") { closeView(); Host.call("system.open", { uri: "ms-windows-store://pdp/?ProductId=" + g.storeId }).catch(() => {}); }
       else if (k === "store") { closeView(); openSystemApp({ ...SYS.store, name: g.name + " · Tienda", url: "steam://store/" + g.appid }); }
       else if (k === "controls") { closeView(); openSystemApp({ ...SYS.store, name: "Controles · " + g.name, sub: "Configuración de Steam Input en Big Picture", url: "steam://controllerconfig/" + g.appid }); }
@@ -1388,6 +1426,30 @@ function propsView(g) {
       else bump(this.items()[this.i]);
     },
     onX() { closeView(); return true; },
+    items() { return fis(this.el); }
+  };
+}
+
+/* --- grupos de un juego: marcar / desmarcar y crear nuevos --- */
+function groupsView(g, onChange) {
+  return {
+    hints: [["B", "Atrás"], ["A", "Marcar"]],
+    render(el) {
+      const names = groupNames();
+      el.innerHTML = head(I.all, "Grupos", g.name) + `<div class="vbody">${names.map((n, i) => `<button class="lrow fi" data-i="${i}"><span class="meta"><b>${esc(n)}</b><span>${(settings.groups[n] || []).length} en el grupo</span></span><span class="val">${inGroup(g, n) ? "✓" : ""}</span></button>`).join("")}<button class="lrow fi" data-new="1"><span class="meta"><b>Nuevo grupo…</b><span>Crea un grupo y agrega ${esc(g.name)}</span></span><span class="val">＋</span></button></div>`;
+      fis(el).forEach(b => b.onclick = () => {
+        if (b.dataset.new) return openView(keyboardView("", name => {
+          name = name.trim(); if (!name) return;
+          settings.groups = settings.groups || {}; settings.groups[name] = [...new Set([...(settings.groups[name] || []), g.appid])];
+          saveSettings(); toast(`${g.name} se agregó a ${name}`); this.render(this.el); updateFocus(); onChange && onChange();
+        }, null, { title: "Nombre del grupo", max: 24 }));
+        const n = groupNames()[+b.dataset.i], list = new Set(settings.groups[n] || []);
+        if (list.has(g.appid)) list.delete(g.appid); else list.add(g.appid);
+        if (list.size) settings.groups[n] = [...list]; else delete settings.groups[n];
+        saveSettings(); play("select"); toast(inGroup(g, n) ? `Se agregó a ${n}` : `Se quitó de ${n}`);
+        this.render(this.el); updateFocus(); onChange && onChange();
+      });
+    },
     items() { return fis(this.el); }
   };
 }
@@ -1488,13 +1550,14 @@ function collections() {
   games.forEach(g => (g.cols || []).forEach(c => { if (!names.includes(c)) names.push(c); }));
   const order = ["Favoritos", "Acción", "RPG", "Indies"];
   names.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
-  const out = ["Todos", ...names];
+  const out = ["Todos", ...groupNames().filter(n => !names.includes(n)), ...names];
   if (games.some(g => g.kind === "app")) out.push("Aplicaciones");
+  if (games.some(isHidden)) out.push("Ocultos");
   return out;
 }
 function libraryList(query = lib.query) {
   const cols = collections(), col = cols[clamp(lib.col, 0, cols.length - 1)], q = norm(query.trim());
-  let list = games.filter(g => col === "Todos" ? true : col === "Aplicaciones" ? g.kind === "app" : (g.cols || []).includes(col));
+  let list = games.filter(g => col === "Ocultos" ? isHidden(g) : isHidden(g) ? false : col === "Todos" ? true : col === "Aplicaciones" ? g.kind === "app" : (g.cols || []).includes(col) || inGroup(g, col));
   if (q) list = list.filter(g => norm(g.name).includes(q));
   if (lib.sort === 1) list = [...list].sort((a, b) => a.name.localeCompare(b.name, "es"));
   else if (lib.sort === 2) list = [...list].sort((a, b) => (b.hours || 0) - (a.hours || 0));
@@ -1811,6 +1874,7 @@ function settingsView() {
     { label: "Sonidos del menú", desc: "Efectos al navegar", val: () => settings.sound ? "Activados" : "Desactivados", toggle() { settings.sound = !settings.sound; } },
     { label: "Vibración", desc: "Vibración sutil al moverte y seleccionar", val: () => settings.rumble ? "Activada" : "Desactivada", toggle() { settings.rumble = !settings.rumble; } },
     { label: "Silenciar al volver al menú", desc: "El juego o video que dejas atrás se calla; la música sigue sonando", val: () => settings.muteBehind !== false ? "Activado" : "Desactivado", toggle() { settings.muteBehind = settings.muteBehind === false; Host.call("audio.mutebehind", { on: settings.muteBehind }).catch(() => {}); } },
+    { label: "Al encender la consola", desc: "Qué se abre cuando la consola arranca", val: () => settings.bootLast ? "El último juego" : "El Inicio", toggle() { settings.bootLast = !settings.bootLast; } },
     { label: "Atenuar pantalla", desc: "Oscurece la pantalla si no la usas", val: () => optLabel(DIM_OPTS, settings.dimAfter), act() { pickOption("Atenuar pantalla", DIM_OPTS, "dimAfter"); } },
     { label: "Suspender automáticamente", desc: "Suspende la consola tras un tiempo sin uso en el menú", val: () => optLabel(SLEEP_OPTS, settings.sleepAfter), act() { pickOption("Suspender automáticamente", SLEEP_OPTS, "sleepAfter"); } },
     { label: "Gestión de datos", desc: "Espacio en disco y desinstalar juegos", val: () => "›", act() { openView(storageView()); } },
@@ -2048,10 +2112,12 @@ function padArt(kind, big) {
     ${big ? '<circle class="dotm lsd" cx="175" cy="160" r="12" stroke="none"/><circle class="dotm rsd" cx="380" cy="248" r="12" stroke="none"/>' : ""}
   </svg>`;
 }
-function battSvg(level) {
-  const w = Math.max(1.5, 20.6 * level), red = level <= .15;
-  return `<svg viewBox="0 0 30 16"><rect x=".8" y=".8" width="25" height="14.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="27.2" y="5" width="2.2" height="6" rx="1" fill="currentColor"/><rect x="3" y="3" width="${w}" height="10" rx="1.5" fill="${red ? "#e5484d" : "currentColor"}"/></svg>`;
+function battSvg(level, charging = deviceCharging) {
+  const w = Math.max(1.5, 20.6 * level), red = level <= .15 && !charging;
+  const bolt = charging ? `<path d="M15.6 1.6 9.8 9h3.6l-1.6 5.4L17.8 7h-3.7z" fill="#3ad16b" stroke="var(--bg,#000)" stroke-width="1.1" stroke-linejoin="round"/>` : "";
+  return `<svg viewBox="0 0 30 16"><rect x=".8" y=".8" width="25" height="14.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="27.2" y="5" width="2.2" height="6" rx="1" fill="currentColor"/><rect x="3" y="3" width="${w}" height="10" rx="1.5" fill="${red ? "#e5484d" : charging ? "#3ad16b" : "currentColor"}"/>${bolt}</svg>`;
 }
+let deviceCharging = false;
 let deviceBatt = .82;
 function padCard(p, n) {
   const kind = padKind(p), many = n > 2;
@@ -2962,13 +3028,23 @@ function tick() {
   if (typeof QM !== "undefined" && QM.open) renderQuick();
 }
 setInterval(tick, 10000); tick();
+/* Avisos al 20 % y al 10 % (cada uno una vez por descarga) y aviso al conectar el cargador. */
+const battWarn = { 20: false, 10: false };
 function setBatt(level, charging) {
-  deviceBatt = level;
+  const wasCharging = deviceCharging;
+  deviceBatt = level; deviceCharging = !!charging;
   $$(".battPct").forEach(e => e.textContent = Math.round(level * 100) + "%");
-  $$(".battFill").forEach(e => { e.setAttribute("width", Math.max(1.5, 20.6 * level)); e.setAttribute("fill", level <= .15 ? "#e5484d" : "currentColor"); });
-  if (level <= .2 && !charging && !battWarned && mode !== "boot") { battWarned = true; notifyBattery(level); }
-  if (level > .25 || charging) battWarned = false;
+  $$(".battFill").forEach(e => { e.setAttribute("width", Math.max(1.5, 20.6 * level)); e.setAttribute("fill", level <= .15 && !charging ? "#e5484d" : charging ? "#3ad16b" : "currentColor"); });
+  $$(".battBolt").forEach(e => e.style.display = charging ? "" : "none");
+  if (mode === "boot") return;
+  for (const t of [10, 20]) {
+    if (!charging && level <= t / 100 && !battWarn[t]) { battWarn[10] = level <= .1; battWarn[20] = true; notifyBattery(level); break; }
+  }
+  if (charging || level > .25) { battWarn[20] = false; battWarn[10] = false; }
+  else if (level > .12) battWarn[10] = false;
+  if (charging && !wasCharging && typeof battReady !== "undefined" && battReady) notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg>', title: "Cargando", text: `Batería al ${Math.round(level * 100)} %` });
 }
+let battReady = false; setTimeout(() => battReady = true, 4000);
 if (navigator.getBattery) navigator.getBattery().then(b => { const u = () => setBatt(b.level, b.charging); u(); b.addEventListener("levelchange", u); b.addEventListener("chargingchange", u); }).catch(() => setBatt(.82)); else setBatt(.82);
 addEventListener("resize", () => updateFocus());
 
@@ -2990,7 +3066,7 @@ function dismissBoot() {
 }
 Events.on("library.changed", async () => {
   const keep = focusedGame(); games = await Data.games();
-  if (keep) { const i = games.findIndex(g => g.appid === keep.appid); if (i >= 0 && i < HOME_MAX) home.g = i; }
+  if (keep) { const i = homeGames().findIndex(g => g.appid === keep.appid); if (i >= 0) home.g = i; }
   if (mode !== "boot") renderHome();
   const lv = views.find(v => v.cols === 6 && v.refresh); if (lv) lv.refresh(true);
 });
@@ -3018,6 +3094,11 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
   renderUsers();
   if (mode !== "boot") renderHome();
   if (Host.has) setTimeout(dismissBoot, 2200);
+  if (Host.has && settings.bootLast) {   // al encender: directo al último juego (solo si la consola acaba de arrancar)
+    const info = await Host.call("app.info").catch(() => null);
+    const last = info && info.startup && !state.running && games.find(g => g.kind !== "app" && g.installed && !isHidden(g));
+    if (last) setTimeout(() => { if (mode === "ui" && !state.running) { toast("Abriendo " + last.name); launchGame(last); } }, 2600);
+  }
 })();
 </script>
 </body>

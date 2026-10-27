@@ -12,6 +12,8 @@ sealed class GameTracker
 
     public long AppId { get; private set; }
     public bool Active => AppId != 0;
+    public uint Pid => pid;
+    public IntPtr Window => hwnd;
     public bool IsReady { get; private set; }
     /// <summary>Segundos desde que se pidió abrir el juego (0 si ya está listo o no hay juego).</summary>
     public double LaunchSeconds => Active && !IsReady ? (DateTime.Now - start).TotalSeconds : 0;

@@ -71,6 +71,7 @@ static class Program
         listener.Start();
         Application.Run(main);
         AudioFocus.RestoreAll();   // al salir, nada se queda silenciado
+        GameFreezer.Resume();      // ni en pausa
         Log.Write("Scarlet se cerró normalmente");
     }
 

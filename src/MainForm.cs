@@ -49,6 +49,7 @@ sealed class MainForm : Form
         xbox = new XboxService(art);
         media = new MediaService(art);
         AudioFocus.RecoverAfterCrash();
+        GameFreezer.RecoverAfterCrash();
         apps = AppEntry.Load();
 
         Text = "Scarlet";
@@ -198,7 +199,11 @@ sealed class MainForm : Form
         slowTicks++;
         // Si saliste de Scarlet por otro lado (selector de ventanas, Alt+Tab), lo que estaba silenciado vuelve a sonar.
         var front = Native.GetForegroundWindow();
-        if (front != Handle && !(quick != null && front == quick.Handle)) AudioFocus.RestoreAll();
+        if (front != Handle && !(quick != null && front == quick.Handle))
+        {
+            AudioFocus.RestoreAll();
+            if (GameFreezer.IsFrozen && tracker != null && front == tracker.Window && GameFreezer.Resume()) playStart = DateTime.UtcNow;
+        }
         try { steam.PollDownloads(); } catch (Exception ex) { Log.Error("descargas", ex); }
         if (slowTicks % 20 == 0) _ = steam.PollRunningAchievementsAsync();   // cada minuto mientras juegas
     }
@@ -270,7 +275,13 @@ sealed class MainForm : Form
             case "steam.games":
             {
                 lastGames = await steam.GamesAsync(apps, cfg.AppLastUsed);
+                foreach (var e in lastGames.Where(e => (string)e["source"] == "app"))
+                {
+                    var a = apps.FirstOrDefault(x => x.AppId == (long)e["appid"]);
+                    if (a != null) e["hours"] = Hours(a.Id ?? a.Name ?? "");
+                }
                 lastGames = await WithXboxGamesAsync(lastGames);
+                foreach (var e in lastGames) e["pause"] = cfg.PauseOnHome.Contains((long)e["appid"]);
                 if (!achKicked)
                 {
                     achKicked = true;
@@ -328,13 +339,22 @@ sealed class MainForm : Form
             }
             case "game.focus": FocusGame(); return true;
             case "media.state": return media.State;
+            case "app.info": return new { startup, version = Application.ProductVersion };
+            case "game.pausepref":
+            {
+                long id = P.L(p, "appid");
+                cfg.PauseOnHome.Remove(id);
+                if (P.B(p, "on")) cfg.PauseOnHome.Add(id);
+                cfg.Save();
+                return true;
+            }
             case "media.cmd": return await media.CommandAsync(P.S(p, "cmd"), P.D(p, "value"));
             case "audio.mutebehind":
                 cfg.MuteBehind = P.B(p, "on"); cfg.Save();
                 if (!cfg.MuteBehind) AudioFocus.RestoreAll();
                 return true;
             case "game.state": return new { appid = tracker.Active ? tracker.AppId : 0, ready = tracker.IsReady };
-            case "game.close": tracker.Close(); steam.SetRunning(0); return true;
+            case "game.close": GameFreezer.Resume(); FlushPlay(); playKey = null; tracker.Close(); steam.SetRunning(0); AudioFocus.RestoreAll(); return true;   // congelado no podría cerrarse bien
             case "game.uninstall": Shell.Open("steam://uninstall/" + P.L(p, "appid")); return true;
 
             // ── Ventana y notificaciones
@@ -427,9 +447,9 @@ sealed class MainForm : Form
                 var (grid, hero) = xbox.ArtFor(g.AppId);
                 list.Add(new Dictionary<string, object>
                 {
-                    ["appid"] = g.AppId, ["name"] = g.Name, ["source"] = "xbox", ["kind"] = "game", ["installed"] = true,
-                    ["hours"] = 0.0, ["lastTs"] = last, ["last"] = SteamService.Rel(last), ["ach"] = new[] { 0, 0 },
-                    ["cols"] = new List<string> { "Xbox" }, ["size"] = g.SizeGb, ["art"] = grid, ["hero"] = hero, ["storeId"] = g.StoreId
+                    ["appid"] = g.AppId, ["name"] = g.Name, ["source"] = "xbox", ["kind"] = g.IsApp ? "app" : "game", ["installed"] = true,
+                    ["hours"] = Hours("xbox:" + g.Pfn), ["lastTs"] = last, ["last"] = SteamService.Rel(last), ["ach"] = new[] { 0, 0 },
+                    ["cols"] = g.IsApp ? new List<string>() : new List<string> { "Xbox" }, ["size"] = g.SizeGb, ["art"] = grid, ["hero"] = hero, ["storeId"] = g.StoreId
                 });
             }
             return list.OrderByDescending(e => (long)e["lastTs"]).ToList();
@@ -550,7 +570,9 @@ sealed class MainForm : Form
 
     async Task LaunchAsync(long appid, string source)
     {
-        if (tracker.Active) tracker.Close();
+        if (tracker.Active) { GameFreezer.Resume(); FlushPlay(); tracker.Close(); }
+        playKey = null;
+        AudioFocus.RestoreAll();
         TopMost = true;   // la pantalla de carga tapa las ventanitas que abren algunos juegos al arrancar
         ShowUi();
         if (source == "app")
@@ -558,6 +580,7 @@ sealed class MainForm : Form
             var a = apps.FirstOrDefault(x => x.AppId == appid) ?? throw new InvalidOperationException("No encontré esa app en apps.json");
             cfg.AppLastUsed[a.Id ?? a.Name ?? ""] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             cfg.Save();
+            playKey = a.Id ?? a.Name ?? "";
             a.Start();
             BeginGame(appid, false);
         }
@@ -566,6 +589,7 @@ sealed class MainForm : Form
             var g = xbox.Find(appid) ?? throw new InvalidOperationException("No encontré ese juego de Xbox");
             cfg.AppLastUsed["xbox:" + g.Pfn] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             cfg.Save();
+            playKey = "xbox:" + g.Pfn;
             xbox.Launch(g);
             // ZZZ y otros juegos de la Xbox Store corren desde XboxGames, no desde la carpeta del paquete: se detecta por su ventana.
             tracker.Begin(appid, false, null, slowStart: true);
@@ -586,6 +610,7 @@ sealed class MainForm : Form
 
     async void OnGameReady(long appid)
     {
+        if (playKey != null) playStart = DateTime.UtcNow;
         Emit("game.ready", new { appid });
         await Task.Delay(900);   // la interfaz desvanece la pantalla de carga
         TopMost = false;
@@ -595,15 +620,42 @@ sealed class MainForm : Form
 
     void OnGameExited(long appid)
     {
+        GameFreezer.Forget();
+        FlushPlay(); playKey = null;
         steam.SetRunning(0);
         TopMost = false;
         ShowUi();
         Emit("game.exited", new { appid });
     }
 
+    // ───── Tiempo de juego (Xbox y apps) ─────
+    string playKey;
+    DateTime playStart;
+
+    double Hours(string key) => cfg.PlaySeconds.TryGetValue(key, out var s) ? Math.Round(s / 3600.0, 1) : 0.0;
+
+    /// <summary>Suma el rato jugado desde la última vez (se llama al cerrar, al suspender y al pausar el juego).</summary>
+    void FlushPlay()
+    {
+        if (playKey == null || playStart == default) return;
+        long secs = (long)(DateTime.UtcNow - playStart).TotalSeconds;
+        playStart = default;
+        if (secs <= 0 || secs > 24 * 3600) return;
+        cfg.PlaySeconds[playKey] = (cfg.PlaySeconds.TryGetValue(playKey, out var s) ? s : 0) + secs;
+        cfg.Save();
+    }
+
+    /// <summary>Si marcaste el juego para pausarse, se congela mientras estás en el Inicio (vuelve a correr al regresar).</summary>
+    void PauseGameIfMarked()
+    {
+        if (tracker == null || !tracker.Active || !tracker.IsReady || !cfg.PauseOnHome.Contains(tracker.AppId)) return;
+        if (GameFreezer.Suspend(tracker.Pid, tracker.AppId)) FlushPlay();
+    }
+
     /// <summary>Volver al juego (o a lo que estaba abierto antes del menú).</summary>
     void FocusGame()
     {
+        if (GameFreezer.Resume()) playStart = DateTime.UtcNow;
         AudioFocus.RestoreAll();
         if (tracker.Active && tracker.Focus()) { HideSoon(); return; }
         if (lastForeign != IntPtr.Zero && Native.IsWindow(lastForeign)) { Native.ForceForeground(lastForeign); return; }
@@ -775,6 +827,7 @@ sealed class MainForm : Form
         IntPtr game = Native.GetForegroundWindow();
         ShowUi();
         await Task.Delay(150);
+        PauseGameIfMarked();
         if (Native.GetForegroundWindow() == Handle) return;
         IntPtr now = Native.GetForegroundWindow();
         Log.Write($"Scarlet no pudo pasar al frente: {Native.Describe(now)} no suelta la pantalla; se minimiza{(Native.ExclusiveFullscreen() ? " (pantalla completa exclusiva)" : "")}");
@@ -839,9 +892,11 @@ sealed class MainForm : Form
 
     void OnPower(object sender, PowerModeChangedEventArgs e)
     {
+        if (e.Mode == PowerModes.Suspend) { Ui(FlushPlay); return; }   // el rato dormida no cuenta como juego
         if (e.Mode != PowerModes.Resume) return;
         Ui(() =>
         {
+            if (playKey != null && tracker != null && tracker.IsReady && !GameFreezer.IsFrozen) playStart = DateTime.UtcNow;
             TopMost = false;
             ShowUi();
             Emit("system.resumed", null);
