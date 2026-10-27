@@ -266,7 +266,7 @@ while (Date.now() - t0 < 15000) {{
   await sleep(200);
   info = await I.GetInstallManagerInfo();
   const s = info ? sNum(info.eInstallState) : 0, need = Number(info && info.nDiskSpaceRequired) || 0;
-  // Lo que quedó de un intento anterior del mismo juego ("cancelado", "terminado") no es la respuesta: se espera a ver
+  // Lo que quedó de un intento anterior del mismo juego (cancelado o terminado) no es la respuesta: se espera a ver
   // al asistente nuevo en camino. Steam recién abierto a veces ignora la orden: se repite cada 2.5 s.
   if (!fresh) {{
     if (mine(info, id) && ![0, {Complete}, {Failed}, {Canceled}].includes(s)) fresh = true;
