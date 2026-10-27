@@ -1,8 +1,10 @@
-Novedades de la alpha 0.4.6
+Arreglos de la alpha 0.4.7
 
-- Dos barras de volumen en el menú rápido cuando suenan dos cosas a la vez (por ejemplo, Stellar Blade y Apple Music), cada una con su ícono chiquito. Si solo suena una, no aparecen.
-- Salida de audio en el menú rápido: bocinas, audífonos Bluetooth o la pantalla por HDMI, con ◀▶.
-- Batería: al cargar dice cuánto falta para llenarse; sin cargador, el tiempo restante con datos reales de Windows.
-- Carátula de respaldo: si Apple Music no la manda, se busca en el catálogo de iTunes.
-- Nueva opción por juego, "Menú sin quitarle el foco": el juego sigue sonando y no se pausa al abrir el menú.
-- El menú rápido se compacta cuando tiene muchas filas, para que nada se corte.
+- Carátulas e íconos encima del juego: el menú rápido que se abre sobre los juegos no podía cargar imágenes guardadas. Ya puede.
+- Instalar y desinstalar vuelven a funcionar: la ventanita de Steam para confirmar ya no se esconde y se trae al frente.
+- Las ventanas de Steam ("Iniciando juego…", avisos) se esconden en el instante en que aparecen.
+- "Powered by Dolby Atmos" solo aparece cuando Dolby Atmos está de verdad en uso en la salida de audio.
+- El puntero del mouse ya no reaparece al asomarse el escritorio ni al despertar la consola.
+- Nueva opción en Ajustes: "Restablecer sonido" (quita el silencio a todas las apps).
+- Las dos barras de volumen ahora también aparecen con juegos de Steam.
+- El menú rápido se compacta solo cuando no cabe, para que nunca se corte.

@@ -198,6 +198,28 @@ static class AudioMixer
         Each((c2, vol, pid, name) => { if (name.Equals(exe, StringComparison.OrdinalIgnoreCase)) vol.SetMasterVolume(level, ref ctx); });
     }
 
+    /// <summary>"Restablecer sonido": quita el silencio a todas las apps y sube las que quedaron casi en cero. Devuelve cuántas tocó.</summary>
+    public static int ResetAll()
+    {
+        int n = 0; var ctx = Guid.Empty;
+        Each((c2, vol, pid, name) =>
+        {
+            vol.GetMute(out bool m); vol.GetMasterVolume(out float l);
+            if (m) { vol.SetMute(false, ref ctx); n++; }
+            if (l < 0.05f) { vol.SetMasterVolume(1f, ref ctx); n++; }
+        });
+        Log.Write($"audio: restablecido ({n} ajuste/s)");
+        return n;
+    }
+
+    /// <summary>Para el log: qué apps tienen sesión de audio, si están silenciadas y su volumen.</summary>
+    public static string Describe()
+    {
+        var parts = new List<string>();
+        Each((c2, vol, pid, name) => { vol.GetMute(out bool m); vol.GetMasterVolume(out float l); c2.GetState(out int st); parts.Add($"{name}{(m ? " [silenciada]" : "")} {(int)(l * 100)}%{(st == 1 ? " ▶" : "")}"); });
+        return string.Join(", ", parts);
+    }
+
     static void Each(Action<IAudioSessionControl2, ISimpleAudioVolume, uint, string> act)
     {
         try

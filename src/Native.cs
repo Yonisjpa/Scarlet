@@ -143,6 +143,9 @@ static class Native
         return list;
     }
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassName(IntPtr hWnd, StringBuilder name, int max);
+    public static string ClassName(IntPtr hWnd) { var sb = new StringBuilder(128); GetClassName(hWnd, sb, sb.Capacity); return sb.ToString(); }
+
     public static string Title(IntPtr hWnd)
     {
         var sb = new StringBuilder(256);

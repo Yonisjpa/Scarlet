@@ -51,7 +51,7 @@ sealed class QuickOverlay : Form
     }
 
     /// <summary>Se prepara oculto al arrancar, para que abra al instante.</summary>
-    public async Task InitAsync(CoreWebView2Environment env, string webFolder, bool devTools, string stamp = "")
+    public async Task InitAsync(CoreWebView2Environment env, string webFolder, bool devTools, string stamp = "", EventHandler<CoreWebView2WebResourceRequestedEventArgs> serveFiles = null)
     {
         CreateControl();
         await web.EnsureCoreWebView2Async(env);
@@ -65,6 +65,12 @@ sealed class QuickOverlay : Form
         cw.Settings.IsSwipeNavigationEnabled = false;
         cw.SetVirtualHostNameToFolderMapping("app.scarlet", webFolder, CoreWebView2HostResourceAccessKind.Allow);
         cw.WebMessageReceived += (_, e) => onMessage(e.WebMessageAsJson, cw);
+        // Imágenes guardadas (carátulas, íconos, avatar): sin esto, encima del juego no cargaba ninguna.
+        if (serveFiles != null)
+        {
+            cw.AddWebResourceRequestedFilter("https://files.scarlet/*", CoreWebView2WebResourceContext.All);
+            cw.WebResourceRequested += serveFiles;
+        }
         cw.ProcessFailed += (_, e) => { Log.Write("menú rápido: WebView2 falló " + e.ProcessFailedKind); try { cw.Reload(); } catch { } };
         cw.NavigationCompleted += (_, _) => ready = true;
         cw.Navigate("https://app.scarlet/index.html?overlay=quick&v=" + Uri.EscapeDataString(stamp));
@@ -107,6 +113,7 @@ sealed class QuickOverlay : Form
             Log.Write($"menú rápido abierto sobre {Native.Describe(front)} (sin quitarle el foco)");
             return true;
         }
+        _ = Task.Run(() => Log.Write("audio al abrir el menú: " + AudioMixer.Describe()));
         Show();
         Native.SetWindowPos(Handle, new IntPtr(-1) /* HWND_TOPMOST */, 0, 0, 0, 0, 0x0001 | 0x0002 /* NOSIZE | NOMOVE */);
         bool got = Native.ForceForeground(Handle);

@@ -19,9 +19,10 @@ static class CursorHider
 
     public static bool Hidden { get; private set; }
 
-    public static void Hide()
+    /// <param name="force">Volver a aplicarlo aunque ya esté escondido (Windows a veces regresa los cursores normales).</param>
+    public static void Hide(bool force = false)
     {
-        if (Hidden) return;
+        if (Hidden && !force) return;
         try
         {
             var and = Enumerable.Repeat((byte)0xFF, 32 * 32 / 8).ToArray();   // 1 = transparente

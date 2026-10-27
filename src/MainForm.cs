@@ -147,7 +147,7 @@ sealed class MainForm : Form
             try
             {
                 quick = new QuickOverlay(OnMessage);
-                await quick.InitAsync(env, Paths.Web, cfg.DevTools, UiStamp());
+                await quick.InitAsync(env, Paths.Web, cfg.DevTools, UiStamp(), ServeFile);
             }
             catch (Exception ex) { Log.Error("menú rápido", ex); quick = null; }
 
@@ -188,6 +188,7 @@ sealed class MainForm : Form
             slow.Tick += (_, _) => SlowTick();
             steamGuard.Tick += (_, _) => HideSteamWindows();
             steamGuard.Start();
+            StartWindowHook();
             StartSteamSilently();
             slow.Start();
             friendsTimer.Tick += async (_, _) => await steam.FriendsAsync(true);
@@ -407,7 +408,7 @@ sealed class MainForm : Form
                 tracker.Stop(); steam.SetRunning(0); AudioFocus.RestoreAll();
                 return true;
             case "game.close": GameFreezer.Resume(); FlushPlay(); playKey = null; tracker.Close(); steam.SetRunning(0); AudioFocus.RestoreAll(); return true;   // congelado no podría cerrarse bien
-            case "game.uninstall": Shell.Open("steam://uninstall/" + P.L(p, "appid")); return true;
+            case "game.uninstall": _ = SteamDialogAsync("steam://uninstall/" + P.L(p, "appid"), "desinstalar"); return true;
 
             // ── Ventana y notificaciones
             case "ui.show": ShowUi(); return true;
@@ -453,8 +454,11 @@ sealed class MainForm : Form
                 st["mixer"] = await Task.Run(MixerState);
                 st["outputs"] = await Task.Run(() => AudioMixer.Outputs());
                 st["battery"] = await Task.Run(BatteryInfo);
+                st["atmos"] = await Task.Run(() => AtmosActive() && AudioMixer.Sessions().Any(s => s.active && !NotApps.Contains(s.exe)));
                 return st;
             }
+            case "audio.atmos": return await Task.Run(AtmosActive);
+            case "audio.reset": return await Task.Run(() => { int n = AudioMixer.ResetAll(); AudioFocus.ForgetMuted(); return n; });
             case "mixer.set": { string exe = P.S(p, "exe"); int v = (int)P.L(p, "value"); _ = Task.Run(() => AudioMixer.SetVolume(exe, v)); return true; }
             case "audio.output": return await Task.Run(() => AudioMixer.SetOutput(P.S(p, "id")));
             case "game.menufocus":
@@ -739,10 +743,17 @@ sealed class MainForm : Form
         var empty = new List<Dictionary<string, object>>();
         try
         {
-            if (tracker == null || !tracker.Active || tracker.Pid == 0) return empty;
-            string gameExe;
-            try { using var gp = Process.GetProcessById((int)tracker.Pid); gameExe = gp.ProcessName; } catch { return empty; }
+            if (tracker == null || !tracker.Active) return empty;
             var sessions = AudioMixer.Sessions();
+            string gameExe = null;
+            uint gpid = tracker.Pid;
+            if (gpid == 0 && tracker.Window != IntPtr.Zero) Native.GetWindowThreadProcessId(tracker.Window, out gpid);
+            if (gpid != 0) try { using var gp = Process.GetProcessById((int)gpid); gameExe = gp.ProcessName; } catch { }
+            // Juegos de Steam marcados "listos" sin proceso: el que suene desde la carpeta del juego.
+            string dir = tracker.InstallDir ?? (steam.InstallDirOf(tracker.AppId));
+            if (gameExe == null && !string.IsNullOrEmpty(dir))
+                gameExe = sessions.FirstOrDefault(s => Paths.Under(Native.ProcessPath(s.pid) ?? "", dir))?.exe;
+            if (gameExe == null) return empty;
             var other = sessions.Where(s => s.active && !s.exe.Equals(gameExe, StringComparison.OrdinalIgnoreCase) && !NotApps.Contains(s.exe))
                                 .OrderByDescending(s => AudioFocus.IsMusic(s.exe)).FirstOrDefault();
             if (other == null) return empty;
@@ -794,6 +805,22 @@ sealed class MainForm : Form
             return new { charging, plugged, minutesToFull = toFull, minutesLeft = plugged ? null : left };
         }
         catch (Exception ex) { Log.Error("batería", ex); return null; }
+    }
+
+    /// <summary>¿La salida de audio actual está usando Dolby Atmos (Configuración › Sonido › Audio espacial)?</summary>
+    static bool AtmosActive()
+    {
+        try
+        {
+            string id = Windows.Media.Devices.MediaDevice.GetDefaultAudioRenderId(Windows.Media.Devices.AudioDeviceRole.Default);
+            if (string.IsNullOrEmpty(id)) return false;
+            var conf = Windows.Media.Audio.SpatialAudioDeviceConfiguration.GetForDeviceId(id);
+            string f = conf?.ActiveSpatialAudioFormat ?? "";
+            if (f.Length == 0) return false;
+            return new[] { Windows.Media.Audio.SpatialAudioFormatSubtype.DolbyAtmosForHeadphones, Windows.Media.Audio.SpatialAudioFormatSubtype.DolbyAtmosForHomeTheater, Windows.Media.Audio.SpatialAudioFormatSubtype.DolbyAtmosForSpeakers }
+                .Any(d => string.Equals(d, f, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (Exception ex) { Log.Error("Dolby Atmos (detectar)", ex); return false; }
     }
 
     static bool? dolby;
@@ -985,9 +1012,38 @@ sealed class MainForm : Form
         web.Focus();
     }
 
+    /// <summary>
+    /// Instalar / desinstalar: Steam pide confirmar en una ventanita que el guardián escondía al instante (por eso no
+    /// funcionaban). Aquí se deja ver, con sonido, y se trae al frente; al regresar a Scarlet se vuelve a esconder todo.
+    /// </summary>
+    async Task SteamDialogAsync(string uri, string what)
+    {
+        steamUiAllowed = true;
+        AudioFocus.MuteSteam(false);
+        foreach (var h in hiddenSteam.ToList()) if (Native.IsWindow(h) && Native.Title(h).Length > 0 && !Native.Title(h).Contains("Big Picture", StringComparison.OrdinalIgnoreCase)) Native.ShowWindow(h, 5 /* SW_SHOW */);
+        Log.Write($"Steam: {what} ({uri}); su ventana se deja ver");
+        TopMost = false;
+        Shell.Open(uri);
+        for (int i = 0; i < 40; i++)   // hasta ~8 s
+        {
+            await Task.Delay(200);
+            IntPtr dlg = IntPtr.Zero;
+            Native.EnumWindows((h, lp) =>
+            {
+                if (!Native.IsWindowVisible(h) || Native.Area(h) < 20_000) return true;
+                string exe = Path.GetFileName(Native.WindowProcessPath(h, out _) ?? "");
+                if (exe.Equals("steamwebhelper.exe", StringComparison.OrdinalIgnoreCase) || exe.Equals("steam.exe", StringComparison.OrdinalIgnoreCase)) { dlg = h; return false; }
+                return true;
+            }, IntPtr.Zero);
+            if (dlg != IntPtr.Zero) { Native.ForceForeground(dlg); Log.Write($"Steam: ventana para {what}: «{Native.Title(dlg)}»"); return; }
+        }
+        Log.Write($"Steam: no apareció la ventana para {what}");
+    }
+
     async Task OpenSystemAsync(string uri)
     {
         if (string.IsNullOrWhiteSpace(uri)) return;
+        if (uri.StartsWith("steam://install/", StringComparison.OrdinalIgnoreCase)) { await SteamDialogAsync(uri, "instalar"); return; }
         if (uri == "explorer") { Shell.Open("explorer.exe"); return; }
         if (uri.StartsWith("http", StringComparison.OrdinalIgnoreCase)) uri = "steam://openurl/" + uri;   // en el navegador de Steam (Big Picture)
         // Tienda, noticias y controles se abren en Big Picture; se abre solo cuando hace falta y se cierra al lanzar un juego.
@@ -1051,10 +1107,46 @@ sealed class MainForm : Form
         if (!cfg.HideCursor) { if (CursorHider.Hidden) CursorHider.Restore(); return; }
         var fg = Native.GetForegroundWindow();
         string exe = Path.GetFileNameWithoutExtension(Native.WindowProcessPath(fg, out _) ?? "");
-        bool needs = exe is "SystemSettings" or "mmc" or "control" or "Taskmgr" or "regedit" or "notepad"
-            || (exe.Equals("explorer", StringComparison.OrdinalIgnoreCase) && Native.Title(fg).Length > 0 && Native.Area(fg) > 200_000);
+        // Solo ventanas de verdad del Explorador (carpetas) y herramientas de Windows; el escritorio que asoma un instante, no.
+        bool explorerWindow = exe.Equals("explorer", StringComparison.OrdinalIgnoreCase) && Native.ClassName(fg) is "CabinetWClass" or "ExploreWClass";
+        bool needs = exe is "SystemSettings" or "mmc" or "control" or "Taskmgr" or "regedit" or "notepad" || explorerWindow;
         if (needs && CursorHider.Hidden) CursorHider.Restore();
-        else if (!needs && !CursorHider.Hidden) CursorHider.Hide();
+        else if (!needs && (!CursorHider.Hidden || slowTicks % 10 == 0)) CursorHider.Hide(force: true);   // cada ~30 s se reafirma
+    }
+
+    // ───── Ventanas de Steam: se esconden en el instante en que aparecen ("Iniciando juego…", avisos) ─────
+    delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+    [DllImport("user32.dll")] static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr mod, WinEventProc proc, uint pid, uint tid, uint flags);
+    WinEventProc winEventProc;   // se guarda para que no lo recoja el recolector de basura
+    readonly HashSet<uint> steamPids = new();
+    DateTime steamPidsAt = DateTime.MinValue;
+
+    void StartWindowHook()
+    {
+        winEventProc = OnWindowShown;
+        // EVENT_OBJECT_SHOW, fuera de proceso: Windows avisa en este mismo hilo cada vez que una ventana se hace visible.
+        if (SetWinEventHook(0x8002, 0x8002, IntPtr.Zero, winEventProc, 0, 0, 0 /* OUTOFCONTEXT */) == IntPtr.Zero) Log.Write("no se pudo vigilar ventanas nuevas");
+    }
+
+    void OnWindowShown(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
+    {
+        if (idObject != 0 || hwnd == IntPtr.Zero || steamUiAllowed) return;
+        try
+        {
+            if (DateTime.Now - steamPidsAt > TimeSpan.FromSeconds(5))
+            {
+                steamPidsAt = DateTime.Now; steamPids.Clear();
+                foreach (var n in new[] { "steam", "steamwebhelper" })
+                    foreach (var p in Process.GetProcessesByName(n)) using (p) steamPids.Add((uint)p.Id);
+            }
+            Native.GetWindowThreadProcessId(hwnd, out uint pid);
+            if (!steamPids.Contains(pid)) return;
+            if (tracker != null && tracker.LaunchSeconds > 25) return;   // un juego atorado pidiendo algo en Steam: que se vea
+            if (Native.Area(hwnd) < 2500) return;
+            Native.ShowWindow(hwnd, 0 /* SW_HIDE */);
+            if (hiddenSteam.Add(hwnd)) Log.Write($"ventana de Steam escondida al aparecer: \"{Native.Title(hwnd)}\"");
+        }
+        catch { }
     }
 
     DateTime lastBpClose = DateTime.MinValue;
@@ -1244,6 +1336,7 @@ sealed class MainForm : Form
         Ui(() =>
         {
             if (playKey != null && tracker != null && tracker.IsReady && !GameFreezer.IsFrozen) playStart = DateTime.UtcNow;
+            if (cfg.HideCursor) CursorHider.Hide(force: true);   // al despertar, Windows regresa los cursores
             TopMost = false;
             ShowUi();
             Emit("system.resumed", null);
@@ -1255,6 +1348,7 @@ sealed class MainForm : Form
         Ui(() =>
         {
             Bounds = Screen.PrimaryScreen.Bounds;
+            if (cfg.HideCursor) CursorHider.Hide(force: true);
             bool tv = Screen.AllScreens.Length > 1 || Screen.PrimaryScreen.DeviceName != cfg.InternalDisplay;
             Emit("display.changed", new { tv });
         });

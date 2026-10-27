@@ -105,6 +105,9 @@ static class AudioFocus
         steamMuted = mute;
     }
 
+    /// <summary>Tras "Restablecer sonido": ya no hay nada silenciado por Scarlet que devolver.</summary>
+    public static void ForgetMuted() { lock (gate) { mutedApps.Clear(); Save(); } steamMuted = false; }
+
     /// <summary>Le devuelve el sonido a todo lo que silenció Scarlet.</summary>
     public static void RestoreAll()
     {

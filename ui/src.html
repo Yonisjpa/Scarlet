@@ -1522,11 +1522,14 @@ function propsView(g) {
 /* --- Dolby Atmos: un renglón discreto al jugar, en la pantalla de carga y en el menú rápido con música --- */
 let DOLBY = false;
 const DOLBY_HTML = '<span>Powered by</span><img class="dlogo" alt="Dolby Atmos" src="__DOLBY__">';
-const dolbyOn = () => settings.dolbyTag === true || (settings.dolbyTag == null && DOLBY);
+/* Solo cuando Dolby Atmos está de verdad en uso: la salida de audio lo tiene activo y algo está sonando. */
+let ATMOS = false;
+const dolbyOn = () => settings.dolbyTag !== false && ATMOS;
 function paintDolby() { const l = $("#launch .ldolby"); if (l) { l.innerHTML = DOLBY_HTML; l.classList.toggle("on", dolbyOn()); } }
+function checkAtmos() { if (!Host.has) return; Host.call("audio.atmos").then(a => { ATMOS = !!a; paintDolby(); }).catch(() => {}); }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.6";
+let APP_VERSION = "0.4.7";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2109,8 +2112,9 @@ function settingsView() {
     { label: "Tema", desc: "Apariencia del menú", val: () => settings.theme === "dark" ? "Oscuro" : "Claro", toggle() { settings.theme = settings.theme === "dark" ? "light" : "dark"; applyTheme(); } },
     { label: "Sonidos del menú", desc: "Efectos al navegar", val: () => settings.sound ? "Activados" : "Desactivados", toggle() { settings.sound = !settings.sound; } },
     { label: "Vibración", desc: "Vibración sutil al moverte y seleccionar", val: () => settings.rumble ? "Activada" : "Desactivada", toggle() { settings.rumble = !settings.rumble; } },
-    { label: "Aviso de Dolby Atmos", desc: "«Powered by Dolby Atmos» al jugar y con música", val: () => settings.dolbyTag === true ? "Siempre" : settings.dolbyTag === false ? "Nunca" : `Automático (${DOLBY ? "detectado" : "no detectado"})`,
-      toggle() { settings.dolbyTag = settings.dolbyTag == null ? true : settings.dolbyTag === true ? false : undefined; if (settings.dolbyTag === undefined) delete settings.dolbyTag; paintDolby(); } },
+    { label: "Aviso de Dolby Atmos", desc: "«Powered by Dolby Atmos» solo cuando Atmos está en uso (Ajustes de Windows › Sonido › Audio espacial)", val: () => settings.dolbyTag === false ? "Nunca" : "Cuando está en uso",
+      toggle() { if (settings.dolbyTag === false) delete settings.dolbyTag; else settings.dolbyTag = false; paintDolby(); } },
+    ...(Host.has ? [{ label: "Restablecer sonido", desc: "Quita el silencio a todas las apps (juegos, Scarlet, música) y sube las que quedaron en cero", val: () => "›", act() { Host.call("audio.reset").then(n => toast(n ? "Sonido restablecido" : "Todo ya tenía sonido")).catch(() => toast("No se pudo restablecer")); } }] : []),
     { label: "Ocultar el puntero del mouse", desc: "Como en una consola: no se ve en Scarlet ni en los juegos (sí en el Explorador y Ajustes de Windows)", val: () => settings.hideCursor !== false ? "Activado" : "Desactivado", toggle() { settings.hideCursor = settings.hideCursor === false; document.documentElement.classList.toggle("showcursor", !settings.hideCursor); Host.call("cursor.hide", { on: settings.hideCursor }).catch(() => {}); } },
     { label: "Silenciar al volver al menú", desc: "El juego o video que dejas atrás se calla; la música sigue sonando", val: () => settings.muteBehind !== false ? "Activado" : "Desactivado", toggle() { settings.muteBehind = settings.muteBehind === false; Host.call("audio.mutebehind", { on: settings.muteBehind }).catch(() => {}); } },
     { label: "Al encender la consola", desc: "Qué se abre cuando la consola arranca", val: () => settings.bootLast ? "El último juego" : "El Inicio", toggle() { settings.bootLast = !settings.bootLast; } },
@@ -2633,6 +2637,7 @@ async function launchGame(g, el, opt = {}) {
   mode = "launching"; play("launch");
   if (el && el.isConnected) echo(el);
   await wait(450);
+  checkAtmos();   // el aviso de Dolby en la pantalla de carga, solo si la salida usa Atmos
   const L = $("#launch"); L.classList.add("show");
   await wait(420);
   closeAllViews(); L.classList.add("logo");
@@ -2803,12 +2808,14 @@ function renderQuick() {
     if (r.type === "output") { const o = (QM.outs || []).find(x => x.current) || QM.outs[0]; return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qout">${esc(o ? o.name : "")}</span><span class="qval qarr">‹ ›</span></div>`; }
     return "";
   };
-  const showDolby = dolbyOn() && (OVERLAY || state.running || (media && media.playing));
-  q.classList.toggle("dense", rows.length >= 8);
+  const showDolby = dolbyOn();
+  q.classList.remove("dense");
   q.innerHTML = `<div class="qhead"><span class="qclock clock">${clockText()}</span><span class="qb"><span class="batt">${Math.round(deviceBatt * 100)} % ${battSvg(deviceBatt)}</span><span>${battEstimate()}</span></span></div>
     ${showDolby ? `<div class="dolby qdolby">${DOLBY_HTML}</div>` : ""}
     <div class="qrows">${rows.map(row).join("")}<div class="qbtns">${rows.map((r, i) => r.type === "btn" ? `<div class="qrow${QM.i === i ? " focused" : ""}">${r.label}</div>` : "").join("")}</div></div>
     <div class="qhint"><span class="hint"><span class="glyph">B</span>Cerrar</span><span class="hint"><span class="glyph">◀▶</span>Ajustar</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
+  const qr = $(".qrows", q);
+  if (qr && qr.scrollHeight > qr.clientHeight + 2) q.classList.add("dense");   // no cabe: versión compacta
   const fr = $(".qrows .focused", q); if (fr) fr.scrollIntoView({ block: "nearest" });
 }
 function openQuick() {
@@ -2820,7 +2827,7 @@ function openQuick() {
     if (st) {
       for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; saveSys();
       const before = qmRows().length, volAt = qmRows().findIndex(r => r.k === "volume");
-      QM.mix = st.mixer || []; QM.outs = st.outputs || []; battInfo = st.battery || null;
+      QM.mix = st.mixer || []; QM.outs = st.outputs || []; battInfo = st.battery || null; ATMOS = !!st.atmos;
       const added = qmRows().length - before;
       if (QM.open && added > 0 && QM.i > volAt) QM.i += added;   // que el foco no brinque si aparecen filas nuevas
     }
@@ -3383,7 +3390,7 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
     if (st) { Object.assign(sys, st); saveSys(); }
     if (Host.has) Host.call("sounds.list").then(m => { if (m && Object.keys(m).length) Snd.loadCustom(m); }).catch(() => {});
     if (Host.has) Host.call("app.info").then(i => { DOLBY = !!(i && i.dolby); }).catch(() => {});
-    if (!Host.has) { DOLBY = true; demoMedia(); openQuick(); }
+    if (!Host.has) { DOLBY = true; ATMOS = true; demoMedia(); openQuick(); }
     return;
   }
   [profile, games, friends] = await Promise.all([Data.profile(), Data.games(), Data.friends()]);
