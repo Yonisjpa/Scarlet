@@ -91,6 +91,20 @@ static class AudioFocus
         Log.Write($"audio: {exe} silenciada ({n} sesión/es)");
     }
 
+    static bool steamMuted;
+
+    /// <summary>
+    /// Steam en silencio: sus sonidos de Big Picture y avisos se oían detrás de Scarlet. Los juegos no se tocan
+    /// (son otros procesos). Se le devuelve el sonido cuando tú abres la tienda o el chat.
+    /// </summary>
+    public static void MuteSteam(bool mute)
+    {
+        if (!mute && !steamMuted) return;
+        int n = Apply("steamwebhelper", mute) + Apply("steam", mute);
+        if (mute != steamMuted) Log.Write($"audio: Steam {(mute ? "en silencio" : "con sonido")} ({n} sesión/es)");
+        steamMuted = mute;
+    }
+
     /// <summary>Le devuelve el sonido a todo lo que silenció Scarlet.</summary>
     public static void RestoreAll()
     {

@@ -53,6 +53,7 @@ sealed class MainForm : Form
         xbox = new XboxService(art);
         media = new MediaService(art);
         AudioFocus.RecoverAfterCrash();
+        if (cfg.HideCursor) CursorHider.Hide();
         GameFreezer.RecoverAfterCrash();
         apps = AppEntry.Load();
 
@@ -131,13 +132,22 @@ sealed class MainForm : Form
                     BeginInvoke(new Action(Close));
                 }
             };
-            cw.Navigate("https://app.scarlet/index.html");
+            // La vista web guarda en caché index.html: tras una actualización seguía mostrando la interfaz vieja.
+            // Se borra la caché si cambió la interfaz y se carga con una marca de versión.
+            string stamp = UiStamp();
+            if (cfg.UiStamp != stamp)
+            {
+                try { await cw.Profile.ClearBrowsingDataAsync(CoreWebView2BrowsingDataKinds.DiskCache | CoreWebView2BrowsingDataKinds.CacheStorage | CoreWebView2BrowsingDataKinds.ServiceWorkers); Log.Write("interfaz nueva: caché del navegador borrada"); }
+                catch (Exception ex) { Log.Error("borrar caché", ex); }
+                cfg.UiStamp = stamp; cfg.Save();
+            }
+            cw.Navigate("https://app.scarlet/index.html?v=" + stamp);
 
             // Menú rápido que se abre encima de los juegos (se prepara oculto).
             try
             {
                 quick = new QuickOverlay(OnMessage);
-                await quick.InitAsync(env, Paths.Web, cfg.DevTools);
+                await quick.InitAsync(env, Paths.Web, cfg.DevTools, UiStamp());
             }
             catch (Exception ex) { Log.Error("menú rápido", ex); quick = null; }
 
@@ -204,6 +214,8 @@ sealed class MainForm : Form
     {
         slowTicks++;
         CloseStrayBigPicture();
+        AudioFocus.MuteSteam(!steamUiAllowed);
+        PointerForFront();
         // Si saliste de Scarlet por otro lado (selector de ventanas, Alt+Tab), lo que estaba silenciado vuelve a sonar.
         var front = Native.GetForegroundWindow();
         if (front != Handle && !(quick != null && front == quick.Handle))
@@ -237,6 +249,14 @@ sealed class MainForm : Form
             try { (target ?? web.CoreWebView2)?.PostWebMessageAsJson(json); }
             catch (Exception ex) { Log.Error("enviar", ex); }
         });
+    }
+
+    /// <summary>Marca de la interfaz: versión de la app + fecha de web\index.html.</summary>
+    static string UiStamp()
+    {
+        long t = 0;
+        try { t = File.GetLastWriteTimeUtc(Path.Combine(Paths.Web, "index.html")).Ticks; } catch { }
+        return Application.ProductVersion + "-" + t.ToString("x");
     }
 
     void Emit(string ev, object data) => Send(new Dictionary<string, object> { ["event"] = ev, ["data"] = data });
@@ -371,6 +391,10 @@ sealed class MainForm : Form
                 return true;
             }
             case "media.cmd": return await media.CommandAsync(P.S(p, "cmd"), P.D(p, "value"));
+            case "cursor.hide":
+                cfg.HideCursor = P.B(p, "on"); cfg.Save();
+                if (cfg.HideCursor) CursorHider.Hide(); else CursorHider.Restore();
+                return true;
             case "audio.mutebehind":
                 cfg.MuteBehind = P.B(p, "on"); cfg.Save();
                 if (!cfg.MuteBehind) AudioFocus.RestoreAll();
@@ -682,6 +706,15 @@ sealed class MainForm : Form
             dolby = pm.FindPackagesForUser("").Any(p => (p.Id.FamilyName ?? "").Contains("Dolby", StringComparison.OrdinalIgnoreCase));
             if (dolby == false)
                 using (var k = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Dolby")) dolby = k != null;
+            if (dolby == false)
+                using (var k = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Services"))
+                    dolby = k?.GetSubKeyNames().Any(n => n.Contains("Dolby", StringComparison.OrdinalIgnoreCase)) == true;
+            if (dolby == false)
+            {
+                string sys = Environment.GetFolderPath(Environment.SpecialFolder.System);
+                dolby = Directory.EnumerateFiles(sys, "dax*.dll").Any() || Directory.EnumerateFiles(Path.Combine(sys, "DriverStore", "FileRepository"), "*dolby*", new EnumerationOptions { RecurseSubdirectories = false }).Any()
+                    || Directory.EnumerateDirectories(Path.Combine(sys, "DriverStore", "FileRepository"), "*dax*").Any();
+            }
         }
         catch { dolby = false; }
         Log.Write("Dolby Atmos: " + (dolby == true ? "sí" : "no encontrado"));
@@ -909,6 +942,18 @@ sealed class MainForm : Form
             }, IntPtr.Zero);
         }
         catch (Exception ex) { Log.Error("ventanas de Steam", ex); }
+    }
+
+    /// <summary>El puntero se ve solo donde hace falta (Explorador, Ajustes de Windows, Administrador de tareas); en lo demás, escondido.</summary>
+    void PointerForFront()
+    {
+        if (!cfg.HideCursor) { if (CursorHider.Hidden) CursorHider.Restore(); return; }
+        var fg = Native.GetForegroundWindow();
+        string exe = Path.GetFileNameWithoutExtension(Native.WindowProcessPath(fg, out _) ?? "");
+        bool needs = exe is "SystemSettings" or "mmc" or "control" or "Taskmgr" or "regedit" or "notepad"
+            || (exe.Equals("explorer", StringComparison.OrdinalIgnoreCase) && Native.Title(fg).Length > 0 && Native.Area(fg) > 200_000);
+        if (needs && CursorHider.Hidden) CursorHider.Restore();
+        else if (!needs && !CursorHider.Hidden) CursorHider.Hide();
     }
 
     DateTime lastBpClose = DateTime.MinValue;

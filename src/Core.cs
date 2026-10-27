@@ -97,6 +97,9 @@ sealed class Config
     public bool StartBigPicture { get; set; } = true;
     public bool DevTools { get; set; }
     public bool MuteBehind { get; set; } = true;
+    public bool HideCursor { get; set; } = true;
+    /// <summary>Versión de la interfaz que se cargó la última vez: si cambia, se borra la caché del navegador.</summary>
+    public string UiStamp { get; set; } = "";
     /// <summary>Tiempo de juego que cuenta Scarlet (juegos de Xbox y apps; los de Steam los cuenta Steam). Clave = la de AppLastUsed.</summary>
     public Dictionary<string, long> PlaySeconds { get; set; } = new();
     /// <summary>Juegos que se pausan (se congelan) mientras estás en el Inicio.</summary>

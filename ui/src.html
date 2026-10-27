@@ -212,6 +212,7 @@ svg{display:block}
 #launch .ldolby{position:absolute;left:4.6rem;bottom:4.8rem;color:rgba(255,255,255,.55);opacity:0;transform:translateY(.6rem);transition:opacity .6s ease .35s,transform .6s ease .35s;font-size:1.3rem}
 #launch .ldolby .dlogo{height:2.4rem}
 #launch.logo .ldolby.on{opacity:1;transform:none}
+html:not(.showcursor),html:not(.showcursor) *{cursor:none!important}
 .tile img.appicon{object-fit:contain;padding:17%;background:#fff;box-sizing:border-box}
 .shot{--r:.6rem;position:relative;aspect-ratio:16/9;border-radius:.6rem;background:var(--tile);animation:tileIn .4s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--k,0) * 25ms)}
 .shot img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
@@ -744,6 +745,7 @@ const store = {
 const settings = Object.assign({ theme: "dark", sound: true, rumble: true, sgdbKey: "" }, store.get("settings", {}));
 const saveSettings = () => store.set("settings", settings);
 const applyTheme = () => { document.documentElement.dataset.theme = settings.theme; };
+document.documentElement.classList.toggle("showcursor", settings.hideCursor === false);
 applyTheme();
 
 let toastT;
@@ -1353,10 +1355,10 @@ function powerMenu() {
   });
 }
 /* Diálogo con varias opciones; devuelve el valor elegido (null si se cancela). */
-function choiceDialog(text, options) {
+function choiceDialog(text, options, focus = 0) {
   return new Promise(res => {
     openView({
-      cls: "dialog", cols: options.length, hints: [["B", "Cancelar"], ["A", "Aceptar"]],
+      cls: "dialog", cols: options.length, i: focus, hints: [["B", "Cancelar"], ["A", "Aceptar"]],
       render(el) {
         el.innerHTML = `<div class="dbox"><p>${esc(text)}</p><div class="dbtns" style="grid-template-columns:repeat(${options.length},1fr)">${options.map((o, i) => `<button class="fi" data-i="${i}">${esc(o.label)}</button>`).join("")}</div></div>`;
         fis(el).forEach(b => b.onclick = () => { closeView(); res(options[+b.dataset.i].value); });
@@ -1488,11 +1490,11 @@ function propsView(g) {
 /* --- Dolby Atmos: un renglón discreto al jugar, en la pantalla de carga y en el menú rápido con música --- */
 let DOLBY = false;
 const DOLBY_HTML = '<span>Powered by</span><img class="dlogo" alt="Dolby Atmos" src="__DOLBY__">';
-const dolbyOn = () => DOLBY && settings.dolbyTag !== false;
+const dolbyOn = () => settings.dolbyTag === true || (settings.dolbyTag == null && DOLBY);
 function paintDolby() { const l = $("#launch .ldolby"); if (l) { l.innerHTML = DOLBY_HTML; l.classList.toggle("on", dolbyOn()); } }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.4";
+let APP_VERSION = "0.4.5";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2075,7 +2077,9 @@ function settingsView() {
     { label: "Tema", desc: "Apariencia del menú", val: () => settings.theme === "dark" ? "Oscuro" : "Claro", toggle() { settings.theme = settings.theme === "dark" ? "light" : "dark"; applyTheme(); } },
     { label: "Sonidos del menú", desc: "Efectos al navegar", val: () => settings.sound ? "Activados" : "Desactivados", toggle() { settings.sound = !settings.sound; } },
     { label: "Vibración", desc: "Vibración sutil al moverte y seleccionar", val: () => settings.rumble ? "Activada" : "Desactivada", toggle() { settings.rumble = !settings.rumble; } },
-    ...(DOLBY ? [{ label: "Aviso de Dolby Atmos", desc: "Muestra «Powered by Dolby Atmos» al jugar y con música", val: () => settings.dolbyTag !== false ? "Activado" : "Desactivado", toggle() { settings.dolbyTag = settings.dolbyTag === false; paintDolby(); } }] : []),
+    { label: "Aviso de Dolby Atmos", desc: "«Powered by Dolby Atmos» al jugar y con música", val: () => settings.dolbyTag === true ? "Siempre" : settings.dolbyTag === false ? "Nunca" : `Automático (${DOLBY ? "detectado" : "no detectado"})`,
+      toggle() { settings.dolbyTag = settings.dolbyTag == null ? true : settings.dolbyTag === true ? false : undefined; if (settings.dolbyTag === undefined) delete settings.dolbyTag; paintDolby(); } },
+    { label: "Ocultar el puntero del mouse", desc: "Como en una consola: no se ve en Scarlet ni en los juegos (sí en el Explorador y Ajustes de Windows)", val: () => settings.hideCursor !== false ? "Activado" : "Desactivado", toggle() { settings.hideCursor = settings.hideCursor === false; document.documentElement.classList.toggle("showcursor", !settings.hideCursor); Host.call("cursor.hide", { on: settings.hideCursor }).catch(() => {}); } },
     { label: "Silenciar al volver al menú", desc: "El juego o video que dejas atrás se calla; la música sigue sonando", val: () => settings.muteBehind !== false ? "Activado" : "Desactivado", toggle() { settings.muteBehind = settings.muteBehind === false; Host.call("audio.mutebehind", { on: settings.muteBehind }).catch(() => {}); } },
     { label: "Al encender la consola", desc: "Qué se abre cuando la consola arranca", val: () => settings.bootLast ? "El último juego" : "El Inicio", toggle() { settings.bootLast = !settings.bootLast; } },
     { label: "Atenuar pantalla", desc: "Oscurece la pantalla si no la usas", val: () => optLabel(DIM_OPTS, settings.dimAfter), act() { pickOption("Atenuar pantalla", DIM_OPTS, "dimAfter"); } },
@@ -2583,7 +2587,7 @@ async function launchGame(g, el, opt = {}) {
     const r = runningGame();
     if (r && r.kind === "app") {   // música, YouTube…: se puede dejar sonando mientras juegas
       const v = await choiceDialog(`${r.name} está abierta.\n¿La cierras o la dejas en segundo plano (por ejemplo, para seguir oyendo música)?`,
-        [{ label: "Cancelar", value: null }, { label: "Dejar abierta", value: "keep" }, { label: "Cerrar y abrir", value: "close" }]);
+        [{ label: "Cancelar", value: null }, { label: "Dejar abierta", value: "keep" }, { label: "Cerrar y abrir", value: "close" }], 1);
       if (!v) return;
       if (v === "keep") { Host.call("game.detach").catch(() => {}); state.running = null; renderHome(); }
       else closeRunning(true);
@@ -3305,6 +3309,7 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
   if (Host.has) {
     const pads = await Host.call("pads.list").catch(() => null); if (pads && pads.length) state.pads = pads;
     Host.call("audio.mutebehind", { on: settings.muteBehind !== false }).catch(() => {});
+    Host.call("cursor.hide", { on: settings.hideCursor !== false }).catch(() => {});
     const st = await Host.call("system.state").catch(() => null); if (st) { Object.assign(sys, st); saveSys(); }
     Host.call("sounds.list").then(m => { if (m && Object.keys(m).length) Snd.loadCustom(m); }).catch(() => {});
     const gs = await Host.call("game.state").catch(() => null);

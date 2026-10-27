@@ -19,12 +19,14 @@ static class Program
         Log.Write($"--- Scarlet alpha {Application.ProductVersion} {string.Join(" ", args)}");
         // Modo seguro: si la versión nueva ya falló dos veces al abrir, se regresa a la anterior y esta copia no sigue.
         if (UpdateService.StartupCheck()) return;
+        CursorHider.Restore();   // por si la vez anterior se cerró de golpe con el puntero escondido
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         Application.ThreadException += (_, e) => Log.Error("ui", e.Exception);
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
         {
             Log.Write("ERROR FATAL: " + e.ExceptionObject);
             // Versión recién actualizada que vuelve a tronar: se regresa a la anterior en vez de reiniciar la que falla.
+            CursorHider.Restore();
             if (!UpdateService.RollbackNowIfFailing()) Restart("error fatal");
             // Sin esperar al reporte de errores de Windows (tardaba ~10 s): la copia nueva entra de inmediato.
             try { Process.GetCurrentProcess().Kill(); } catch { }
@@ -75,6 +77,8 @@ static class Program
         Application.Run(main);
         AudioFocus.RestoreAll();   // al salir, nada se queda silenciado
         GameFreezer.Resume();      // ni en pausa
+        CursorHider.Restore();     // y el puntero vuelve
+        AudioFocus.MuteSteam(false);
         Log.Write("Scarlet se cerró normalmente");
     }
 

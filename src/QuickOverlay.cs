@@ -51,7 +51,7 @@ sealed class QuickOverlay : Form
     }
 
     /// <summary>Se prepara oculto al arrancar, para que abra al instante.</summary>
-    public async Task InitAsync(CoreWebView2Environment env, string webFolder, bool devTools)
+    public async Task InitAsync(CoreWebView2Environment env, string webFolder, bool devTools, string stamp = "")
     {
         CreateControl();
         await web.EnsureCoreWebView2Async(env);
@@ -67,7 +67,7 @@ sealed class QuickOverlay : Form
         cw.WebMessageReceived += (_, e) => onMessage(e.WebMessageAsJson, cw);
         cw.ProcessFailed += (_, e) => { Log.Write("menú rápido: WebView2 falló " + e.ProcessFailedKind); try { cw.Reload(); } catch { } };
         cw.NavigationCompleted += (_, _) => ready = true;
-        cw.Navigate("https://app.scarlet/index.html?overlay=quick");
+        cw.Navigate("https://app.scarlet/index.html?overlay=quick&v=" + Uri.EscapeDataString(stamp));
     }
 
     void Post(string ev, object data = null)
