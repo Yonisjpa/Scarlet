@@ -111,14 +111,19 @@ static class AudioMixer
         [PreserveSig] int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)] string id, int role);
     }
 
-    static IMMDeviceEnumerator Enumerator() => (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
+    // Una sola conexión con el audio de Windows, en el hilo del audio (AudioThread); se rehace si falla.
+    static IMMDeviceEnumerator enumerator;
+    static IMMDeviceEnumerator Enumerator() => enumerator ??= (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
+    static AudioMixer() { AudioThread.Reset += () => { enumerator = null; lock (volCache) volCache.Clear(); }; }
 
     // ───── Salidas de audio ─────
 
     public sealed record Output(string id, string name, bool current);
 
+    public static List<Output> Outputs() => AudioThread.Run(OutputsCore, new List<Output>());
+
     /// <summary>Salidas activas (bocinas, audífonos, HDMI…) y cuál está en uso.</summary>
-    public static List<Output> Outputs()
+    static List<Output> OutputsCore()
     {
         var list = new List<Output>();
         try
@@ -135,7 +140,7 @@ static class AudioMixer
                 list.Add(new Output(id, FriendlyName(dev) ?? "Salida de audio", id == cur));
             }
         }
-        catch (Exception ex) { Log.Error("salidas de audio", ex); }
+        catch (Exception ex) when (ex is not InvalidCastException && ex is not COMException) { Log.Error("salidas de audio", ex); }
         return list;
     }
 
@@ -153,8 +158,10 @@ static class AudioMixer
         catch { return null; }
     }
 
+    public static bool SetOutput(string id) => AudioThread.Run(() => SetOutputCore(id), false);
+
     /// <summary>Cambia la salida de audio de todo Windows (para juegos, música y sistema).</summary>
-    public static bool SetOutput(string id)
+    static bool SetOutputCore(string id)
     {
         try
         {
@@ -218,12 +225,14 @@ static class AudioMixer
         return ids;
     }
 
+    public static void SetMaster(int value) => AudioThread.Run(() => { SetMasterCore(value); return true; }, false);
+
     /// <summary>
     /// Volumen general: se pone en la salida predeterminada (para todos sus usos) y TAMBIÉN en cualquier otra salida
     /// por la que esté sonando algo. Antes solo se cambiaba la principal y, si una app sonaba por otra salida (Windows
     /// deja elegir una salida por app), seguía oyéndose con el volumen en 0. En 0 además se silencia.
     /// </summary>
-    public static void SetMaster(int value)
+    static void SetMasterCore(int value)
     {
         var ctx = Guid.Empty;
         float level = Math.Clamp(value, 0, 100) / 100f;
@@ -241,8 +250,10 @@ static class AudioMixer
         if (done == 0) Log.Write("volumen: no encontré ninguna salida de audio");
     }
 
+    public static int? GetMaster() => AudioThread.Run(GetMasterCore, (int?)null, 1500);
+
     /// <summary>Volumen general real (el de la salida predeterminada; 0 si está silenciada). null si no se pudo leer.</summary>
-    public static int? GetMaster()
+    static int? GetMasterCore()
     {
         try
         {
@@ -252,11 +263,13 @@ static class AudioMixer
             if (ev.GetMute(out bool m) == 0 && m) return 0;
             return ev.GetMasterVolumeLevelScalar(out float l) == 0 ? (int)Math.Round(l * 100) : null;
         }
-        catch (Exception ex) { Log.Error("volumen", ex); return null; }
+        catch (Exception ex) when (ex is not InvalidCastException && ex is not COMException) { Log.Error("volumen", ex); return null; }
     }
 
+    public static List<(string device, string detail)> Inventory() => AudioThread.Run(InventoryCore, new List<(string, string)> { ("Salidas", "Windows no contestó") });
+
     /// <summary>Para Diagnóstico: cada salida, su volumen y qué apps suenan por ella (con su volumen real).</summary>
-    public static List<(string device, string detail)> Inventory()
+    static List<(string device, string detail)> InventoryCore()
     {
         var rows = new List<(string, string)>();
         try
@@ -284,9 +297,16 @@ static class AudioMixer
 
     public sealed record Session(string exe, uint pid, bool active, int volume, string path = null);
 
+    public static List<Session> Sessions(bool strict = false)
+    {
+        var r = AudioThread.Run(() => SessionsCore(strict), null);
+        if (r == null && strict) throw new InvalidOperationException("Windows no dio las apps con sonido");
+        return r ?? new List<Session>();
+    }
+
     /// <summary>Apps con sonido ahora mismo (sesiones del mezclador), con su volumen 0–100.</summary>
     /// <param name="strict">Si Windows no contesta, lanza error en vez de devolver la lista vacía (el menú distingue "nada suena" de "no se pudo leer").</param>
-    public static List<Session> Sessions(bool strict = false)
+    static List<Session> SessionsCore(bool strict)
     {
         var list = new List<Session>();
         bool ok = Each((c2, vol, pid, exe) =>
@@ -299,7 +319,9 @@ static class AudioMixer
         return list;
     }
 
-    public static int? GetVolume(string exe)
+    public static int? GetVolume(string exe) => AudioThread.Run(() => GetVolumeCore(exe), (int?)null);
+
+    static int? GetVolumeCore(string exe)
     {
         int? v = null;
         Each((c2, vol, pid, name) => { if (v == null && name.Equals(exe, StringComparison.OrdinalIgnoreCase)) { vol.GetMasterVolume(out float l); v = (int)Math.Round(l * 100); } });
@@ -384,17 +406,19 @@ static class AudioMixer
                 }
             }
         }
-        catch (Exception ex) { Log.Error("mezclador", ex); }
+        catch (Exception ex) when (ex is not InvalidCastException && ex is not COMException) { Log.Error("mezclador", ex); }   // si se rompió la conexión, que la rehaga AudioThread
         lock (volCache) volCache[key] = (DateTime.Now, list);
         return list;
     }
+
+    public static void SetVolume(string exe, string dir, int value) => AudioThread.Run(() => { SetVolumeCore(exe, dir, value); return true; }, false);
 
     /// <summary>
     /// Volumen de una app: todas sus sesiones (Edge suena desde otro proceso con el mismo nombre; Apple Music puede sonar
     /// desde otro programa de su carpeta) en todas las salidas. En 0 además se silencia, por si la app no respeta el
     /// volumen; al subirlo se le quita el silencio. Después se comprueba que de verdad haya quedado así.
     /// </summary>
-    public static void SetVolume(string exe, string dir, int value)
+    static void SetVolumeCore(string exe, string dir, int value)
     {
         var ctx = Guid.Empty;
         float level = Math.Clamp(value, 0, 100) / 100f;
@@ -418,8 +442,10 @@ static class AudioMixer
         Log.Write($"mezclador: {exe} no tiene sonido en ninguna salida; la barra no tiene qué mover");
     }
 
+    public static int ResetAll() => AudioThread.Run(ResetAllCore, 0);
+
     /// <summary>"Restablecer sonido": quita el silencio a todas las apps y sube las que quedaron casi en cero. Devuelve cuántas tocó.</summary>
-    public static int ResetAll()
+    static int ResetAllCore()
     {
         int n = 0; var ctx = Guid.Empty;
         Each((c2, vol, pid, name) =>
@@ -432,8 +458,10 @@ static class AudioMixer
         return n;
     }
 
+    public static string Describe() => AudioThread.Run(DescribeCore, "");
+
     /// <summary>Para el log: qué apps tienen sesión de audio, si están silenciadas y su volumen.</summary>
-    public static string Describe()
+    static string DescribeCore()
     {
         var parts = new List<string>();
         Each((c2, vol, pid, name) => { vol.GetMute(out bool m); vol.GetMasterVolume(out float l); c2.GetState(out int st); parts.Add($"{name}{(m ? " [silenciada]" : "")} {(int)(l * 100)}%{(st == 1 ? " ▶" : "")}"); });
@@ -458,7 +486,7 @@ static class AudioMixer
             foreach (var dev in devs) any |= EachOn(dev, act);
             return any;
         }
-        catch (Exception ex) { Log.Error("mezclador", ex); return false; }
+        catch (Exception ex) when (ex is not InvalidCastException && ex is not COMException) { Log.Error("mezclador", ex); return false; }
     }
 
     static bool EachOn(IMMDevice dev, Action<IAudioSessionControl2, ISimpleAudioVolume, uint, string> act)
@@ -485,6 +513,6 @@ static class AudioMixer
             }
             return true;
         }
-        catch (Exception ex) { Log.Error("mezclador", ex); return false; }
+        catch (Exception ex) when (ex is not InvalidCastException && ex is not COMException) { Log.Error("mezclador", ex); return false; }
     }
 }

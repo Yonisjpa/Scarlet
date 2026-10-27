@@ -135,9 +135,13 @@ static class AudioFocus
     public static void MuteSteam(bool mute)
     {
         if (!mute && !steamMuted) return;
-        int n = Apply("steamwebhelper", mute, out _) + Apply("steam", mute, out _);
-        if (mute != steamMuted) Log.Write($"audio: Steam {(mute ? "en silencio" : "con sonido")} ({n} sesión/es)");
+        bool changed = mute != steamMuted;
         steamMuted = mute;
+        AudioThread.Post(() =>   // sin trabar la pantalla
+        {
+            int n = Apply("steamwebhelper", mute, out _) + Apply("steam", mute, out _);
+            if (changed) Log.Write($"audio: Steam {(mute ? "en silencio" : "con sonido")} ({n} sesión/es)");
+        });
     }
 
     /// <summary>Tras "Restablecer sonido": ya no hay nada silenciado por Scarlet que devolver.</summary>
@@ -148,8 +152,11 @@ static class AudioFocus
     {
         string[] list;
         lock (gate) { if (mutedApps.Count == 0) return; list = mutedApps.ToArray(); mutedApps.Clear(); Save(); }
-        foreach (var exe in list) Apply(exe, false, out _);
-        Log.Write("audio: sonido devuelto a " + string.Join(", ", list));
+        AudioThread.Post(() =>   // sin trabar la pantalla
+        {
+            foreach (var exe in list) Apply(exe, false, out _);
+            Log.Write("audio: sonido devuelto a " + string.Join(", ", list));
+        });
     }
 
     /// <summary>Si Scarlet se cerró de golpe con algo silenciado, al arrancar se le devuelve el sonido.</summary>
@@ -196,12 +203,17 @@ static class AudioFocus
         return touched;
     }
 
-    /// <summary>Recorre las sesiones de sonido de las apps en todas las salidas activas.</summary>
-    static void Each(Action<ISimpleAudioVolume, string> act)
+    static IMMDeviceEnumerator enumerator;
+    static AudioFocus() { AudioThread.Reset += () => enumerator = null; }
+
+    /// <summary>Recorre las sesiones de sonido de las apps en todas las salidas activas (en el hilo del audio).</summary>
+    static void Each(Action<ISimpleAudioVolume, string> act) => AudioThread.Run(() => { EachCore(act); return true; }, false);
+
+    static void EachCore(Action<ISimpleAudioVolume, string> act)
     {
         try
         {
-            var en = (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
+            var en = enumerator ??= (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
             if (en.EnumAudioEndpoints(0 /* eRender */, 1 /* ACTIVE */, out var col) != 0 || col == null) return;
             col.GetCount(out uint nd);
             var iid = typeof(IAudioSessionManager2).GUID;
@@ -227,6 +239,6 @@ static class AudioFocus
                 }
             }
         }
-        catch (Exception ex) { Log.Error("audio (sesiones)", ex); }
+        catch (Exception ex) when (ex is not InvalidCastException && ex is not COMException) { Log.Error("audio (sesiones)", ex); }
     }
 }

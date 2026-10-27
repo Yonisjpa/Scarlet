@@ -32,6 +32,7 @@ jobs:
           $v = ($p.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
           $info = ($p.Project.PropertyGroup | Where-Object { $_.InformationalVersion } | Select-Object -First 1).InformationalVersion
           "version=$v" >> $env:GITHUB_OUTPUT
+          if (-not $info -or $info -like '*$(*') { $info = $v }
           "info=$info" >> $env:GITHUB_OUTPUT
 
       - name: Empaquetar

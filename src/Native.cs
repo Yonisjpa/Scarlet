@@ -12,6 +12,8 @@ static class Native
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    /// <summary>Para ventanas de otros programas: no espera a que el programa conteste (ShowWindow sí, y un juego ocupado la trababa).</summary>
+    [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
     [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
@@ -71,13 +73,14 @@ static class Native
     public static bool ForceForeground(IntPtr hWnd)
     {
         if (hWnd == IntPtr.Zero || !IsWindow(hWnd)) return false;
-        if (IsIconic(hWnd)) ShowWindow(hWnd, SW_RESTORE);
+        if (IsIconic(hWnd)) ShowWindowAsync(hWnd, SW_RESTORE);
         IntPtr fg = GetForegroundWindow();
         if (fg == hWnd) return true;
         AllowSetForegroundWindow(-1 /* ASFW_ANY */);
 
-        // 1) Compartir la entrada con la ventana del frente: Windows deja cambiar el foco.
-        uint fgThread = fg == IntPtr.Zero ? 0 : GetWindowThreadProcessId(fg, out _);
+        // 1) Compartir la entrada con la ventana del frente: Windows deja cambiar el foco. Nunca con una ventana que no
+        // responde: compartir la entrada con ella puede congelar a los dos.
+        uint fgThread = fg == IntPtr.Zero || IsHungAppWindow(fg) ? 0 : GetWindowThreadProcessId(fg, out _);
         uint me = GetCurrentThreadId();
         bool attached = false;
         try
@@ -114,7 +117,7 @@ static class Native
         if (want != ex) SetWindowLongPtr(hWnd, GWL_EXSTYLE, new IntPtr(want));
     }
 
-    public static void Minimize(IntPtr hWnd) { if (hWnd != IntPtr.Zero && IsWindow(hWnd)) ShowWindow(hWnd, 6 /* SW_MINIMIZE */); }
+    public static void Minimize(IntPtr hWnd) { if (hWnd != IntPtr.Zero && IsWindow(hWnd)) ShowWindowAsync(hWnd, 6 /* SW_MINIMIZE */); }
 
     /// <summary>¿Hay un juego en pantalla completa exclusiva? Ahí Windows no deja poner nada encima de forma estable.</summary>
     public static bool ExclusiveFullscreen()
@@ -149,14 +152,23 @@ static class Native
     [DllImport("user32.dll")] public static extern bool IsHungAppWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool EnableWindow(IntPtr hWnd, bool enable);
-    [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(Point p);
     [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
 
-    /// <summary>Ventana principal (de nivel superior) que está en ese punto de la pantalla.</summary>
+    /// <summary>
+    /// Ventana principal (de nivel superior) que está en ese punto de la pantalla. Se busca por la lista de ventanas, sin
+    /// preguntarle a ninguna (WindowFromPoint le manda un mensaje a la ventana, al juego, y espera su respuesta).
+    /// </summary>
     public static IntPtr RootAt(Point p)
     {
-        IntPtr h = WindowFromPoint(p);
-        return h == IntPtr.Zero ? h : GetAncestor(h, 2 /* GA_ROOT */);
+        IntPtr found = IntPtr.Zero;
+        EnumWindows((h, _) =>
+        {
+            if (!IsWindowVisible(h) || IsIconic(h) || IsCloaked(h)) return true;
+            if ((GetWindowLongPtr(h, GWL_EXSTYLE).ToInt64() & 0x20 /* WS_EX_TRANSPARENT */) != 0) return true;
+            if (!GetWindowRect(h, out var r) || p.X < r.Left || p.X >= r.Right || p.Y < r.Top || p.Y >= r.Bottom) return true;
+            found = h; return false;   // la primera, en el orden de Windows, es la de más arriba
+        }, IntPtr.Zero);
+        return found;
     }
 
     /// <summary>La ventanita (diálogo) que tiene bloqueada a esa ventana, si hay.</summary>
@@ -174,10 +186,16 @@ static class Native
     /// <summary>¿La ventana sigue abierta de verdad (existe, se ve y Windows no la escondió)?</summary>
     public static bool WindowOpen(IntPtr h) => h != IntPtr.Zero && IsWindow(h) && IsWindowVisible(h) && !IsCloaked(h);
 
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int InternalGetWindowText(IntPtr hWnd, StringBuilder text, int max);
+
+    /// <summary>
+    /// Título de una ventana sin preguntarle al programa (GetWindowText le manda un mensaje y espera la respuesta: con un
+    /// juego ocupado, Scarlet se quedaba esperándolo).
+    /// </summary>
     public static string Title(IntPtr hWnd)
     {
         var sb = new StringBuilder(256);
-        GetWindowText(hWnd, sb, sb.Capacity);
+        InternalGetWindowText(hWnd, sb, sb.Capacity);
         return sb.ToString();
     }
 

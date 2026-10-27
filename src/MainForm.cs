@@ -230,6 +230,10 @@ sealed class MainForm : Form
             Log.Write("Steam: se cerró la ventanita; de regreso a Scarlet");
             if (tracker == null || !tracker.Active) ShowUi();
         }
+        // El vigilante de "ventana cerrada" solo mira el proceso del juego.
+        uint watch = 0;
+        if (tracker != null && tracker.Active && tracker.Window != IntPtr.Zero) Native.GetWindowThreadProcessId(tracker.Window, out watch);
+        WinWatch.WatchProcess(watch);
         CloseStrayBigPicture();
         AudioFocus.MuteSteam(!steamUiAllowed);
         PointerForFront();
@@ -1030,15 +1034,45 @@ sealed class MainForm : Form
         if (tracker == null || !tracker.Active) { hungTicks = 0; hungAsked = false; return; }
         IntPtr h = tracker.Window != IntPtr.Zero ? tracker.Window : tracker.Candidate;
         bool hung = h != IntPtr.Zero && Native.IsWindow(h) && Native.IsHungAppWindow(h);
-        if (!hung) { if (hungTicks >= 7) Log.Write("el juego volvió a responder"); hungTicks = 0; hungAsked = false; return; }
-        if (++hungTicks == 2) Log.Write($"el juego no responde: {Native.Describe(h)}");
+        if (!hung) { if (hungTicks >= 2) Log.Write($"el juego volvió a responder (estuvo ~{hungTicks * 3} s sin responder)"); hungTicks = 0; hungAsked = false; return; }
+        if (++hungTicks == 2) Log.Write($"el juego no responde: {Native.Describe(h)} · {MemoryReport(h)}");
         bool inScarlet = front == Handle && web.Visible;
+        // Ya no se le quita la pantalla a un juego congelado (eso pudo ser lo que terminó de tumbar a Stellar Blade):
+        // a los ~20 s solo un aviso chiquito encima; si quieres cerrarlo, presionas el botón Xbox y ahí se pregunta.
         if (hungTicks < 7 || hungAsked || inScarlet || DateTime.Now < hungSnooze) return;
         hungAsked = true;
-        Log.Write("el juego lleva 20 s sin responder: se pregunta si esperar o cerrarlo");
+        Log.Write("el juego lleva 20 s sin responder: aviso encima (sin quitarle la pantalla)");
+        ToastForm.Pop(NameOfApp(tracker.AppId) + " no responde", "Espera un momento. Si quieres cerrarlo, presiona el botón Xbox", "!", "#f2c230", null);
+    }
+
+    /// <summary>¿El juego está congelado ahora mismo (para que el botón Xbox ofrezca cerrarlo)?</summary>
+    bool GameHung => tracker != null && tracker.Active && hungTicks >= 3;
+
+    /// <summary>Al presionar el botón Xbox con el juego congelado: Scarlet al frente y la pregunta de esperar o cerrarlo.</summary>
+    void AskAboutHungGame()
+    {
+        Log.Write("botón Xbox con el juego congelado: se pregunta si esperar o cerrarlo");
         TopMost = false;
         ShowUi();
         Emit("game.hung", new { appid = tracker.AppId, name = NameOfApp(tracker.AppId) });
+    }
+
+    [StructLayout(LayoutKind.Sequential)] struct MEMORYSTATUSEX { public uint dwLength, dwMemoryLoad; public ulong ullTotalPhys, ullAvailPhys, ullTotalPageFile, ullAvailPageFile, ullTotalVirtual, ullAvailVirtual, ullAvailExtendedVirtual; }
+    [DllImport("kernel32.dll")] static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX m);
+
+    /// <summary>Para el log: memoria libre del equipo y cuánta usa el juego (para saber si se congela por falta de memoria).</summary>
+    static string MemoryReport(IntPtr gameWindow)
+    {
+        try
+        {
+            var m = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
+            GlobalMemoryStatusEx(ref m);
+            string game = "";
+            Native.GetWindowThreadProcessId(gameWindow, out uint pid);
+            try { using var p = Process.GetProcessById((int)pid); game = $" · el juego usa {p.WorkingSet64 / 1048576} MB ({p.PrivateMemorySize64 / 1048576} MB propios)"; } catch { }
+            return $"memoria libre {m.ullAvailPhys / 1048576} de {m.ullTotalPhys / 1048576} MB ({m.dwMemoryLoad} % en uso), archivo de paginación libre {m.ullAvailPageFile / 1048576} MB{game}";
+        }
+        catch { return "memoria: sin datos"; }
     }
 
     // ───── Toques bloqueados (el sonido de error de Windows al tocar la pantalla) ─────
@@ -1067,7 +1101,7 @@ sealed class MainForm : Form
             {
                 steamDialogs.Add(popup);   // que el guardián de Steam no la vuelva a esconder
                 TopMost = false;
-                Native.ShowWindow(popup, 5 /* SW_SHOW */);
+                Native.ShowWindowAsync(popup, 5 /* SW_SHOW */);
                 Native.ForceForeground(popup);
                 Log.Write("toque bloqueado: se muestra la ventanita para que la contestes");
             }
@@ -1480,7 +1514,7 @@ sealed class MainForm : Form
             if (dlg != IntPtr.Zero)
             {
                 steamDialogs.Add(dlg);
-                Native.ShowWindow(dlg, 5 /* SW_SHOW */);
+                Native.ShowWindowAsync(dlg, 5 /* SW_SHOW */);
                 Native.ForceForeground(dlg);
                 Log.Write($"Steam: ventanita para {what}: «{Native.Title(dlg)}»");
                 return;
@@ -1562,7 +1596,7 @@ sealed class MainForm : Form
                 string exe = Path.GetFileName(Native.WindowProcessPath(h, out _) ?? "");
                 if (!exe.Equals("steam.exe", StringComparison.OrdinalIgnoreCase) && !exe.Equals("steamwebhelper.exe", StringComparison.OrdinalIgnoreCase)) return true;
                 if (stuckLaunch || SteamDialogAllowed(h)) return true;
-                Native.ShowWindow(h, 0 /* SW_HIDE */);
+                Native.ShowWindowAsync(h, 0 /* SW_HIDE */);
                 if (hiddenSteam.Add(h)) Log.Write($"ventana de Steam escondida: \"{Native.Title(h)}\"");
                 return true;
             }, IntPtr.Zero);
@@ -1584,44 +1618,26 @@ sealed class MainForm : Form
     }
 
     // ───── Ventanas de Steam: se esconden en el instante en que aparecen ("Iniciando juego…", avisos) ─────
-    delegate void WinEventProc(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
-    [DllImport("user32.dll")] static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr mod, WinEventProc proc, uint pid, uint tid, uint flags);
-    WinEventProc winEventProc, winDestroyProc;   // se guardan para que no los recoja el recolector de basura
-    readonly HashSet<uint> steamPids = new();
-    DateTime steamPidsAt = DateTime.MinValue;
-
+    // Los avisos llegan del vigilante de ventanas (WinWatch), que vive en su propio hilo.
     void StartWindowHook()
     {
-        winEventProc = OnWindowShown;
-        // EVENT_OBJECT_SHOW, fuera de proceso: Windows avisa en este mismo hilo cada vez que una ventana se hace visible.
-        if (SetWinEventHook(0x8002, 0x8002, IntPtr.Zero, winEventProc, 0, 0, 0 /* OUTOFCONTEXT */) == IntPtr.Zero) Log.Write("no se pudo vigilar ventanas nuevas");
-        // EVENT_OBJECT_DESTROY: si se cierra la ventana del juego o de la app (también desde fuera de Scarlet), se nota al instante.
-        winDestroyProc = (hook, ev, hwnd, idObject, idChild, thread, time) =>
+        WinWatch.SteamShown += OnWindowShown;
+        WinWatch.Destroyed += h =>
         {
-            if (idObject != 0 || hwnd == IntPtr.Zero || tracker == null || !tracker.Active) return;
-            if (hwnd == tracker.Window) tracker.WindowDestroyed(hwnd);
-            if (hwnd == sideWindow) CheckSideApp();
+            if (tracker != null && tracker.Active && h == tracker.Window) tracker.WindowDestroyed(h);
         };
-        if (SetWinEventHook(0x8001, 0x8001, IntPtr.Zero, winDestroyProc, 0, 0, 0) == IntPtr.Zero) Log.Write("no se pudo vigilar ventanas cerradas");
+        WinWatch.Start(SynchronizationContext.Current ?? new WindowsFormsSynchronizationContext());
     }
 
-    void OnWindowShown(IntPtr hook, uint ev, IntPtr hwnd, int idObject, int idChild, uint thread, uint time)
+    void OnWindowShown(IntPtr hwnd)
     {
-        if (idObject != 0 || hwnd == IntPtr.Zero || steamUiAllowed) return;
+        if (hwnd == IntPtr.Zero || steamUiAllowed || !Native.IsWindow(hwnd)) return;
         try
         {
-            if (DateTime.Now - steamPidsAt > TimeSpan.FromSeconds(5))
-            {
-                steamPidsAt = DateTime.Now; steamPids.Clear();
-                foreach (var n in new[] { "steam", "steamwebhelper" })
-                    foreach (var p in Process.GetProcessesByName(n)) using (p) steamPids.Add((uint)p.Id);
-            }
-            Native.GetWindowThreadProcessId(hwnd, out uint pid);
-            if (!steamPids.Contains(pid)) return;
             if (tracker != null && tracker.LaunchSeconds > 25) return;   // un juego atorado pidiendo algo en Steam: que se vea
             if (Native.Area(hwnd) < 2500) return;
             if (SteamDialogAllowed(hwnd)) { steamDialogs.Add(hwnd); Native.ForceForeground(hwnd); return; }
-            Native.ShowWindow(hwnd, 0 /* SW_HIDE */);
+            Native.ShowWindowAsync(hwnd, 0 /* SW_HIDE */);
             if (hiddenSteam.Add(hwnd)) Log.Write($"ventana de Steam escondida al aparecer: \"{Native.Title(hwnd)}\"");
         }
         catch { }
@@ -1702,6 +1718,7 @@ sealed class MainForm : Form
         if (quick != null && quick.IsClosing) { Log.Write("botón Xbox: toque ignorado (el menú se está cerrando)"); return; }
         if (GuideTooSoon("toque")) return;
         if (quick != null && quick.IsOpen) { quick.RequestClose("botón Xbox"); return; }
+        if (GameHung) { AskAboutHungGame(); return; }
         // Con el juego cargando, el panel encima salía en blanco (el juego cambia la pantalla en ese momento):
         // se abre solo en cuanto el juego ya esté en pantalla.
         if (tracker != null && tracker.Active && !tracker.IsReady)
@@ -1733,6 +1750,7 @@ sealed class MainForm : Form
     void OnGuideDouble()
     {
         quickPending = false;
+        if (GameHung) { guideActions++; AskAboutHungGame(); return; }
         guideActions++;
         if (GuideTooSoon("doble toque")) return;
         if (quick != null && quick.IsOpen) quick.HideNow(false, "doble toque");

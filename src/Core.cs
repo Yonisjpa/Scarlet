@@ -73,17 +73,33 @@ static class Log
             {
                 try
                 {
-                    if (File.Exists(file) && new FileInfo(file).Length > 2_000_000) File.Delete(file);
+                    // Al llegar a 2 MB se guarda como log-anterior.txt (antes se borraba y se perdía lo que había pasado).
+                    if (File.Exists(file) && new FileInfo(file).Length > 2_000_000) File.Move(file, Path.Combine(Path.GetDirectoryName(file), "log-anterior.txt"), true);
                     File.AppendAllText(file, line);
                 }
                 catch { }
             }
     }
 
+    static readonly Dictionary<string, (DateTime at, int count)> recent = new();
+
+    /// <summary>
+    /// Error con su pila (para saber dónde falló). El mismo error repetido se anota una vez por minuto, con cuántas veces
+    /// se repitió: antes uno solo llegó a llenar el log con miles de copias.
+    /// </summary>
     public static void Error(string where, Exception ex)
     {
-        string s = ex.ToString();   // con la pila, para saber exactamente dónde falló
-        Write($"[{where}] {(s.Length > 2500 ? s[..2500] + " …" : s)}");
+        string key = where + "|" + ex.GetType().FullName + "|" + ex.Message;
+        int repeated;
+        lock (recent)
+        {
+            if (recent.TryGetValue(key, out var r) && DateTime.Now - r.at < TimeSpan.FromMinutes(1)) { recent[key] = (r.at, r.count + 1); return; }
+            repeated = recent.TryGetValue(key, out var old) ? old.count : 0;
+            recent[key] = (DateTime.Now, 0);
+            if (recent.Count > 200) recent.Clear();
+        }
+        string s = ex.ToString();
+        Write($"[{where}] {(repeated > 0 ? $"(se repitió {repeated} vez/veces en el último minuto) " : "")}{(s.Length > 2500 ? s[..2500] + " …" : s)}");
     }
 }
 

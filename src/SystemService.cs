@@ -81,7 +81,9 @@ sealed class SystemService
         return o as IAudioEndpointVolume;
     }
 
-    static int? GetVolume()
+    static int? GetVolume() => AudioThread.Run(GetVolumeCore, (int?)null, 1500);
+
+    static int? GetVolumeCore()
     {
         try
         {
@@ -92,7 +94,9 @@ sealed class SystemService
         return null;
     }
 
-    public static void SetVolume(int value)
+    public static void SetVolume(int value) => AudioThread.Run(() => { SetVolumeCore(value); return true; }, false);
+
+    static void SetVolumeCore(int value)
     {
         try
         {

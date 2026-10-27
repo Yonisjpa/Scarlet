@@ -1,10 +1,8 @@
-Novedades de la alpha 0.4.16 · parche del menú rápido
+Novedades de la alpha 0.4.17 · estabilidad con los juegos
 
-- Brillo: al moverlo rápido se aplica solo el último valor (antes los cambios llegaban desordenados y quedaba un valor viejo), y se comprueba que haya quedado. Si la pantalla no deja cambiar el brillo (una TV o un monitor), la barra lo dice en vez de moverse sin hacer nada.
-- Brillo, volumen y cada app van por separado: el brillo, que tarda en Windows, ya no retrasa al volumen.
-- Wi-Fi y modo avión como en Windows: el modo avión apaga el Wi-Fi y quitarlo lo prende; con el modo avión puesto se puede prender solo el Wi-Fi (antes se volvía a apagar). El interruptor muestra cómo quedó de verdad y, si Windows no deja cambiarlo, regresa y dice por qué.
-- Si cambias el volumen o el brillo con los botones de la consola con el menú abierto, el menú se actualiza solo.
-- Las lecturas del menú ya no se amontonan si Windows tarda, y el menú encima del juego ya no se recarga sin necesidad al abrirlo.
-- Si la app de música no acepta un botón (pausa, siguiente), el menú muestra cómo está de verdad.
-- Con la canción y varias barras, todo cabe: Apagar y Ajustes siempre se ven.
-- Diagnóstico: brillo, volumen general y permiso del Wi-Fi.
+- Scarlet ya no puede hacer esperar al juego: los vigilantes de ventanas (los que esconden Steam y notan cuándo se cierra el juego) viven en su propio hilo y solo apuntan; el de "ventana cerrada" ahora solo mira el proceso del juego, no todo Windows. Antes, si Scarlet estaba ocupado, el juego se podía quedar esperándolo (congelones de varios segundos en Stellar Blade).
+- Scarlet ya no espera a otros programas desde su pantalla: los títulos de ventanas se leen sin preguntarle al programa, la ventana bajo el dedo se busca sin mandarle mensajes al juego, y esconder o mostrar ventanas de otros programas no espera respuesta. Nunca comparte la entrada con una ventana que no responde.
+- Audio en un hilo dedicado, con una sola conexión que se rehace sola: se acaba el error que impedía usar el audio de Windows (barras, volumen y silencio del juego fallaban a ratos). Nada del audio traba la pantalla.
+- Juego que no responde: ya no se le quita la pantalla. Aparece un aviso chiquito encima; si quieres cerrarlo, presionas el botón Xbox y ahí se pregunta. El log anota la memoria libre y la que usa el juego cuando se congela.
+- El log ya no se llena con el mismo error: se anota una vez por minuto con cuántas veces se repitió, y al llegar a 2 MB se guarda como log-anterior.txt en vez de borrarse.
+- La versión que muestra la app (Acerca de, log) ya es la correcta (se había quedado en 0.4.8).
