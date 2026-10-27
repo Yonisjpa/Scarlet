@@ -80,7 +80,7 @@ svg{display:block}
 .track{position:relative;display:flex;align-items:center;gap:1.4rem;padding:0 var(--pad);transition:transform .24s cubic-bezier(.2,.8,.2,1);will-change:transform}
 .tile{--r:1rem;flex:0 0 auto;width:20.5rem;height:20.5rem;border-radius:1rem;background:var(--tile);position:relative;box-shadow:var(--shadow);animation:tileIn .45s cubic-bezier(.2,.8,.2,1) both;animation-delay:calc(var(--k,0) * 35ms)}
 .tile img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
-.tile.uninst img{filter:grayscale(.55) brightness(.72)}
+/* Los juegos no instalados se ven a color como los demás; la nube va junto a su nombre (arriba), no en la portada. */
 .badge{position:absolute;width:3.2rem;height:3.2rem;border-radius:50%;background:rgba(0,0,0,.65);display:grid;place-items:center;color:#fff}
 .badge svg{width:1.6rem;height:1.6rem}
 .run{left:.9rem;bottom:.9rem}.run svg{width:1.3rem;margin-left:.2rem}
@@ -1278,7 +1278,6 @@ function tileExtras(g) {
   let h = "";
   if (isMusicTile(g)) { const on = !!(media && media.playing && norm(media.app || "") === norm(g.name)); h += `<span class="playing music${on ? "" : " paused"}"><span class="pav">${avatarHTML()}</span><b><i class="eq"><i></i><i></i><i></i></i>${on ? "Sonando" : "En pausa"}</b></span>`; }
   else if (g.appid === state.running || g.appid === state.side) h += `<span class="playing"><span class="pav">${avatarHTML()}</span><b>Jugando</b></span>`;
-  else if (!g.installed && !state.downloads[g.appid]) h += `<span class="badge cloud">${I.cloud}</span>`;
   const d = state.downloads[g.appid];
   if (d) h += `<div class="dl${d.st === "paused" ? " paused" : d.st === "queued" ? " queued" : ""}" data-dl="${g.appid}" aria-label="${esc(dlLabel(d))}"><b><i style="width:${d.p * 100}%"></i></b></div>`;
   return h;
@@ -1710,7 +1709,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.23";
+let APP_VERSION = "0.4.24";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
