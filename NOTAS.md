@@ -1,7 +1,12 @@
-Novedades de la alpha 0.4.21
+Novedades de la alpha 0.4.22
 
-- Instalar: la ventana de Steam ya no se asoma. Mientras Scarlet maneja la instalación, cualquier ventana de Steam se esconde en cuanto aparece y Scarlet se queda al frente (antes la ventanita de Steam se quedaba con el foco y el mando dejaba de responder en el diálogo de Scarlet).
-- Instalar: Cancelar (o B) cierra el diálogo al instante, aunque Steam todavía no conteste; si Steam alcanza a abrir su asistente después, Scarlet lo cierra.
-- Instalar: si Steam no contesta como Scarlet espera, ya no abre la ventana de Steam por su cuenta: te pregunta si quieres terminar ahí.
-- Instalar: Scarlet entiende mejor las respuestas de Steam (aunque cambien de formato) y detecta que la descarga ya empezó viendo la lista de descargas de Steam.
-- El log guarda lo que Steam contestó en cada paso, para corregir rápido si algo falla.
+- VPN desde Scarlet, para redes que bloquean Steam o Xbox:
+  - Cloudflare WARP (gratis, sin cuenta): si la tienes instalada, aparece el cuadro "VPN" en el menú rápido, junto a Wi-Fi y Modo avión. Arriba sale el chip "VPN" mientras está conectada.
+  - WireGuard: importa un perfil .conf (por ejemplo, el gratis de Proton VPN) desde Descargas. La primera vez Windows pide permiso una sola vez; después se prende y apaga sin preguntar.
+  - Ajustes › VPN: elegir cuál usar, importar o quitar el perfil y los enlaces para descargar WARP o WireGuard.
+- Sin internet:
+  - Si Steam abre sin internet y pregunta "¿Iniciar en modo sin conexión?", esa ventanita ya no se esconde (antes se quedaba esperando y ningún juego abría). Scarlet te avisa qué tocar.
+  - Aviso de "Sin conexión a internet" (y al regresar), el Wi-Fi se atenúa y en el menú rápido dice "Sin internet" cuando hay Wi-Fi pero no internet (hoteles, aeropuertos).
+  - La biblioteca sale al instante con lo guardado, sin esperar a que falle la conexión.
+  - Amigos se muestran "sin conexión" en lugar de con estados viejos.
+  - Si la red bloquea Steam, Scarlet te lo dice y te sugiere prender la VPN.
