@@ -473,6 +473,7 @@ html.overlay #quick{width:100%;box-shadow:none}
 #quick.dense .qmb.big{width:4.3rem;height:4.3rem}
 #quick.dense .qbtns{margin-top:.55rem;gap:.55rem}
 #quick.dense .qhint{padding-top:1rem;margin-top:1rem}
+.diag dd{white-space:pre-wrap;word-break:break-word}
 .qmix .mico{width:2.4rem;height:2.4rem;flex:0 0 auto;border-radius:.55rem;overflow:hidden;background:var(--line)}
 .qmix .mico img{width:100%;height:100%;object-fit:cover;display:block}
 .qmix .mico img.appicon{object-fit:contain;background:#fff;padding:12%;box-sizing:border-box}
@@ -503,7 +504,7 @@ html.overlay #quick{width:100%;box-shadow:none}
 @property --mt2{syntax:"<color>";inherits:true;initial-value:#1f1f1f}
 @property --mt3{syntax:"<color>";inherits:true;initial-value:#1f1f1f}
 #quick{transition:transform .26s cubic-bezier(.2,.9,.25,1),--mt1 1.4s ease,--mt2 1.4s ease,--mt3 1.4s ease}
-#quick.tinted{--bg2:rgba(0,0,0,.26);--bg3:rgba(0,0,0,.26);--fg:#fff;--fg2:rgba(255,255,255,.72);--line:rgba(255,255,255,.2);color:#fff;
+#quick.tinted{--bg2:rgba(0,0,0,.34);--bg3:rgba(0,0,0,.34);--fg:#fff;--fg2:rgba(255,255,255,.72);--line:rgba(255,255,255,.2);color:#fff;
   background:linear-gradient(140deg,var(--mt1),var(--mt2) 45%,var(--mt3) 75%,var(--mt1)),#141414;background-size:260% 260%,auto;animation:qtint 16s ease-in-out infinite alternate}
 #quick.tinted .qmb.big{background:#fff;color:#111}
 @keyframes qtint{0%{background-position:0% 0%,0 0}50%{background-position:100% 60%,0 0}100%{background-position:40% 100%,0 0}}
@@ -622,6 +623,24 @@ body{font-weight:400}
 .playing .pav{width:4.9rem;height:4.9rem;border-radius:50%;overflow:hidden;flex:0 0 auto;background:linear-gradient(140deg,#ff9d4a,#ff4f86);display:grid;place-items:center;color:#fff;font-size:2rem;box-shadow:0 0 0 .15rem rgba(255,255,255,.9)}
 .playing .pav img,.playing .pav video{width:100%;height:100%;object-fit:cover;border-radius:50%}
 .grid .tile .playing{transform:translateX(-50%) scale(.6);transform-origin:50% 100%;bottom:1.2rem;max-width:none}
+/* "♪ Sonando": ecualizador de tres barritas */
+.eq{display:inline-flex;align-items:flex-end;gap:.22rem;height:1.6rem;margin-right:.9rem;font-style:normal}
+.eq i{width:.32rem;border-radius:.2rem;background:currentColor;height:30%;animation:eqb .9s ease-in-out infinite}
+.eq i:nth-child(2){animation-delay:-.3s;animation-duration:.75s}
+.eq i:nth-child(3){animation-delay:-.6s;animation-duration:1.05s}
+@keyframes eqb{0%,100%{height:25%}50%{height:100%}}
+.playing.music b{background:var(--accent);color:#06222c;border-color:#fff}
+.playing.music.paused b{background:#000;color:#fff}
+.paused .eq i,.npchip.paused .eq i{animation-play-state:paused;height:35%}
+/* mini reproductor en la barra de arriba */
+.npchip{display:flex;align-items:center;gap:1rem;height:4.2rem;padding:.5rem 1.4rem .5rem .5rem;border-radius:99rem;background:var(--bg2);color:var(--fg);font-size:1.5rem;max-width:30rem;cursor:pointer}
+.npchip[hidden]{display:none}
+.npchip .npart{width:3.2rem;height:3.2rem;border-radius:50%;flex:none;background:var(--line) center/cover no-repeat;animation:spinDisc 9s linear infinite}
+.npchip.paused .npart{animation-play-state:paused}
+@keyframes spinDisc{to{transform:rotate(360deg)}}
+.npchip .nptxt{display:flex;align-items:center;min-width:0}
+.npchip b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:20rem;order:2}
+.npchip .eq{order:1;height:1.4rem;color:var(--accent)}
 .playing b{height:4.9rem;min-width:14.5rem;display:flex;align-items:center;justify-content:center;padding:0 2.4rem;background:#000;color:#fff;border:.2rem solid #fff;border-radius:99rem;font-weight:400;font-size:2.1rem;white-space:nowrap}
 
 /* pie: sin línea en el inicio, con línea en los menús */
@@ -684,6 +703,7 @@ body{font-weight:400}
   <header class="top">
     <div class="users" id="users"></div>
     <div class="status">
+      <button class="npchip" id="npchip" hidden><span class="npart"></span><span class="nptxt"><b></b><i class="eq"><i></i><i></i><i></i></i></span></button>
       <span class="tvchip">TV</span>
       <span class="clock">--:--</span>
       <svg class="wifi" viewBox="0 0 24 19" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M2.2 6.6a14 14 0 0 1 19.6 0"/><path d="M5.6 10.1a9.2 9.2 0 0 1 12.8 0"/><path d="M9 13.5a4.4 4.4 0 0 1 6 0"/><circle cx="12" cy="16.9" r="1.6" fill="currentColor" stroke="none"/></svg>
@@ -1144,11 +1164,14 @@ const hasAch = g => g.ach && g.ach[1] > 0;
 function tileExtras(g) {
   let h = "";
   if (g.appid === state.running) h += `<span class="playing"><span class="pav">${avatarHTML()}</span><b>Jugando</b></span>`;
+  else if (isMusicTile(g)) h += `<span class="playing music${media.playing ? "" : " paused"}"><span class="pav">${avatarHTML()}</span><b><i class="eq"><i></i><i></i><i></i></i>${media.playing ? "Sonando" : "En pausa"}</b></span>`;
   else if (!g.installed && !state.downloads[g.appid]) h += `<span class="badge cloud">${I.cloud}</span>`;
   const d = state.downloads[g.appid];
   if (d) h += `<div class="dl" data-dl="${g.appid}"><span>${esc(d.kind)} ${Math.round(d.p * 100)} %</span><b><i style="width:${d.p * 100}%"></i></b></div>`;
   return h;
 }
+/* ¿Este mosaico es la app que está sonando (Apple Music, Spotify…)? */
+const isMusicTile = g => !!(media && media.app && g.kind === "app" && g.appid !== state.running && norm(g.name) === norm(media.app));
 function buildTile(g, cls = "tile") {
   const b = document.createElement("button");
   b.className = cls + (g.installed ? "" : " uninst"); b.setAttribute("aria-label", g.name);
@@ -1528,8 +1551,25 @@ const dolbyOn = () => settings.dolbyTag !== false && ATMOS;
 function paintDolby() { const l = $("#launch .ldolby"); if (l) { l.innerHTML = DOLBY_HTML; l.classList.toggle("on", dolbyOn()); } }
 function checkAtmos() { if (!Host.has) return; Host.call("audio.atmos").then(a => { ATMOS = !!a; paintDolby(); }).catch(() => {}); }
 
+/* --- diagnóstico: para mandar una foto cuando algo no cuadra --- */
+function diagView() {
+  return {
+    hints: [["B", "Atrás"], ["A", "Actualizar"]],
+    render(el) { el.innerHTML = head(I.gear, "Diagnóstico", "alpha " + APP_VERSION) + `<div class="vbody"><dl class="kv diag"><dt>Revisando…</dt></dl></div>`; this.load(); },
+    load() {
+      Host.call("diag").then(d => {
+        const dl = $(".diag", this.el); if (!dl || !d) return;
+        dl.innerHTML = Object.entries(d).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>`).join("") +
+          `<dt>Música (Scarlet)</dt><dd>${media ? esc(`${media.title} · ${media.playing ? "sonando" : "en pausa"} · ${media.art ? "con carátula" : "sin carátula"}`) : "nada"}</dd>`;
+      }).catch(() => {});
+    },
+    onKey(k) { if (k === "a") { play("select"); this.load(); return true; } return false; },
+    items() { return []; }
+  };
+}
+
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.7";
+let APP_VERSION = "0.4.8";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2114,6 +2154,7 @@ function settingsView() {
     { label: "Vibración", desc: "Vibración sutil al moverte y seleccionar", val: () => settings.rumble ? "Activada" : "Desactivada", toggle() { settings.rumble = !settings.rumble; } },
     { label: "Aviso de Dolby Atmos", desc: "«Powered by Dolby Atmos» solo cuando Atmos está en uso (Ajustes de Windows › Sonido › Audio espacial)", val: () => settings.dolbyTag === false ? "Nunca" : "Cuando está en uso",
       toggle() { if (settings.dolbyTag === false) delete settings.dolbyTag; else settings.dolbyTag = false; paintDolby(); } },
+    ...(Host.has ? [{ label: "Diagnóstico", desc: "Lo que Scarlet detecta ahora: juego, apps con sonido, Dolby, música, Steam", val: () => "›", act() { openView(diagView()); } }] : []),
     ...(Host.has ? [{ label: "Restablecer sonido", desc: "Quita el silencio a todas las apps (juegos, Scarlet, música) y sube las que quedaron en cero", val: () => "›", act() { Host.call("audio.reset").then(n => toast(n ? "Sonido restablecido" : "Todo ya tenía sonido")).catch(() => toast("No se pudo restablecer")); } }] : []),
     { label: "Ocultar el puntero del mouse", desc: "Como en una consola: no se ve en Scarlet ni en los juegos (sí en el Explorador y Ajustes de Windows)", val: () => settings.hideCursor !== false ? "Activado" : "Desactivado", toggle() { settings.hideCursor = settings.hideCursor === false; document.documentElement.classList.toggle("showcursor", !settings.hideCursor); Host.call("cursor.hide", { on: settings.hideCursor }).catch(() => {}); } },
     { label: "Silenciar al volver al menú", desc: "El juego o video que dejas atrás se calla; la música sigue sonando", val: () => settings.muteBehind !== false ? "Activado" : "Desactivado", toggle() { settings.muteBehind = settings.muteBehind === false; Host.call("audio.mutebehind", { on: settings.muteBehind }).catch(() => {}); } },
@@ -2823,17 +2864,37 @@ function openQuick() {
   QM.open = true; QM.i = 0; QM.m = 2; renderQuick(); tintQuick(); mediaTick();
   if (Host.has) Host.call("media.state").then(m => setMedia(m)).catch(() => {});
   QM.mix = null; QM.outs = null;
-  if (Host.has) Host.call("system.state").then(st => {
-    if (st) {
-      for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; saveSys();
-      const before = qmRows().length, volAt = qmRows().findIndex(r => r.k === "volume");
-      QM.mix = st.mixer || []; QM.outs = st.outputs || []; battInfo = st.battery || null; ATMOS = !!st.atmos;
-      const added = qmRows().length - before;
-      if (QM.open && added > 0 && QM.i > volAt) QM.i += added;   // que el foco no brinque si aparecen filas nuevas
-    }
-    if (QM.open) renderQuick();
-  }).catch(() => {});
+  if (Host.has) {
+    Host.call("system.state").then(st => { if (st) { for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; saveSys(); } if (QM.open) renderQuick(); }).catch(() => {});
+    Host.call("audio.outputs").then(o => qmPatch(() => { QM.outs = o || []; })).catch(() => {});
+    Host.call("battery.info").then(b => { battInfo = b; if (QM.open) renderQuick(); }).catch(() => {});
+    liveQuick();
+    clearInterval(QM.live); QM.live = setInterval(() => { if (!QM.open) return clearInterval(QM.live); liveQuick(); }, 2000);
+  }
   $("#quick").classList.add("show"); $("#qshade").classList.add("show"); play("select");
+}
+/* Cambia filas del menú sin que el foco brinque (si aparecen o desaparecen filas arriba del foco). */
+function qmPatch(fn) {
+  const key = (qmRows()[QM.i] || {}).k, before = qmRows().map(r => r.k).join();
+  fn();
+  if (!QM.open) return;
+  if (qmRows().map(r => r.k).join() === before) return renderQuick();
+  const j = qmRows().findIndex(r => r.k === key); if (j >= 0) QM.i = j; else QM.i = clamp(QM.i, 0, qmRows().length - 1);
+  renderQuick();
+}
+/* Barras de volumen y Dolby en vivo: cada 2 s mientras el menú está abierto. */
+function liveQuick() {
+  Host.call("quick.live").then(r => {
+    if (!r || !QM.open) return;
+    const touching = Date.now() - (QM.mixTouched || 0) < 2500;
+    qmPatch(() => {
+      if (Array.isArray(r.mixer)) {
+        if (touching && QM.mix && QM.mix.length === r.mixer.length) r.mixer.forEach((m, j) => m.volume = QM.mix[j].volume);   // no pelear con lo que estás moviendo
+        QM.mix = r.mixer;
+      }
+      if (typeof r.atmos === "boolean") ATMOS = r.atmos;
+    });
+  }).catch(() => {});
 }
 function closeQuick(stay, why = "B") {
   if (!QM.open) return;
@@ -2869,7 +2930,7 @@ function qmInput(k) {
   if (r.type === "media" && k === "y") { const b = mediaButtons()[0]; if (b.ok) { play("select"); b.run(); } return; }
   if (r.type === "mix" && (k === "left" || k === "right")) {
     const v = clamp(r.m.volume + (k === "right" ? 10 : -10), 0, 100); if (v === r.m.volume) return play("bump");
-    r.m.volume = v; play("tick", v / 50); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {});
+    r.m.volume = v; QM.mixTouched = Date.now(); play("tick", v / 50); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {});
     return renderQuick();
   }
   if (r.type === "output" && (k === "left" || k === "right" || k === "a")) {
@@ -2948,6 +3009,14 @@ function mediaTick() {
     if (cur) cur.textContent = mmss(p);
   }, 500);
 }
+function paintNowPlaying() {
+  const c = $("#npchip"); if (!c || OVERLAY) return;
+  if (!media) { c.hidden = true; return; }
+  c.hidden = false; c.classList.toggle("paused", !media.playing);
+  $(".npart", c).style.backgroundImage = media.art ? `url("${media.art}")` : "";
+  $("b", c).textContent = media.title + (media.artist ? " · " + media.artist.split(" — ")[0] : "");
+  c.onclick = () => { if (mode === "ui" && !QM.open) openQuick(); };
+}
 function setMedia(m) {
   if (m && !m.title) m = null;
   if (m && m.now) m.at = (m.at || m.now) + (Date.now() - m.now);   // reloj de la app → reloj de la página
@@ -2955,6 +3024,10 @@ function setMedia(m) {
   if (QM.open && had !== !!m) QM.i = clamp(QM.i + (m ? 1 : -1), 0, qmRows().length - 1);
   if (QM.open) renderQuick();
   tintQuick();
+  paintNowPlaying();
+  // el mosaico de la app de música: "Sonando" / "En pausa"
+  const sig = m ? `${m.app}|${m.playing}` : "";
+  if (!OVERLAY && sig !== setMedia.sig && typeof renderHome === "function" && mode !== "boot") { setMedia.sig = sig; renderHome(); const lv = views.find(v => v.cols === 6 && v.refresh); if (lv) lv.refresh(true); }
 }
 Events.on("media.changed", setMedia);
 function demoMedia() {
@@ -3001,7 +3074,13 @@ function artColors(img) {
     }
     while (pick.length < 3) pick.push(pick[0] || [40, 40, 40]);
     // Oscurecidos parejo (se conserva qué color es más claro u oscuro) y con tope, para que el texto blanco siempre se lea.
-    return pick.map(([r, g, b]) => { const k = Math.min(0.5, 118 / Math.max(r, g, b, 1)); return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`; });
+    return pick.map(([r, g, b]) => {
+      // más saturado y más brillante que antes, con tope para que el texto blanco siga leyéndose
+      const avg = (r + g + b) / 3, sat = 1.35;
+      [r, g, b] = [r, g, b].map(c => clamp(avg + (c - avg) * sat, 0, 255));
+      const k = Math.min(0.85, 175 / Math.max(r, g, b, 1));
+      return `rgb(${Math.round(r * k)},${Math.round(g * k)},${Math.round(b * k)})`;
+    });
   } catch { return null; }
 }
 

@@ -14,7 +14,6 @@ sealed class MediaService
     readonly ArtCache art;
     public event Action<object> Changed;
     object last;
-    string lastArtKey, lastArtUrl;
 
     public MediaService(ArtCache art) { this.art = art; }
 
@@ -26,6 +25,8 @@ sealed class MediaService
             mgr.SessionsChanged += (_, _) => _ = PickAsync();
             mgr.CurrentSessionChanged += (_, _) => _ = PickAsync();
             await PickAsync();
+            // Cada 30 s se vuelve a verificar que la carátula sea la de la canción que suena.
+            _ = Task.Run(async () => { while (true) { await Task.Delay(30_000); if (session != null) await RefreshAsync(true); } });
         }
         catch (Exception ex) { Log.Error("música", ex); }
     }
@@ -73,9 +74,9 @@ sealed class MediaService
 
     readonly SemaphoreSlim busy = new(1, 1);
 
-    async Task RefreshAsync()
+    async Task RefreshAsync(bool forceArt = false)
     {
-        if (!await busy.WaitAsync(0)) { _ = Task.Delay(250).ContinueWith(_ => RefreshAsync()); return; }
+        if (!await busy.WaitAsync(0)) { _ = Task.Delay(250).ContinueWith(_ => RefreshAsync(forceArt)); return; }
         try
         {
             object state = null;
@@ -87,7 +88,7 @@ sealed class MediaService
                 var tl = s.GetTimelineProperties();
                 if (props != null && !string.IsNullOrEmpty(props.Title))
                 {
-                    string artUrl = await ArtAsync(props) ?? await ItunesArtAsync(props);
+                    string artUrl = await ArtFor(props, forceArt);
                     double dur = tl != null ? (tl.EndTime - tl.StartTime).TotalSeconds : 0;
                     double pos = tl != null ? (tl.Position - tl.StartTime).TotalSeconds : 0;
                     long at = tl != null && tl.LastUpdatedTime.Year > 2000 ? tl.LastUpdatedTime.ToUnixTimeMilliseconds() : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -126,90 +127,137 @@ sealed class MediaService
         aumid.Contains("msedge", StringComparison.OrdinalIgnoreCase) ? "Microsoft Edge" :
         aumid.Contains("chrome", StringComparison.OrdinalIgnoreCase) ? "Chrome" : aumid.Split('!')[0].Split('_')[0];
 
-    /// <summary>La carátula se guarda en la caché (una vez por canción) y se sirve como archivo local.</summary>
-    // Apple Music a veces avisa la canción antes de tener lista la carátula (llega vacía): se vuelve a pedir un par de veces.
-    string retryKey;
+    // ───── Carátula ─────
+    // Al cambiar de canción, Apple Music avisa el título nuevo pero unos segundos sigue mandando la imagen de la canción
+    // anterior; antes se guardaba esa como la nueva. Ahora:
+    //   1) primero el catálogo de iTunes con coincidencia exacta (canción + artista): es la carátula oficial;
+    //   2) si no hay, la imagen de Apple Music, solo si no es la misma de la canción anterior;
+    //   3) si nada, la mejor coincidencia aproximada de iTunes.
+    // Se revisa cada vez que cambia la canción y cada 30 s.
+    string curKey, curArt, curSource, curThumbHash, prevThumbHash;
     int retries;
 
-    async Task<string> ArtAsync(GlobalSystemMediaTransportControlsSessionMediaProperties props)
+    static string Clean(string s) => Regex.Replace((s ?? "").ToLowerInvariant(), @"\s*[\(\[].*?[\)\]]", "").Replace("’", "'").Trim();
+
+    async Task<string> ArtFor(GlobalSystemMediaTransportControlsSessionMediaProperties props, bool force)
     {
-        string key = (props.Title + "|" + props.Artist + "|" + props.AlbumTitle);
-        if (key == lastArtKey) return lastArtUrl;
+        string key = props.Title + "|" + props.Artist + "|" + props.AlbumTitle;
+        if (key != curKey)
+        {
+            if (curThumbHash != null) prevThumbHash = curThumbHash;
+            curKey = key; curArt = null; curSource = null; curThumbHash = null; retries = 0;
+        }
+        if (curSource == "itunes" && !force) return curArt;   // la oficial ya está: no hay nada que revisar
+        if (curArt != null && !force) return curArt;           // los avisos de avance llegan seguido: se revisa al cambiar y cada 30 s
         try
         {
-            string dir = Path.Combine(Paths.Cache, "music");
-            Directory.CreateDirectory(dir);
-            string stem = "music_" + Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(key)))[..16];
-            string file = Directory.EnumerateFiles(dir, stem + ".*").FirstOrDefault();
-            if (file != null && new FileInfo(file).Length < 200) { try { File.Delete(file); } catch { } file = null; }   // guardada vacía antes
-            if (file == null)
+            var (iurl, exact) = await ItunesAsync(props);
+            if (exact && iurl != null) { Use(iurl, "itunes"); return curArt; }
+
+            byte[] bytes = await ThumbBytes(props);
+            if (bytes != null)
             {
-                byte[] bytes = null;
-                if (props.Thumbnail != null)
+                string h = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(bytes))[..16];
+                if (h == prevThumbHash)
                 {
-                    using IRandomAccessStreamWithContentType ras = await props.Thumbnail.OpenReadAsync();
-                    using var input = ras.AsStreamForRead();
-                    using var ms = new MemoryStream();
-                    await input.CopyToAsync(ms);
-                    bytes = ms.ToArray();
+                    Log.Write($"música: la imagen de «{props.Title}» todavía es la de la canción anterior; se vuelve a pedir");
+                    ScheduleRetry();
                 }
-                if (bytes == null || bytes.Length < 200)
+                else if (h != curThumbHash || curArt == null)
                 {
-                    if (retryKey != key) { retryKey = key; retries = 0; }
-                    if (retries < 4)
-                    {
-                        int wait = new[] { 1200, 2500, 5000, 9000 }[retries++];
-                        _ = Task.Delay(wait).ContinueWith(_ => RefreshAsync());
-                    }
-                    else Log.Write($"música: {props.Title} no trae carátula");
-                    return null;
+                    string dir = Path.Combine(Paths.Cache, "music");
+                    Directory.CreateDirectory(dir);
+                    string ext = bytes[0] == 0x89 && bytes[1] == 0x50 ? ".png" : bytes[0] == 0xFF && bytes[1] == 0xD8 ? ".jpg" : bytes[0] == 'R' && bytes[1] == 'I' ? ".webp" : ".png";
+                    string file = Path.Combine(dir, "thumb_" + h + ext);
+                    if (!File.Exists(file)) await File.WriteAllBytesAsync(file, bytes);
+                    curThumbHash = h;
+                    Use(ArtCache.LocalUrl(file), "thumb");
+                    return curArt;
                 }
-                // El tipo real se ve en los primeros bytes (algunas apps lo reportan mal).
-                string ext = bytes[0] == 0x89 && bytes[1] == 0x50 ? ".png" : bytes[0] == 0xFF && bytes[1] == 0xD8 ? ".jpg" : bytes[0] == 'R' && bytes[1] == 'I' ? ".webp" : ".png";
-                file = Path.Combine(dir, stem + ext);
-                await File.WriteAllBytesAsync(file, bytes);
+                else return curArt;
             }
-            lastArtKey = key;
-            lastArtUrl = ArtCache.LocalUrl(file);
-            return lastArtUrl;
+            else ScheduleRetry();
+
+            if (iurl != null && curArt == null) Use(iurl, "itunes~");
         }
-        catch (Exception ex) { Log.Error("música (carátula)", ex); return null; }
+        catch (Exception ex) { Log.Error("música (carátula)", ex); }
+        return curArt;
     }
 
-    // ───── Carátula de respaldo: el catálogo público de iTunes (es la misma carátula de Apple Music) ─────
-    static readonly HttpClient web = new() { Timeout = TimeSpan.FromSeconds(10) };
-    readonly Dictionary<string, string> itunes = new();
+    void Use(string url, string source)
+    {
+        if (curArt != url) Log.Write($"música: carátula {(source == "itunes" ? "oficial (iTunes)" : source == "thumb" ? "de Apple Music" : "aproximada (iTunes)")}");
+        curArt = url; curSource = source;
+    }
 
-    async Task<string> ItunesArtAsync(GlobalSystemMediaTransportControlsSessionMediaProperties props)
+    void ScheduleRetry()
+    {
+        if (retries >= 5) return;
+        int wait = new[] { 1200, 2500, 4500, 8000, 15000 }[retries++];
+        _ = Task.Delay(wait).ContinueWith(_ => RefreshAsync(true));
+    }
+
+    static async Task<byte[]> ThumbBytes(GlobalSystemMediaTransportControlsSessionMediaProperties props)
+    {
+        if (props.Thumbnail == null) return null;
+        try
+        {
+            using IRandomAccessStreamWithContentType ras = await props.Thumbnail.OpenReadAsync();
+            using var input = ras.AsStreamForRead();
+            using var ms = new MemoryStream();
+            await input.CopyToAsync(ms);
+            return ms.Length < 200 ? null : ms.ToArray();
+        }
+        catch { return null; }
+    }
+
+    // Catálogo público de iTunes (misma carátula que Apple Music).
+    static readonly HttpClient web = new() { Timeout = TimeSpan.FromSeconds(10) };
+    readonly Dictionary<string, (string url, bool exact)> itunes = new();
+
+    async Task<(string url, bool exact)> ItunesAsync(GlobalSystemMediaTransportControlsSessionMediaProperties props)
     {
         // Apple Music pone "Artista — Álbum" en el campo de artista.
         string artist = (props.Artist ?? props.AlbumArtist ?? "").Split(new[] { " — ", " - " }, StringSplitOptions.None)[0].Trim();
         string album = props.AlbumTitle;
         if (string.IsNullOrEmpty(album) && (props.Artist ?? "").Contains(" — ")) album = props.Artist.Split(" — ", 2)[1].Trim();
-        string key = artist + "|" + props.Title;
+        string key = artist + "|" + props.Title + "|" + album;
         if (itunes.TryGetValue(key, out var cached)) return cached;
-        itunes[key] = null;   // una sola búsqueda por canción
+        itunes[key] = (null, false);
         try
         {
-            string url = "https://itunes.apple.com/search?entity=song&limit=8&country=mx&term=" + Uri.EscapeDataString($"{artist} {props.Title}");
+            string url = "https://itunes.apple.com/search?entity=song&limit=15&country=mx&term=" + Uri.EscapeDataString($"{artist} {props.Title}");
             using var d = JsonDocument.Parse(await web.GetStringAsync(url));
             var results = d.RootElement.GetProperty("results").EnumerateArray().ToList();
-            if (results.Count == 0) return null;
             static string S(JsonElement e, string k) => e.TryGetProperty(k, out var v) ? v.GetString() ?? "" : "";
-            var best = results.FirstOrDefault(r => S(r, "trackName").Equals(props.Title, StringComparison.OrdinalIgnoreCase) && (string.IsNullOrEmpty(album) || S(r, "collectionName").Equals(album, StringComparison.OrdinalIgnoreCase)));
-            if (best.ValueKind == JsonValueKind.Undefined) best = results.FirstOrDefault(r => S(r, "trackName").Equals(props.Title, StringComparison.OrdinalIgnoreCase));
-            if (best.ValueKind == JsonValueKind.Undefined) best = results[0];
+            bool Title(JsonElement r) => Clean(S(r, "trackName")) == Clean(props.Title);
+            bool Artist(JsonElement r) => artist.Length > 0 && (S(r, "artistName").Contains(artist, StringComparison.OrdinalIgnoreCase) || artist.Contains(S(r, "artistName"), StringComparison.OrdinalIgnoreCase));
+            bool Album(JsonElement r) => !string.IsNullOrEmpty(album) && Clean(S(r, "collectionName")) == Clean(album);
+
+            var best = results.FirstOrDefault(r => Title(r) && Artist(r) && Album(r));
+            bool exact = best.ValueKind != JsonValueKind.Undefined;
+            if (!exact) { best = results.FirstOrDefault(r => Title(r) && Artist(r)); exact = best.ValueKind != JsonValueKind.Undefined; }
+            if (!exact) best = results.FirstOrDefault(r => Artist(r) && Album(r));   // mismo disco: misma portada
+            if (best.ValueKind == JsonValueKind.Undefined) best = results.FirstOrDefault(Title);
+            if (best.ValueKind == JsonValueKind.Undefined) return (null, false);
+            if (!exact && Artist(best) && Album(best)) exact = true;
             string art = Regex.Replace(S(best, "artworkUrl100"), @"/\d+x\d+bb\.", "/600x600bb.");
-            if (art.Length == 0) return null;
+            if (art.Length == 0) return (null, false);
             string local = await this.art.CacheAsync(art, "music");
-            itunes[key] = local;
-            Log.Write($"música: carátula de {props.Title} desde iTunes");
-            return local;
+            itunes[key] = (local, exact);
+            return itunes[key];
         }
-        catch (Exception ex) { Log.Error("música (iTunes)", ex); return null; }
+        catch (Exception ex) { Log.Error("música (iTunes)", ex); itunes.Remove(key); return (null, false); }
     }
 
     public object State => last;
+
+    public string Describe()
+    {
+        var sx = session;
+        if (sx == null) return "nada sonando";
+        return $"{AppName(sx.SourceAppUserModelId)} · «{curKey?.Split('|')[0]}» · carátula {(curSource switch { "itunes" => "oficial (iTunes)", "thumb" => "de la app", "itunes~" => "aproximada", _ => "sin carátula" })}";
+    }
 
     public async Task<bool> CommandAsync(string cmd, double value)
     {

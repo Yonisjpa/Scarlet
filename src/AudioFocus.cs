@@ -92,6 +92,8 @@ static class AudioFocus
     }
 
     static bool steamMuted;
+    public static bool SteamMuted => steamMuted;
+    public static string MutedList() { lock (gate) return string.Join(", ", mutedApps); }
 
     /// <summary>
     /// Steam en silencio: sus sonidos de Big Picture y avisos se oían detrás de Scarlet. Los juegos no se tocan
