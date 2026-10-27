@@ -535,7 +535,7 @@ sealed class MainForm : Form
                 {
                     var live = new Dictionary<string, object>();
                     if (await vol is (true, int vv)) live["volume"] = vv;
-                    if (await bri is (true, int bv)) live["brightness"] = bv;
+                    if (await bri is (true, int briLive)) live["brightness"] = briLive;
                     if (live.Count > 0) r["system"] = live;
                 }
                 return r;
