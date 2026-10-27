@@ -835,8 +835,9 @@ const Snd = {
   },
   /* sonidos propios: archivos en la carpeta "sounds" junto a la app (move.wav, select.wav…) reemplazan a los sintetizados */
   custom: {},
-  async loadCustom(map) {
+  async loadCustom(map, replace) {
     const c = this.ensure(); if (!c || !map) return;
+    if (replace) this.custom = {};
     for (const [name, url] of Object.entries(map)) {
       try { const r = await fetch(url); this.custom[name] = await c.decodeAudioData(await r.arrayBuffer()); }
       catch (e) { console.warn("sonido", name, e); }
@@ -856,10 +857,18 @@ const Snd = {
     s.connect(f).connect(g).connect(this.bus); s.start(at); s.stop(at + dur + .02);
   }
 };
+/* Sonidos de un paquete importado (Switch 2…) que Scarlet sintetizado no tiene: si faltan, suena su equivalente. */
+const SND_ALIAS = { movelist: "move", detail: "select", popupclose: "back", qopen: "select", qclose: "back", on: "select", off: "move", up: "tick", down: "tick", volume: "tick", tab: "move",
+  capture: "notif", recstart: "notif", recstop: "notif", friend: "notif", friendgame: "notif", error: "bump" };
 function play(n, x = 0) {
-  rumble(n);
+  if (n === "move" && Snd.custom.movelist && (views.length || QM.open)) n = "movelist";   // (solo con paquete: ya cargó todo)   // dentro de listas y menús
+  const base = SND_ALIAS[n] || n;
+  rumble(base);
   if (!settings.sound) return;
   if (Snd.custom[n] && Snd.sample(n, n === "tick" ? .85 + x * .15 : 1)) return;
+  const alt = n === "home" ? "back" : SND_ALIAS[n];
+  if (alt && Snd.custom[alt] && Snd.sample(alt, alt === "tick" ? .85 + x * .15 : 1)) return;
+  n = base;
   switch (n) {
     case "move": Snd.click(0, 4300, 5, .022, .32); Snd.tone(0, 2300, 1700, .028, .035); break;
     case "select": Snd.click(0, 2600, 3, .03, .4); Snd.tone(0, 480, 1050, .07, .12); Snd.pluck(.04, 1568, .14, .035); break;
@@ -875,6 +884,20 @@ function play(n, x = 0) {
     case "popup": Snd.click(0, 2600, 3, .03, .4); Snd.tone(0, 480, 1050, .07, .12); Snd.pluck(.04, 1568, .14, .035); break;
     case "boot": Snd.whoosh(0, 300, 2400, .5, .08); [523, 784, 1047].forEach(f => Snd.pluck(.12, f, 1.1, .045)); Snd.pluck(.3, 1568, 1.2, .04); break;
   }
+}
+
+let soundPack = null;
+async function soundPackMenu() {
+  const opts = [{ label: soundPack ? "Buscar otro paquete" : "Importar paquete", value: "import" }];
+  if (soundPack) opts.push({ label: "Volver a los de Scarlet", value: "reset" });
+  const v = await choiceDialog(soundPack ? `Sonidos: ${soundPack}` : "Descarga el paquete (.zip) en Descargas y elige Importar.", opts, 0);
+  if (v === "import") {
+    toast("Buscando paquete…");
+    const r = await Host.call("sounds.import").catch(e => ({ ok: false, error: e.message }));
+    if (r && r.ok) { soundPack = r.name; toast(`Sonidos: ${r.name} (${r.count})`); setTimeout(() => play("select"), 600); }
+    else toast((r && r.error) || "No se pudo importar");
+  } else if (v === "reset") { await Host.call("sounds.reset").catch(() => {}); soundPack = null; toast("Volvieron los sonidos de Scarlet"); }
+  const sv = topView(); if (sv && sv.isSettings && sv.refresh) sv.refresh();
 }
 
 /* ================= vibración ================= */
@@ -917,6 +940,7 @@ const Host = {
   }
 };
 Host.init();
+Events.on("sounds.changed", m => Snd.loadCustom(m || {}, true));   // se importó o quitó un paquete de sonidos
 
 /* ================= datos de ejemplo ================= */
 const SOURCES = { steam: "Steam", epic: "Epic Games", xbox: "Xbox / Game Pass", emu: "Emulador", app: "Aplicación" };
@@ -1372,12 +1396,12 @@ function openView(v, origin) {
   $("#app").append(el);
   views.push(v);
   requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("in")));
-  play(v.cls === "dialog" ? "popup" : "select"); updateFocus();
+  play(v.cls === "dialog" ? "popup" : v.detail ? "detail" : "select"); updateFocus();
 }
 function closeView() {
   const v = views.pop(); v.el.classList.remove("in"); v.el.classList.add("out");
   setTimeout(() => v.el.remove(), 340);
-  play("back"); updateFocus();
+  play(v.cls === "dialog" ? "popupclose" : "back"); updateFocus();
 }
 function closeAllViews() { while (views.length) views.pop().el.remove(); updateFocus(); }
 const head = (icon, title, sub = "") => `<div class="vhead">${icon}<span>${esc(title)}</span><span class="sub">${esc(sub)}</span></div>`;
@@ -1456,6 +1480,7 @@ function propsView(g) {
     return s;
   };
   return {
+    detail: true,
     hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", keepfocus: g.keepFocus ? "Desactivar" : "Activar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
     render(el) {
       this.s = sections();
@@ -1570,7 +1595,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.9";
+let APP_VERSION = "0.4.10";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -1709,7 +1734,7 @@ function artPickerView(g, onChosen) {
       if (k === "lb" || k === "rb") {
         const n = this.items().length; if (!n) return true;
         const i = clamp(this.i + (k === "lb" ? -10 : 10), 0, n - 1);
-        if (i === this.i) bump(this.items()[this.i], k === "lb" ? "up" : "down"); else { this.i = i; play("move"); updateFocus(); }
+        if (i === this.i) bump(this.items()[this.i], k === "lb" ? "up" : "down"); else { this.i = i; play("tab"); updateFocus(); }
         return true;
       }
       return false;
@@ -1767,14 +1792,14 @@ function libraryView() {
       if (k === "lt" || k === "rt") {
         const n = collections().length, c = clamp(lib.col + (k === "lt" ? -1 : 1), 0, n - 1);
         if (c === lib.col) { bump($(".tabs .on", this.el), k === "lt" ? "left" : "right"); return true; }
-        lib.col = c; play("move"); this.refresh(); return true;
+        lib.col = c; play("tab"); this.refresh(); return true;
       }
       if (k === "y") { lib.sort = (lib.sort + 1) % SORTS.length; play("select"); this.refresh(); toast("Orden: " + SORTS[lib.sort]); return true; }
       if (k === "start") { openView(keyboardView(lib.query, txt => { lib.query = txt.trim(); this.refresh(); }, txt => libraryList(txt).length)); return true; }
       if (k === "lb" || k === "rb") {
         const n = this.list.length; if (!n) return true;
         const i = clamp(this.i + (k === "lb" ? -12 : 12), 0, n - 1);
-        if (i === this.i) bump(this.items()[this.i], k === "lb" ? "up" : "down"); else { this.i = i; play("move"); updateFocus(); }
+        if (i === this.i) bump(this.items()[this.i], k === "lb" ? "up" : "down"); else { this.i = i; play("tab"); updateFocus(); }
         return true;
       }
       return false;
@@ -2152,6 +2177,7 @@ function settingsView() {
     { label: "Formato del reloj", desc: "Cómo se muestra la hora en la consola", val: () => settings.clock24 !== false ? "24 horas" : "12 horas (a.m./p.m.)", toggle() { settings.clock24 = settings.clock24 === false; tick(); } },
     { label: "Tema", desc: "Apariencia del menú", val: () => settings.theme === "dark" ? "Oscuro" : "Claro", toggle() { settings.theme = settings.theme === "dark" ? "light" : "dark"; applyTheme(); } },
     { label: "Sonidos del menú", desc: "Efectos al navegar", val: () => settings.sound ? "Activados" : "Desactivados", toggle() { settings.sound = !settings.sound; } },
+    ...(Host.has ? [{ label: "Paquete de sonidos", desc: "Sonidos de un paquete para Steam Deck (carpeta o .zip con pack.json) que tengas en Descargas, Escritorio o Documentos", val: () => soundPack || "Los de Scarlet", act() { soundPackMenu(this); } }] : []),
     { label: "Vibración", desc: "Vibración sutil al moverte y seleccionar", val: () => settings.rumble ? "Activada" : "Desactivada", toggle() { settings.rumble = !settings.rumble; } },
     { label: "Aviso de Dolby Atmos", desc: "«Powered by Dolby Atmos» solo cuando Atmos está en uso (Ajustes de Windows › Sonido › Audio espacial)", val: () => settings.dolbyTag === false ? "Nunca" : "Cuando está en uso",
       toggle() { if (settings.dolbyTag === false) delete settings.dolbyTag; else settings.dolbyTag = false; paintDolby(); } },
@@ -2555,7 +2581,7 @@ function notify(o) {
   play(o.sound || "notif");
   setTimeout(() => { n.classList.add("out"); setTimeout(() => n.remove(), 320); }, 4600);
 }
-function notifyFriend(f) { notify({ icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado" }); }
+function notifyFriend(f) { notify({ sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado" }); }
 function notifyAchievement(g, name, d = {}) { notify({ icon: d.icon ? `<img alt="" src="${esc(d.icon)}">` : I.trophy, image: d.iconPath || "", letter: "★", bg: "#f2c230", fg: "#3a2c00", title: "Logro desbloqueado", text: g ? `${name} · ${g.name}` : name, sound: "achieve" }); }
 function notifyBattery(level) { notify({ icon: I.battLow, title: "Batería baja", text: `Queda ${Math.round(level * 100)} %. Conecta el cargador.` }); }
 function demoFriendOnline(force) {
@@ -2687,7 +2713,7 @@ async function launchGame(g, el, opt = {}) {
   const ok = await waitReady(g);
   if (!ok) {
     L.classList.remove("logo", "show"); mode = "ui";
-    notify({ icon: I.power, title: "No se pudo iniciar", text: g.name });
+    notify({ icon: I.power, title: "No se pudo iniciar", text: g.name, sound: "error" });
     return;
   }
   games.splice(games.indexOf(g), 1); games.unshift(g); g.last = "ahora";
@@ -2880,7 +2906,7 @@ function openQuick() {
     liveQuick(true);
     clearInterval(QM.live); QM.live = setInterval(() => { if (!QM.open) return clearInterval(QM.live); liveQuick(false); }, 2000);
   }
-  $("#quick").classList.add("show"); $("#qshade").classList.add("show"); play("select");
+  $("#quick").classList.add("show"); $("#qshade").classList.add("show"); play("qopen");
   if (OVERLAY && Host.has) requestAnimationFrame(() => requestAnimationFrame(() => Host.call("quick.shown").catch(() => {})));   // ya se dibujó
 }
 /* Cambia filas del menú sin que el foco brinque (si aparecen o desaparecen filas arriba del foco). */
@@ -2912,7 +2938,7 @@ function liveQuick(full) {
 }
 function closeQuick(stay, why = "B") {
   if (!QM.open) return;
-  QM.open = false; $("#quick").classList.remove("show"); $("#qshade").classList.remove("show"); play("back");
+  QM.open = false; $("#quick").classList.remove("show"); $("#qshade").classList.remove("show"); play("qclose");
   clearInterval(QM.live); clearInterval(mediaTimer);   // nada del menú se queda corriendo de fondo
   if (OVERLAY) { if (!stay) setTimeout(() => Host.call("quick.close", { why }).catch(() => {}), 240); return; }
   if (!stay && Host.has && mode === "game") Host.call("game.focus").catch(() => {});
@@ -2945,7 +2971,7 @@ function qmInput(k) {
   if (r.type === "media" && k === "y") { const b = mediaButtons()[0]; if (b.ok) { play("select"); b.run(); } return; }
   if (r.type === "mix" && (k === "left" || k === "right")) {
     const v = clamp(r.m.volume + (k === "right" ? 10 : -10), 0, 100); if (v === r.m.volume) return play("bump");
-    r.m.volume = v; QM.mixTouched = Date.now(); play("tick", v / 50); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {});
+    r.m.volume = v; QM.mixTouched = Date.now(); play("volume", v / 50); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {});
     return renderQuick();
   }
   if (r.type === "output" && (k === "left" || k === "right" || k === "a")) {
@@ -2957,14 +2983,14 @@ function qmInput(k) {
   }
   if (k === "left" || k === "right") {
     const d = k === "right" ? 1 : -1;
-    if (r.type === "slider") { const v = clamp(sys[r.k] + d * 10, 0, 100); if (v === sys[r.k]) return play("bump"); sys[r.k] = v; play("tick", v / 50); applySys(r.k); }
+    if (r.type === "slider") { const v = clamp(sys[r.k] + d * 10, 0, 100); if (v === sys[r.k]) return play("bump"); sys[r.k] = v; play(r.k === "volume" ? "volume" : d > 0 ? "up" : "down", v / 50); applySys(r.k); }
     else if (r.type === "seg") { const j = POWER.findIndex(p => p[0] === sys.power) + d; if (j < 0 || j >= POWER.length) return play("bump"); sys.power = POWER[j][0]; play("move"); applySys("power"); }
     else if (r.type === "btn") { const j = r.k === "sleep" ? QM.i + 1 : QM.i - 1; QM.i = j; play("move"); }
-    else { sys[r.k] = d > 0; play("move"); applySys(r.k); }
+    else { sys[r.k] = d > 0; play(d > 0 ? "on" : "off"); applySys(r.k); }
     return renderQuick();
   }
   if (k === "a") {
-    if (r.type === "switch") { sys[r.k] = !sys[r.k]; play("select"); applySys(r.k); return renderQuick(); }
+    if (r.type === "switch") { sys[r.k] = !sys[r.k]; play(sys[r.k] ? "on" : "off"); applySys(r.k); return renderQuick(); }
     if (r.type === "seg") { const j = (POWER.findIndex(p => p[0] === sys.power) + 1) % POWER.length; sys.power = POWER[j][0]; play("select"); applySys("power"); return renderQuick(); }
     if (OVERLAY && (r.k === "sleep" || r.k === "settings")) {   // lo hace la pantalla principal
       closeQuick(true); return setTimeout(() => Host.call("quick.action", { action: r.k }).catch(() => {}), 240);
@@ -3134,7 +3160,7 @@ let capT = 0, recTimer = 0;
 function captureDown() {
   if (capT) return;
   capT = performance.now();
-  recTimer = setTimeout(() => { if (mode === "game" && !state.overlay) $("#recdot").classList.add("on"); }, 650);
+  recTimer = setTimeout(() => { if (mode === "game" && !state.overlay) { $("#recdot").classList.add("on"); play("recstart"); } }, 650);
 }
 function captureUp() {
   const held = performance.now() - capT; capT = 0; clearTimeout(recTimer); $("#recdot").classList.remove("on");
@@ -3149,7 +3175,7 @@ function saveCapture(type, hostItem) {
   const item = hostItem || { url: shotSvg(g || { appid: 7, name: "Captura" }, Math.floor(Math.random() * 50)), path: `captura_${Date.now()}.png`, game: g ? g.name : "Sistema", date: `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} · ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`, type };
   if (!albumData) albumData = Host.has ? [] : mockAlbum();
   albumData.unshift(item);
-  notify({ icon: item.type === "video" && !item.thumb ? I.album : `<img alt="" src="${esc(item.thumb || item.url)}">`, image: item.type === "video" ? "" : (item.path || ""), letter: "▣", title: type === "video" ? "Video guardado" : "Captura guardada", text: type === "video" ? "Últimos 30 segundos · en el Álbum" : "Guardada en el Álbum" });
+  notify({ icon: item.type === "video" && !item.thumb ? I.album : `<img alt="" src="${esc(item.thumb || item.url)}">`, image: item.type === "video" ? "" : (item.path || ""), letter: "▣", sound: type === "video" ? "recstop" : "capture", title: type === "video" ? "Video guardado" : "Captura guardada", text: type === "video" ? "Últimos 30 segundos · en el Álbum" : "Guardada en el Álbum" });
   if (!hostItem) Host.call("capture.take", { type }).catch(() => {});
 }
 Events.on("capture.saved", d => {
@@ -3494,6 +3520,7 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
     Host.call("cursor.hide", { on: settings.hideCursor !== false }).catch(() => {});
     const st = await Host.call("system.state").catch(() => null); if (st) { Object.assign(sys, st); saveSys(); }
     Host.call("sounds.list").then(m => { if (m && Object.keys(m).length) Snd.loadCustom(m); }).catch(() => {});
+    Host.call("sounds.info").then(i => { soundPack = (i && i.pack) || null; }).catch(() => {});
     const gs = await Host.call("game.state").catch(() => null);
     if (gs && gs.appid && byId(gs.appid)) { state.running = gs.appid; state.adopted = !!gs.ready; }
   }

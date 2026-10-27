@@ -535,6 +535,14 @@ sealed class MainForm : Form
             case "setup.get": return SetupState();
             case "setup.set": return SetupSet(P.S(p, "field"), p);
             case "sounds.list": return SoundsList();
+            case "sounds.info": return new { pack = SoundPack.Current() };
+            case "sounds.import":
+            {
+                var r = await Task.Run(SoundPack.Import);
+                if (r.ok) EmitAll("sounds.changed", SoundsList());
+                return r;
+            }
+            case "sounds.reset": SoundPack.Remove(); EmitAll("sounds.changed", SoundsList()); return true;
             case "clipboard.get": return Clipboard.ContainsText() ? Clipboard.GetText() : "";
             case "app.reload": steam.Reset(); web.CoreWebView2?.Reload(); return true;
             case "app.exit": BeginInvoke(new Action(Close)); return true;
@@ -643,16 +651,20 @@ sealed class MainForm : Form
 
     static string SoundsDir => Path.Combine(AppContext.BaseDirectory, "sounds");
 
-    /// <summary>Sonidos propios que pusiste en la carpeta "sounds" (nombre sin extensión → dirección local).</summary>
+    /// <summary>
+    /// Sonidos propios (nombre sin extensión → dirección local): los de la carpeta "sounds" junto a la app y, encima,
+    /// los del paquete importado (en tus datos de Scarlet, así las actualizaciones no lo borran).
+    /// </summary>
     static Dictionary<string, string> SoundsList()
     {
         var map = new Dictionary<string, string>();
         try
         {
-            if (!Directory.Exists(SoundsDir)) return map;
-            foreach (var f in Directory.EnumerateFiles(SoundsDir))
-                if (Regex.IsMatch(Path.GetExtension(f), @"^\.(wav|mp3|ogg|m4a)$", RegexOptions.IgnoreCase))
-                    map[Path.GetFileNameWithoutExtension(f).ToLowerInvariant()] = ArtCache.LocalUrl(f);
+            foreach (var dir in new[] { SoundsDir, SoundPack.Dir })
+                if (Directory.Exists(dir))
+                    foreach (var f in Directory.EnumerateFiles(dir))
+                        if (Regex.IsMatch(Path.GetExtension(f), @"^\.(wav|mp3|ogg|m4a)$", RegexOptions.IgnoreCase))
+                            map[Path.GetFileNameWithoutExtension(f).ToLowerInvariant()] = ArtCache.LocalUrl(f);
             if (map.Count > 0) Log.Write("sonidos propios: " + string.Join(", ", map.Keys));
         }
         catch (Exception ex) { Log.Error("sonidos", ex); }
@@ -660,7 +672,7 @@ sealed class MainForm : Form
     }
 
     bool Allowed(string path) =>
-        Paths.Under(path, SoundsDir) || Paths.Under(path, Paths.Cache) || Paths.Under(path, steam.SteamPath) || album.Roots().Any(r => Paths.Under(path, r));
+        Paths.Under(path, SoundsDir) || Paths.Under(path, SoundPack.Dir) || Paths.Under(path, Paths.Cache) || Paths.Under(path, steam.SteamPath) || album.Roots().Any(r => Paths.Under(path, r));
 
     static string Mime(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {

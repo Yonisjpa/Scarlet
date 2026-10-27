@@ -16,6 +16,20 @@ en lugar de los sonidos sintetizados. Los que falten se siguen oyendo como antes
   wake      despertar de la suspensión
   boot      al encender
 
+Con un paquete importado (Ajustes › Paquete de sonidos) también se usan:
+
+  movelist     mover dentro de listas y menús        qopen / qclose   abrir / cerrar el menú rápido
+  popup        abrir un diálogo                       popupclose       cerrar un diálogo
+  detail       abrir las propiedades de un juego      tab              cambiar de pestaña (LB / RB)
+  on / off     interruptor prendido / apagado         up / down        subir / bajar el brillo
+  volume       volumen                                friend           amigo conectado
+  friendgame   amigo empezó a jugar                   capture          captura de pantalla
+  recstart     empieza a grabar                       recstop          video guardado
+  error        algo falló (no se pudo iniciar)
+
+Los paquetes importados se guardan en %LOCALAPPDATA%\Scarlet\sounds (ahí no los borra ninguna actualización)
+y tienen prioridad sobre los de esta carpeta.
+
 Consejo: recórtalos cortitos (sin silencio al inicio) para que respondan al instante.
 Si compilas de nuevo, esta carpeta se copia a dist\Scarlet\sounds.
 
