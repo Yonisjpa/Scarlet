@@ -1,5 +1,10 @@
-Novedades de la alpha 0.4.25
+Novedades de la alpha 0.4.26
 
-- Instalar desde Scarlet, la causa real: en la Steam de escritorio, la función que Scarlet usaba para abrir el asistente de instalación no hace nada (Steam la ignora siempre, con o sin VPN). Ahora Scarlet lo abre con el enlace de instalación de Steam, desde dentro de Steam, y su ventana se esconde; tú solo ves el diálogo de Scarlet.
-- Ya no se reinicia Steam cuando no abre el asistente: Steam estaba bien y eso te metía en un círculo de "se está reiniciando".
-- El log anota con qué se abrió el asistente, para revisar rápido si algo falla.
+- Descargas en tiempo real, de verdad: Steam manda su lista de descargas agrupada por dispositivo y el avance por fases; Scarlet ahora lo lee así (antes no encontraba el juego y por eso la franja se quitaba sola y la barra no avanzaba). Si Steam no lo trae en la lista, se usa su avance general o sus archivos.
+- La barra de la franja se llena en azul con el porcentaje real.
+- Menú de descarga (A sobre un juego que se descarga), como en la consola: "Descargando datos…" (o "Instalando archivos…", "En pausa", "En la cola"), barra con porcentaje, tiempo restante, cuánto lleva de cuánto y la velocidad; se actualiza en vivo y se cierra solo al terminar.
+  - Opciones de descarga: Pausar / Reanudar y Cancelar instalación (desinstala en Steam y borra lo descargado; pide confirmar).
+- Abrir un juego con una descarga en curso: Scarlet pregunta "Pausar y jugar", "Cancelar y jugar" o "Seguir descargando" (esta no abre el juego). Si la pausaste para jugar, sigue sola al cerrar el juego.
+- El nombre arriba del juego lleva solo el nombre y su ícono (sin porcentaje).
+- Darle Instalar a un juego que ya está en las descargas de Steam ya no intenta abrir el asistente otra vez.
+- Noticias: un artículo sin texto ya no deja la pantalla en blanco.
