@@ -137,9 +137,15 @@ sealed class QuickOverlay : Form
     /// keepFocus: el menú se dibuja encima sin quitarle el foco al juego (el juego sigue sonando y no se pausa;
     /// los botones le llegan al menú por la app, aunque el juego también los recibe).
     /// </summary>
+    // Juegos que le quitan el foco al menú (Zenless Zone Zero): pelear por él los hacía parpadear en negro.
+    // Con ellos el menú se abre encima sin quitarles el foco y se maneja con los botones que le pasa la app.
+    static readonly HashSet<string> grabbers = new(StringComparer.OrdinalIgnoreCase);
+    static string ExeOf(IntPtr h) => Path.GetFileNameWithoutExtension(Native.WindowProcessPath(h, out _) ?? "");
+
     public bool ShowOver(IntPtr front, bool keepFocus = false)
     {
         if (!ready) { Log.Write("menú rápido: todavía cargando"); return false; }
+        if (!keepFocus && grabbers.Contains(ExeOf(front))) keepFocus = true;
         returnTo = front;
         Place(front);
         IsOpen = true; IsClosing = false; FocusLost = false; drawn = false;
@@ -175,20 +181,21 @@ sealed class QuickOverlay : Form
     /// </summary>
     async Task Reassert()
     {
-        int tries = 0;
         foreach (int ms in new[] { 120, 300, 700 })
         {
             await Task.Delay(ms);
             if (!IsOpen) return;
-            if (Native.GetForegroundWindow() == Handle) continue;
-            tries++;
-            if (Native.ForceForeground(Handle)) web.Focus();
+            IntPtr fg = Native.GetForegroundWindow();
+            if (fg == Handle) continue;
+            // El juego recuperó el foco: ya no se pelea (no se le vuelve a quitar). El menú sigue encima y responde
+            // con los botones que le pasa la app; la próxima vez, con este juego se abre sin quitarle el foco.
+            FocusLost = true;
+            string exe = ExeOf(fg);
+            if (exe.Length > 0 && grabbers.Add(exe))
+                Log.Write($"menú rápido: {Native.Describe(fg)} recupera el foco; desde ahora el menú se abre sin quitárselo{(Native.ExclusiveFullscreen() ? " (pantalla completa exclusiva)" : "")}");
+            Native.SetWindowPos(Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);   // que siga encima
+            return;
         }
-        if (!IsOpen) return;
-        FocusLost = Native.GetForegroundWindow() != Handle;
-        if (tries > 0) Log.Write(FocusLost
-            ? $"menú rápido: {Native.Describe(Native.GetForegroundWindow())} no suelta el foco; el menú se maneja por la app{(Native.ExclusiveFullscreen() ? " (pantalla completa exclusiva)" : "")}"
-            : $"menú rápido: el juego tomó el foco {tries} vez/veces, se recuperó");
     }
 
     bool drawn, reopen, stale;

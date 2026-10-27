@@ -192,12 +192,25 @@ static class AudioMixer
         return v;
     }
 
-    /// <summary>Volumen de una app (todas sus sesiones; Edge suena desde otro proceso con el mismo nombre).</summary>
+    /// <summary>
+    /// Volumen de una app: todas sus sesiones (Edge suena desde otro proceso con el mismo nombre) en TODAS las salidas.
+    /// Antes solo se cambiaba en la salida principal y, si la app sonaba por otra, la barra no hacía nada.
+    /// Después se comprueba que de verdad haya cambiado.
+    /// </summary>
     public static void SetVolume(string exe, int value)
     {
         var ctx = Guid.Empty;
         float level = Math.Clamp(value, 0, 100) / 100f;
-        Each((c2, vol, pid, name) => { if (name.Equals(exe, StringComparison.OrdinalIgnoreCase)) vol.SetMasterVolume(level, ref ctx); });
+        int touched = 0, wrong = 0;
+        Each((c2, vol, pid, name) =>
+        {
+            if (!name.Equals(exe, StringComparison.OrdinalIgnoreCase)) return;
+            vol.SetMasterVolume(level, ref ctx);
+            touched++;
+            if (vol.GetMasterVolume(out float now) == 0 && Math.Abs(now - level) > 0.02f) wrong++;
+        }, allOutputs: true);
+        if (touched == 0) Log.Write($"mezclador: {exe} no tiene sonido en ninguna salida; la barra no tiene qué mover");
+        else if (wrong > 0) Log.Write($"mezclador: {exe} no aceptó el volumen {value} en {wrong} de {touched} sesión/es");
     }
 
     /// <summary>"Restablecer sonido": quita el silencio a todas las apps y sube las que quedaron casi en cero. Devuelve cuántas tocó.</summary>
@@ -222,12 +235,31 @@ static class AudioMixer
         return string.Join(", ", parts);
     }
 
-    static bool Each(Action<IAudioSessionControl2, ISimpleAudioVolume, uint, string> act)
+    /// <param name="allOutputs">Todas las salidas activas (bocinas, audífonos, HDMI); false = solo la principal.</param>
+    static bool Each(Action<IAudioSessionControl2, ISimpleAudioVolume, uint, string> act, bool allOutputs = true)
     {
         try
         {
             var en = Enumerator();
-            if (en.GetDefaultAudioEndpoint(0, 1, out var dev) != 0 || dev == null) return false;
+            var devs = new List<IMMDevice>();
+            if (allOutputs && en.EnumAudioEndpoints(0, 1 /* ACTIVE */, out var col) == 0 && col != null)
+            {
+                col.GetCount(out uint nd);
+                for (uint d = 0; d < nd; d++) if (col.Item(d, out var x) == 0 && x != null) devs.Add(x);
+            }
+            else if (en.GetDefaultAudioEndpoint(0, 1, out var dev) == 0 && dev != null) devs.Add(dev);
+            if (devs.Count == 0) return false;
+            bool any = false;
+            foreach (var dev in devs) any |= EachOn(dev, act);
+            return any;
+        }
+        catch (Exception ex) { Log.Error("mezclador", ex); return false; }
+    }
+
+    static bool EachOn(IMMDevice dev, Action<IAudioSessionControl2, ISimpleAudioVolume, uint, string> act)
+    {
+        try
+        {
             var iid = typeof(IAudioSessionManager2).GUID;
             if (dev.Activate(ref iid, 23, IntPtr.Zero, out object o) != 0 || o is not IAudioSessionManager2 mgr) return false;
             if (mgr.GetSessionEnumerator(out var sessions) != 0 || sessions == null) return false;

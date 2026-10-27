@@ -106,6 +106,12 @@ sealed class Config
     public List<long> PauseOnHome { get; set; } = new();
     /// <summary>Juegos que NO se congelan al ir al Inicio (todos los demás sí, como en una consola; p. ej. juegos en línea).</summary>
     public List<long> NoPauseOnHome { get; set; } = new();
+    /// <summary>Juegos a los que Scarlet les quita los bordes y los estira a toda la pantalla (los que no tienen "ventana sin bordes").</summary>
+    public List<long> Borderless { get; set; } = new();
+    /// <summary>Juegos en pantalla completa exclusiva: el botón Xbox abre el menú en la pantalla de Scarlet (encima no se puede dibujar).</summary>
+    public List<long> FullMenu { get; set; } = new();
+    /// <summary>El .exe de cada juego (se anota al abrirlo), para ajustar sus opciones de Windows.</summary>
+    public Dictionary<string, string> GameExes { get; set; } = new();
     /// <summary>Juegos donde el menú rápido se abre sin quitarles el foco (siguen sonando; también reciben los botones).</summary>
     public List<long> MenuKeepsFocus { get; set; } = new();
     public string InternalDisplay { get; set; } = "";

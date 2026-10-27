@@ -99,7 +99,11 @@ sealed class MainForm : Form
             tracker.ReleaseTopMost += () => TopMost = false;
             // En cuanto el juego abre su ventana, la pantalla de carga deja de taparlo: si no, algunos juegos (RE) no logran
             // pasar a pantalla completa y se quedan en ventana o en negro.
-            tracker.WindowSeen += () => { if (TopMost) { TopMost = false; Log.Write("pantalla de carga: deja pasar al juego"); } };
+            tracker.WindowSeen += () =>
+            {
+                if (TopMost) { TopMost = false; Log.Write("pantalla de carga: deja pasar al juego"); }
+                if (cfg.Borderless.Contains(tracker.AppId)) Compat.MakeBorderless(tracker.Candidate);   // juegos sin "ventana sin bordes"
+            };
             try
             {
                 long running = steam.RunningAppId();   // ¿se reinició la app con un juego abierto?
@@ -244,6 +248,13 @@ sealed class MainForm : Form
             PauseGameIfMarked();
         }
         CheckSideApp();
+        // Juegos sin bordes forzados: si el juego vuelve a ponerse la barra de título (al cambiar de resolución), se le quita otra vez.
+        if (tracker != null && tracker.Active && cfg.Borderless.Contains(tracker.AppId) && borderlessFixes < 20)
+        {
+            IntPtr gw = tracker.Window != IntPtr.Zero ? tracker.Window : tracker.Candidate;
+            if (Compat.HasBorders(gw) && Native.Area(gw) > 200_000 && Compat.MakeBorderless(gw)) borderlessFixes++;
+        }
+        else if (tracker == null || !tracker.Active) borderlessFixes = 0;
         if (!GameFreezer.IsFrozen) CheckHung(front);   // congelado, Windows lo marca "no responde": es normal
         CheckTouchBlocked();
         try { steam.PollDownloads(); } catch (Exception ex) { Log.Error("descargas", ex); }
@@ -331,7 +342,7 @@ sealed class MainForm : Form
                     if (a != null) e["hours"] = Hours(a.Id ?? a.Name ?? "");
                 }
                 lastGames = await WithXboxGamesAsync(lastGames);
-                foreach (var e in lastGames) { e["pause"] = !cfg.NoPauseOnHome.Contains((long)e["appid"]); e["keepFocus"] = cfg.MenuKeepsFocus.Contains((long)e["appid"]); }
+                foreach (var e in lastGames) { e["pause"] = !cfg.NoPauseOnHome.Contains((long)e["appid"]); e["keepFocus"] = cfg.MenuKeepsFocus.Contains((long)e["appid"]); e["borderless"] = cfg.Borderless.Contains((long)e["appid"]); e["fullMenu"] = cfg.FullMenu.Contains((long)e["appid"]); }
                 if (!achKicked)
                 {
                     achKicked = true;
@@ -400,6 +411,25 @@ sealed class MainForm : Form
             }
             case "game.focus": FocusGame(); return true;
             case "app.open": await OpenAlongsideAsync(P.L(p, "appid"), P.S(p, "source")); return true;
+            case "compat.fix":
+            {
+                long id = P.L(p, "appid");
+                string exe = cfg.GameExes.TryGetValue(id.ToString(), out var ge) ? ge : null;
+                var r = await Task.Run(() => Compat.Fix(exe));
+                if (P.B(p, "borderless") && !cfg.Borderless.Contains(id)) { cfg.Borderless.Add(id); cfg.Save(); }
+                if (tracker.Active && tracker.AppId == id && cfg.Borderless.Contains(id)) Compat.MakeBorderless(tracker.Window != IntPtr.Zero ? tracker.Window : tracker.Candidate);
+                return new { r.fso, r.windowedOpt, exe = r.exe != null, r.message };
+            }
+            case "compat.set":
+            {
+                long id = P.L(p, "appid");
+                var list = P.S(p, "what") == "fullMenu" ? cfg.FullMenu : cfg.Borderless;
+                list.Remove(id);
+                if (P.B(p, "on")) list.Add(id);
+                cfg.Save();
+                if (list == cfg.Borderless && P.B(p, "on") && tracker.Active && tracker.AppId == id) Compat.MakeBorderless(tracker.Window != IntPtr.Zero ? tracker.Window : tracker.Candidate);
+                return true;
+            }
             case "media.state": return media.State;
             case "app.icon": return await AppIconAsync(P.L(p, "appid"));
             case "app.info": return new { startup, updated, rolledBack = UpdateService.TakeRolledBackNotice(), version = Application.ProductVersion, dolby = DolbyInstalled() };
@@ -758,6 +788,13 @@ sealed class MainForm : Form
     async void OnGameReady(long appid)
     {
         if (playKey != null) playStart = DateTime.UtcNow;
+        try
+        {
+            IntPtr w = tracker.Window;
+            string exe = w != IntPtr.Zero ? Native.WindowProcessPath(w, out _) : null;
+            if (!string.IsNullOrEmpty(exe) && (!cfg.GameExes.TryGetValue(appid.ToString(), out var old) || old != exe)) { cfg.GameExes[appid.ToString()] = exe; cfg.Save(); }
+        }
+        catch { }
         Emit("game.ready", new { appid });
         await Task.Delay(900);   // la interfaz desvanece la pantalla de carga
         TopMost = false;
@@ -831,26 +868,45 @@ sealed class MainForm : Form
     /// </summary>
     (string exe, uint pid, bool tracked) GameProcess(IntPtr hint, List<AudioMixer.Session> sessions)
     {
-        string Name(uint id) { try { using var gp = Process.GetProcessById((int)id); return gp.ProcessName; } catch { return null; } }
+        string Name(uint id) { try { using var gp = Process.GetProcessById((int)id); return gp.HasExited ? null : gp.ProcessName; } catch { return null; } }
+        uint WinPid(IntPtr h) { if (h == IntPtr.Zero || !Native.IsWindow(h)) return 0; Native.GetWindowThreadProcessId(h, out uint p); return p; }
+        // Carpeta del juego a partir de su .exe (subiendo de bin\x64, Binaries\Win64…): ahí suelen estar también los
+        // procesos que suenan cuando no es el mismo que dibuja la ventana (juegos de Xbox Store, de HoYoverse…).
+        string GameDir(uint p)
+        {
+            string dir = Path.GetDirectoryName(Native.ProcessPath(p) ?? "");
+            for (int i = 0; i < 3 && dir != null && Regex.IsMatch(Path.GetFileName(dir), @"^(bin|binaries|win64|win32|x64|x86|shipping)$", RegexOptions.IgnoreCase); i++) dir = Path.GetDirectoryName(dir);
+            return dir;
+        }
+        // De lo que se sabe del juego, el proceso que de verdad suena (o, si nada suena aún, el de su ventana).
+        (string, uint)? Pick(uint wpid, string dir)
+        {
+            if (sessions != null)
+            {
+                if (wpid != 0 && sessions.FirstOrDefault(x => x.pid == wpid) is { } own) return (own.exe, own.pid);
+                foreach (var d in new[] { dir, wpid != 0 ? GameDir(wpid) : null })
+                    if (!string.IsNullOrEmpty(d) && sessions.FirstOrDefault(x => !NotApps.Contains(x.exe) && !AudioFocus.IsMusic(x.exe) && Paths.Under(Native.ProcessPath(x.pid) ?? "", d)) is { } s) return (s.exe, s.pid);
+            }
+            if (wpid != 0 && Name(wpid) is string n) return (n, wpid);
+            return null;
+        }
         if (tracker != null && tracker.Active)
         {
-            uint gpid = tracker.Pid;
-            if (gpid == 0 && tracker.Window != IntPtr.Zero) Native.GetWindowThreadProcessId(tracker.Window, out gpid);
-            if (gpid == 0 && tracker.Candidate != IntPtr.Zero && Native.IsWindow(tracker.Candidate)) Native.GetWindowThreadProcessId(tracker.Candidate, out gpid);
             string dir = tracker.InstallDir ?? steam.InstallDirOf(tracker.AppId);
-            // Con carpeta conocida, gana el proceso que suena desde ahí (algunos juegos suenan desde otro .exe que su ventana).
-            if (!string.IsNullOrEmpty(dir) && sessions != null)
-            {
-                var s = sessions.FirstOrDefault(x => Paths.Under(Native.ProcessPath(x.pid) ?? "", dir));
-                if (s != null && (gpid == 0 || Name(gpid) is not string n0 || !sessions.Any(x => x.exe.Equals(n0, StringComparison.OrdinalIgnoreCase)))) return (s.exe, s.pid, true);
-            }
-            if (gpid != 0 && Name(gpid) is string n) return (n, gpid, true);
-            return (null, 0, false);   // Scarlet lo sigue pero ya no hay proceso: no se confunde con otra ventana
+            if (string.IsNullOrEmpty(dir) && xbox.Find(tracker.AppId) is { } xg) dir = xg.Dir;
+            foreach (uint wp in new[] { tracker.Pid, WinPid(tracker.Window), WinPid(tracker.Candidate) })
+                if (wp != 0 && Name(wp) != null && Pick(wp, dir) is { } r) return (r.Item1, r.Item2, true);
+            if (Pick(0, dir) is { } rd) return (rd.Item1, rd.Item2, true);
         }
         if (hint != IntPtr.Zero && hint != hMain && hint != hQuick && Native.IsWindow(hint))
         {
-            Native.GetWindowThreadProcessId(hint, out uint hp);
-            if (hp != 0 && Name(hp) is string hn && !NotApps.Contains(hn) && !AudioFocus.IsMusic(hn)) return (hn, hp, false);
+            uint hp = WinPid(hint);
+            if (hp != 0 && Name(hp) is string hn && !NotApps.Contains(hn) && !AudioFocus.IsMusic(hn) && Pick(hp, null) is { } rh)
+            {
+                // Es el juego que Scarlet sigue (su ventana cambió): se le pone su nombre. Si no, es otra app suelta.
+                bool same = tracker != null && tracker.Active && IsGameWindow(hint);
+                return (rh.Item1, rh.Item2, same);
+            }
         }
         return (null, 0, false);
     }
@@ -1234,6 +1290,7 @@ sealed class MainForm : Form
         else freezeFailed = tracker.AppId;
     }
     long freezeFailed;
+    int borderlessFixes;
 
     // ───── Apps abiertas junto al juego (Apple Music, YouTube para ver una guía…) ─────
     long sideAppId; IntPtr sideWindow; string sideExe; DateTime sideSince;
@@ -1599,6 +1656,13 @@ sealed class MainForm : Form
         }
         var fg = Native.GetForegroundWindow();
         if (fg == Handle && web.Visible) { Log.Write("toque: menú rápido de la interfaz"); Emit("quick.toggle", null); return; }
+        // Juegos en pantalla completa exclusiva (encima no se puede dibujar): el menú se abre en la pantalla de Scarlet;
+        // el juego se congela y al cerrarlo regresas a él.
+        if (tracker != null && tracker.Active && tracker.IsReady && cfg.FullMenu.Contains(tracker.AppId))
+        {
+            Log.Write("toque: menú rápido en la pantalla de Scarlet (juego en pantalla completa exclusiva)");
+            BringUiToFront(); Emit("quick.toggle", null); return;
+        }
         if (IsGameBar(fg)) fg = beforeGuide;
         bool keepFocus = tracker != null && tracker.Active && cfg.MenuKeepsFocus.Contains(tracker.AppId);
         if (quick != null && quick.ShowOver(fg, keepFocus)) { xin.ForwardKeys = true; if (!keepFocus) WarnExclusive(); return; }

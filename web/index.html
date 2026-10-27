@@ -1172,7 +1172,11 @@ const state = { running: null, side: null, sleptFromGame: false, downloads: {}, 
 const HOME_MAX = 12;
 /* Juegos ocultos (no salen en el Inicio ni en "Todos") y grupos propios, como en la Switch 2. */
 const isHidden = g => (settings.hidden || []).includes(g.appid);
-const homeGames = () => games.filter(g => !isHidden(g) || g.appid === state.running).slice(0, HOME_MAX);
+/* Orden del Inicio: lo más reciente primero. Un juego que mandas a instalar pasa al primer lugar mientras se descarga
+   y se queda ahí al terminar, como lo más nuevo, hasta que juegues otro. */
+const homeKey = g => Math.max((g.lastTs || 0) * 1000, (settings.installedAt && settings.installedAt[g.appid]) || 0, state.downloads[g.appid] && settings.installedAt && settings.installedAt[g.appid] ? Date.now() : 0);
+const homeGames = () => games.filter(g => !isHidden(g) || g.appid === state.running)
+  .map((g, i) => [g, i]).sort((a, b) => (homeKey(b[0]) - homeKey(a[0])) || (a[1] - b[1])).map(x => x[0]).slice(0, HOME_MAX);
 const groupNames = () => Object.keys(settings.groups || {});
 const inGroup = (g, name) => ((settings.groups || {})[name] || []).includes(g.appid);
 const home = { zone: "games", g: 0, a: 0, t: 0, offset: 0 };
@@ -1476,12 +1480,13 @@ function propsView(g) {
     s.push({ k: "hide", label: isHidden(g) ? "Mostrar en el Inicio" : "Ocultar" });
     if (Host.has && g.kind !== "app") s.push({ k: "pause", label: "Pausar al ir al Inicio" });
     if (Host.has && g.kind !== "app") s.push({ k: "keepfocus", label: "Menú sin quitarle el foco" });
+    if (Host.has && g.kind !== "app") s.push({ k: "compat", label: "Compatibilidad de pantalla" });
     if (state.running === g.appid) s.push({ k: "close", label: g.kind === "app" ? "Cerrar aplicación" : "Cerrar juego" });
     return s;
   };
   return {
     detail: true,
-    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", keepfocus: g.keepFocus ? "Desactivar" : "Activar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
+    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", compat: "Opciones", keepfocus: g.keepFocus ? "Desactivar" : "Activar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
     render(el) {
       this.s = sections();
       el.innerHTML = head(I.gear, g.name, "Opciones") + `<div class="props"><div class="pmenu">${this.s.map((s, i) => `<button class="lrow fi" data-i="${i}"><span class="meta"><b>${esc(s.label)}</b></span></button>`).join("")}</div><div class="ppane"></div></div>`;
@@ -1525,6 +1530,11 @@ function propsView(g) {
         p.innerHTML = `<h2>Pausar al ir al Inicio</h2><p class="note"><b>${g.pause ? "Activado" : "Desactivado"}.</b> Como en la consola: al regresar al Inicio, el juego se congela (no gasta batería ni suena) y sigue justo donde estaba al volver. Viene activado en todos los juegos; desactívalo en juegos en línea o con antitrampas, donde congelarlos puede desconectarte o cerrarlos.</p>`;
       } else if (k === "keepfocus") {
         p.innerHTML = `<h2>Menú sin quitarle el foco</h2><p class="note">${g.keepFocus ? "<b>Activado.</b> " : ""}El menú rápido se abre encima sin que el juego pierda el foco: sigue sonando y no se pausa (útil si el juego se silencia solo al abrir el menú). La contra: el juego también recibe tus botones mientras usas el menú.</p>`;
+      } else if (k === "compat") {
+        p.innerHTML = `<h2>Compatibilidad de pantalla</h2><p class="note">Para juegos sin «ventana sin bordes», donde el menú no se ve encima.<br><br>
+          <b>Forzar ventana sin bordes: ${g.borderless ? "sí" : "no"}.</b> Pon el juego en «ventana» en sus opciones: Scarlet le quita los bordes y lo estira a toda la pantalla.<br>
+          <b>Menú en la pantalla de Scarlet: ${g.fullMenu ? "sí" : "no"}.</b> Para juegos que solo tienen pantalla completa: el botón Xbox abre el menú en Scarlet (el juego se congela mientras tanto).<br><br>
+          A: opciones (también revisa las de Windows).</p>`;
       } else if (k === "close") {
         p.innerHTML = `<h2>${g.kind === "app" ? "Cerrar aplicación" : "Cerrar juego"}</h2><p class="note">Está abierto en segundo plano. Al cerrarlo se perderá el progreso que no hayas guardado.</p>`;
       }
@@ -1545,6 +1555,7 @@ function propsView(g) {
         renderHome(); const lv = views.find(v => v.cols === 6 && v.refresh); if (lv) lv.refresh(true);
         this.render(this.el); updateFocus();
       }
+      else if (k === "compat") { compatMenu(g).then(() => { this.pane("compat"); updateFocus(); }); }
       else if (k === "keepfocus") {
         g.keepFocus = !g.keepFocus; play("select");
         Host.call("game.menufocus", { appid: g.appid, on: g.keepFocus }).catch(() => {});
@@ -1595,7 +1606,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.11";
+let APP_VERSION = "0.4.12";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2616,6 +2627,10 @@ function startDownload(g, kind) {
   renderHome(); const lv = views.find(v => v.refresh && v.list && v.cols === 6); if (lv) lv.refresh(true);
 }
 function startInstall(g) {
+  settings.installedAt = Object.assign({}, settings.installedAt, { [g.appid]: Date.now() }); saveSettings();
+  home.g = 0; renderHome();
+  // Si cancelaste en Steam (no empezó a descargar), deja de estar primero.
+  setTimeout(() => { if (!state.downloads[g.appid] && !g.installed && settings.installedAt) { delete settings.installedAt[g.appid]; saveSettings(); renderHome(); } }, 180000);
   Data.open("steam://install/" + g.appid, "la instalación de " + g.name);
   if (!Host.has) startDownload(g, "Descargando");
 }
@@ -2719,7 +2734,7 @@ async function launchGame(g, el, opt = {}) {
     notify({ icon: I.power, title: "No se pudo iniciar", text: g.name, sound: "error" });
     return;
   }
-  games.splice(games.indexOf(g), 1); games.unshift(g); g.last = "ahora";
+  games.splice(games.indexOf(g), 1); games.unshift(g); g.last = "ahora"; g.lastTs = Math.floor(Date.now() / 1000);
   state.running = g.appid; home.zone = "games"; home.g = 0; home.offset = 0;
   renderHome(); showGame(g);
   L.classList.remove("logo"); await wait(250);
@@ -3157,11 +3172,35 @@ Events.on("quick.toggle", () => QM.open ? closeQuick() : openQuick());
 Events.on("quick.open", () => { lastActivity = performance.now(); dimmed = false; mode = "ui"; QM.open = false; openQuick(); });
 Events.on("quick.close", () => { if (QM.open) closeQuick(false, "botón Xbox"); else Host.call("quick.close", { why: "botón Xbox" }).catch(() => {}); });
 /* Botones que manda la app cuando el juego se quedó con el foco: así el menú siempre se puede usar y cerrar. */
-Events.on("pad.key", k => { if (OVERLAY && QM.open && !document.hasFocus() && typeof k === "string") { lastActivity = performance.now(); input(k); } });
+Events.on("pad.key", k => { if (OVERLAY && QM.open && typeof k === "string") { lastActivity = performance.now(); input(k); } });
 /* El juego está en pantalla completa exclusiva: ahí el menú puede fallar. Encima del juego no se alcanza a ver, así que se avisa al volver al Inicio. */
-let exclusiveWarn = false;
-const flushExclusive = () => { if (!exclusiveWarn || mode !== "ui") return; exclusiveWarn = false; notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4.5" width="19" height="13" rx="2"/><path d="M8 21h8"/></svg>', title: "Pantalla completa exclusiva", text: "Pon el juego en «ventana sin bordes» para que el menú funcione siempre" }); };
-Events.on("game.exclusive", () => { if (OVERLAY) return; exclusiveWarn = true; setTimeout(flushExclusive, 900); });
+let exclusiveWarn = null;
+const flushExclusive = async () => {
+  if (!exclusiveWarn) return;
+  if (mode !== "ui" || views.length) return setTimeout(flushExclusive, 2000);   // en cuanto estés en el Inicio
+  const g = byId(exclusiveWarn); exclusiveWarn = null; if (!g) return;
+  settings.exclusiveAsked = Object.assign({}, settings.exclusiveAsked, { [g.appid]: 1 }); saveSettings();   // se pregunta una sola vez por juego
+  const v = await choiceDialog(`${g.name} está en pantalla completa exclusiva: ahí el menú rápido no se puede dibujar encima.\n¿Lo hago compatible?`, [{ label: "Ahora no", value: null }, { label: "Hacer compatible", value: "fix" }], 1);
+  if (v === "fix") compatFix(g);
+};
+Events.on("game.exclusive", d => { if (OVERLAY || !d || (settings.exclusiveAsked && settings.exclusiveAsked[d.appid])) return; exclusiveWarn = d.appid; setTimeout(flushExclusive, 900); });
+/* Compatibilidad de pantalla: opciones de Windows + ventana sin bordes forzada + menú en la pantalla de Scarlet. */
+async function compatFix(g) {
+  const r = await Host.call("compat.fix", { appid: g.appid, borderless: true }).catch(e => ({ message: "No se pudo: " + e.message }));
+  g.borderless = true;
+  const v = await choiceDialog(`${(r && r.message) || ""}\n\nAhora pon ${g.name} en «ventana» en sus opciones de pantalla: Scarlet le quitará los bordes y lo estirará a toda la pantalla.\nSi el juego solo tiene pantalla completa, elige la otra opción: el menú se abrirá en la pantalla de Scarlet.`,
+    [{ label: "Listo", value: null }, { label: "Solo tiene pantalla completa", value: "full" }], 0);
+  if (v === "full") { g.fullMenu = true; Host.call("compat.set", { appid: g.appid, what: "fullMenu", on: true }).catch(() => {}); toast("El menú se abrirá en la pantalla de Scarlet"); }
+}
+async function compatMenu(g) {
+  const v = await choiceDialog(`Compatibilidad de pantalla · ${g.name}`, [
+    { label: g.borderless ? "Quitar «sin bordes»" : "Forzar sin bordes", value: "b" },
+    { label: g.fullMenu ? "Menú encima del juego" : "Menú en Scarlet", value: "m" },
+    { label: "Revisar Windows", value: "w" }], 0);
+  if (v === "b") { g.borderless = !g.borderless; Host.call("compat.set", { appid: g.appid, what: "borderless", on: g.borderless }).catch(() => {}); toast(g.borderless ? "Se le quitarán los bordes al abrirlo" : "Ya no se le quitan los bordes"); }
+  else if (v === "m") { g.fullMenu = !g.fullMenu; Host.call("compat.set", { appid: g.appid, what: "fullMenu", on: g.fullMenu }).catch(() => {}); toast(g.fullMenu ? "El menú se abrirá en la pantalla de Scarlet" : "El menú se abrirá encima del juego"); }
+  else if (v === "w") { const r = await Host.call("compat.fix", { appid: g.appid, borderless: false }).catch(e => ({ message: "No se pudo: " + e.message })); toast((r && r.message || "").split("\n")[0]); }
+}
 Events.on("ui.settings", () => {
   if (mode === "game") goHome();
   setTimeout(() => { if (mode === "ui" && !(topView() && topView().isSettings)) openView(settingsView()); }, 380);
@@ -3416,7 +3455,9 @@ addEventListener("keyup", e => {
 });
 const pad = { held: {}, next: {} };
 function pollPads(t) {
-  const list = navigator.getGamepads && !(OVERLAY && Host.has && !document.hasFocus()) ? [...navigator.getGamepads()].filter(Boolean) : [];
+  // Encima del juego, los botones llegan siempre por la app (pad.key): el control del navegador dejaba de responder
+  // cuando el juego se quedaba con el foco y el menú no se podía ni cerrar (Zenless Zone Zero).
+  const list = navigator.getGamepads && !(OVERLAY && Host.has) ? [...navigator.getGamepads()].filter(Boolean) : [];
   const p = list[0];
   if (p) {
     lastPad = p;
