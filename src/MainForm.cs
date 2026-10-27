@@ -150,6 +150,13 @@ sealed class MainForm : Form
                 cfg.UiStamp = stamp; cfg.Save();
             }
             cw.Navigate("https://app.scarlet/index.html?v=" + stamp);
+            // Mientras juegas (la interfaz escondida), el motor de la interfaz usa la menor memoria posible: con Stellar
+            // Blade la consola llegó a quedarse con 1.8 GB libres y el juego se trababa mientras Windows usaba el disco.
+            web.VisibleChanged += (_, _) =>
+            {
+                try { cw.MemoryUsageTargetLevel = web.Visible ? CoreWebView2MemoryUsageTargetLevel.Normal : CoreWebView2MemoryUsageTargetLevel.Low; }
+                catch (Exception ex) { Log.Error("memoria de la interfaz", ex); }
+            };
 
             // Menú rápido que se abre encima de los juegos (se prepara oculto).
             try

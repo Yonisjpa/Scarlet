@@ -456,7 +456,23 @@ html.overlay #quick{width:100%;box-shadow:none}
 .qsw::after{content:"";position:absolute;top:.35rem;left:.35rem;width:2.1rem;height:2.1rem;border-radius:50%;background:#fff;transition:transform .15s}
 .qsw.on{background:var(--accent)}.qsw.on::after{transform:translateX(2.2rem)}
 .qbtns{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:.9rem}
-.qbtns .qrow{justify-content:center}
+.qbtns .qrow{justify-content:center;gap:.8rem}
+.qbtns .qrow svg.qi{width:2rem;height:2rem;color:inherit;opacity:.85}
+/* Cuadritos de Wi-Fi y Modo avión */
+.qpair{display:grid;grid-template-columns:1fr 1fr;gap:.9rem}
+.qrow.qtile{flex-direction:column;align-items:flex-start;gap:.7rem;padding:1.3rem 1.5rem;min-height:7.4rem;transition:background .15s,color .15s}
+.qrow.qtile svg.qi{width:2.7rem;height:2.7rem;color:var(--fg2)}
+.qtl{display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.qtl b{font-size:1.6rem;font-weight:700;white-space:nowrap}
+.qtl span{font-size:1.3rem;font-weight:500;color:var(--fg2)}
+.qrow.qtile.on{background:var(--accent);color:#06232a}
+.qrow.qtile.on svg.qi,.qrow.qtile.on .qtl span{color:inherit;opacity:.85}
+/* Las barras de cada app, colgando de "Volumen": se ve que son parte del sonido */
+.qrow.qsub{margin-left:2.8rem;padding:.9rem 1.3rem;font-size:1.45rem;background:color-mix(in srgb,var(--bg2) 82%,transparent)}
+.qrow.qsub::before{content:"";position:absolute;left:-1.7rem;top:-.9rem;width:1.1rem;height:calc(50% + .9rem);border-left:.2rem solid var(--line);border-bottom:.2rem solid var(--line);border-bottom-left-radius:.6rem}
+.qrow.qsub .qlab{flex:0 1 11.5rem}
+.qrow.qsub.muted .mico{opacity:.45}
+.qrow svg.qi.mute{color:var(--fg2)}
 /* menú compacto cuando hay muchas filas (canción + mezclador + salida): todo cabe sin cortarse */
 #quick .qrows{overflow-y:auto;scrollbar-width:none;min-height:0}
 #quick .qrows::-webkit-scrollbar{display:none}
@@ -474,6 +490,9 @@ html.overlay #quick{width:100%;box-shadow:none}
 #quick.dense .qmb.big{width:4.3rem;height:4.3rem}
 #quick.dense .qbtns{margin-top:.55rem;gap:.55rem}
 #quick.dense .qhint{padding-top:1rem;margin-top:1rem}
+#quick.dense .qrow.qtile{min-height:6.2rem;padding:1rem 1.3rem;gap:.5rem}
+#quick.dense .qrow.qsub{padding:.65rem 1.2rem}
+#quick.dense .qpair{gap:.55rem}
 /* Todavía más compacto (canción + varias barras): que siempre se vean Apagar y Ajustes */
 #quick.dense2 .qhead{padding-bottom:.7rem;margin-bottom:.6rem}
 #quick.dense2 .qhead .qclock{font-size:2.3rem}
@@ -489,6 +508,10 @@ html.overlay #quick{width:100%;box-shadow:none}
 #quick.dense2 .mico img{width:2.4rem;height:2.4rem}
 #quick.dense2 .qbtns{margin-top:.4rem;gap:.4rem}
 #quick.dense2 .qhint{padding-top:.6rem;margin-top:.6rem;font-size:1.35rem}
+#quick.dense2 .qrow.qtile{min-height:0;flex-direction:row;align-items:center;padding:.65rem 1.2rem;gap:1rem}
+#quick.dense2 .qrow.qtile svg.qi{width:2.1rem;height:2.1rem}
+#quick.dense2 .qrow.qsub{padding:.45rem 1.1rem}
+#quick.dense2 .qpair{gap:.4rem}
 .diag dd{white-space:pre-wrap;word-break:break-word}
 .qmix .mico{width:2.4rem;height:2.4rem;flex:0 0 auto;border-radius:.55rem;overflow:hidden;background:var(--line)}
 .qmix .mico img{width:100%;height:100%;object-fit:cover;display:block}
@@ -500,13 +523,14 @@ html.overlay #quick{width:100%;box-shadow:none}
 /* Reproduciendo ahora (Apple Music u otra app) */
 .qrow.qmedia{flex-direction:column;align-items:stretch;gap:1.1rem;padding:1.3rem 1.5rem 1.1rem}
 .qmtop{display:flex;align-items:center;gap:1.4rem;min-width:0}
-.qmart{width:7.2rem;height:7.2rem;flex:none;border-radius:.7rem;background:var(--line) center/cover no-repeat;box-shadow:0 .4rem 1.4rem rgba(0,0,0,.35)}
+.qmart{width:8.6rem;height:8.6rem;flex:none;border-radius:.7rem;background:var(--line) center/cover no-repeat;box-shadow:0 .4rem 1.4rem rgba(0,0,0,.35)}
 .qmtxt{min-width:0;flex:1;display:flex;flex-direction:column;gap:.3rem}
 .qmtxt b{font-size:1.75rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qmtxt span{font-size:1.4rem;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qmtxt em{font-style:normal;font-size:1.2rem;color:var(--fg2);opacity:.8}
 .qmprog{display:flex;align-items:center;gap:1rem;font-size:1.25rem;color:var(--fg2);font-variant-numeric:tabular-nums}
-.qmprog .qbar{height:.55rem}
+.qmprog .qbar{height:.7rem;cursor:pointer;position:relative}
+.qmprog .qbar::after{content:"";position:absolute;inset:-1.2rem 0}
 .qmprog .qbar i{transition:none}
 .qmbtns{display:flex;justify-content:center;gap:2.2rem}
 .qmb{width:4.4rem;height:4.4rem;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--fg);position:relative}
@@ -1626,7 +1650,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.17";
+let APP_VERSION = "0.4.18";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2398,7 +2422,7 @@ function mapView() {
   };
 }
 /* --- dibujos de mandos (propios): Ally (tu esquema), estilo Xbox, estilo DualSense --- */
-const padKind = p => p.type === "Integrado" ? "ally" : (p.vendor === 0x054C || /dualsense|dualshock|playstation|ps5|ps4|sony|054c/i.test(p.name)) ? "ps" : (p.vendor === 0x045E || /xbox|xinput|microsoft|045e/i.test(p.name)) ? "xbox" : "generic";
+const padKind = p => p.type === "Integrado" ? "ally" : p.layout === "xbox" || p.layout === "ps" ? p.layout : (p.vendor === 0x054C || /dualsense|dualshock|playstation|ps5|ps4|sony|054c/i.test(p.name)) ? "ps" : (p.vendor === 0x045E || /xbox|xinput|microsoft|045e/i.test(p.name)) ? "xbox" : "generic";
 let artSeq = 0;
 function padArt(kind, big) {
   const H = (k, inner) => `<g data-b="${k}">${inner}</g>`;
@@ -2886,7 +2910,9 @@ const QI = {
   bolt: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg>',
   wifi: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.3a9.5 9.5 0 0 1 13 0M8.6 15.6a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg>',
   out: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4.5" height="6.5" rx="1.5"/><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.5"/></svg>',
-  plane: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M10.5 3.5a1.5 1.5 0 0 1 3 0V9l7.5 4.5V16l-7.5-2.5V18l2.5 2v1.5L12 20.5l-4 1V20l2.5-2v-4.5L3 16v-2.5L10.5 9z"/></svg>'
+  plane: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M10.5 3.5a1.5 1.5 0 0 1 3 0V9l7.5 4.5V16l-7.5-2.5V18l2.5 2v1.5L12 20.5l-4 1V20l2.5-2v-4.5L3 16v-2.5L10.5 9z"/></svg>',
+  power: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>',
+  gear: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'
 };
 const POWER = [["silent", "Silencioso", "13 W"], ["perf", "Rendimiento", "17 W"], ["turbo", "Turbo", "25 W"]];
 const sys = Object.assign({ brightness: 70, volume: 55, power: "perf", wifi: true, airplane: false }, store.get("sys", {}));
@@ -2900,10 +2926,28 @@ const qmRows = () => [
   { k: "brightness", type: "slider", icon: QI.sun, label: "Brillo" },
   { k: "volume", type: "slider", icon: QI.vol, label: "Volumen" },
   ...(QM.mix || []).map(m => ({ k: "mix:" + m.exe, type: "mix", m })),
-  { k: "wifi", type: "switch", icon: QI.wifi, label: "Wi-Fi" },
-  { k: "airplane", type: "switch", icon: QI.plane, label: "Modo avión" },
-  { k: "sleep", type: "btn", label: "Apagar…" }, { k: "settings", type: "btn", label: "Ajustes" }
+  // Interruptores en cuadritos, lado a lado (como el centro de control): ocupan la mitad y se tocan fácil.
+  { k: "wifi", type: "tile", grp: "radio", icon: QI.wifi, label: "Wi-Fi" },
+  { k: "airplane", type: "tile", grp: "radio", icon: QI.plane, label: "Modo avión" },
+  { k: "sleep", type: "btn", grp: "act", icon: QI.power, label: "Apagar…" }, { k: "settings", type: "btn", grp: "act", icon: QI.gear, label: "Ajustes" }
 ];
+/* Filas agrupadas: las que van lado a lado (cuadritos, Apagar/Ajustes) forman un grupo para moverse con la cruceta. */
+function qmGroups(rows) {
+  const g = [];
+  rows.forEach((r, i) => { const last = g[g.length - 1]; if (r.grp && last && last.grp === r.grp) last.items.push(i); else g.push({ grp: r.grp, items: [i] }); });
+  return g;
+}
+/* Íconos que cambian con el valor: volumen con más ondas mientras más alto (tachado en 0); el sol crece con el brillo. */
+function volIcon(v) {
+  const body = '<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/>';
+  const waves = v <= 0 ? '<path d="M16 9.5l5 5M21 9.5l-5 5"/>' : (v >= 34 ? '<path d="M15.5 9a4 4 0 0 1 0 6"/>' : "") + (v >= 67 ? '<path d="M18 6.5a7.5 7.5 0 0 1 0 11"/>' : "");
+  return `<svg class="qi${v <= 0 ? " mute" : ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${body}${waves}</svg>`;
+}
+function sunIcon(v) {
+  const r = 2.6 + v / 100 * 2, a = r + 2.2, b = a + 1 + v / 100 * 1.4;
+  const rays = [0, 45, 90, 135, 180, 225, 270, 315].map(d => { const t = d * Math.PI / 180, c = Math.cos(t), s2 = Math.sin(t); return `M${(12 + c * a).toFixed(2)} ${(12 + s2 * a).toFixed(2)}L${(12 + c * b).toFixed(2)} ${(12 + s2 * b).toFixed(2)}`; }).join("");
+  return `<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="${r.toFixed(2)}"/><path d="${rays}"/></svg>`;
+}
 /* Batería: con datos reales de Windows (si los da). Cargando: cuánto falta para llenarse. */
 let battInfo = null;
 const hmin = m => `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")} min`;
@@ -2929,11 +2973,12 @@ function renderQuick() {
   const rows = qmRows(), q = $("#quick");
   const row = (r, i) => {
     const f = QM.i === i ? " focused" : "";
-    if (r.type === "slider") { const off = r.k === "brightness" && QM.noBri; return `<div class="qrow${f}${off ? " qoff" : ""}">${r.icon}<span class="qlab">${r.label}</span><span class="qbar"><i style="width:${off ? 0 : sys[r.k]}%"></i></span><span class="qval">${off ? "—" : sys[r.k]}</span></div>`; }
+    if (r.type === "slider") { const off = r.k === "brightness" && QM.noBri, v = sys[r.k], ic = r.k === "volume" ? volIcon(v) : sunIcon(off ? 50 : v); return `<div class="qrow${f}${off ? " qoff" : ""}">${ic}<span class="qlab">${r.label}</span><span class="qbar"><i style="width:${off ? 0 : v}%"></i></span><span class="qval">${off ? "—" : v}</span></div>`; }
+    if (r.type === "tile") { const on = !!sys[r.k], st = r.k === "wifi" ? (on ? (navigator.onLine ? "Conectado" : "Encendido") : "Apagado") : (on ? "Activado" : "Desactivado"); return `<div class="qrow qtile${on ? " on" : ""}${f}">${r.icon}<span class="qtl"><b>${r.label}</b><span>${st}</span></span></div>`; }
     if (r.type === "seg") return `<div class="qrow wrap${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qval">${POWER.find(p => p[0] === sys.power)[2]}</span><span class="qseg">${POWER.map(([k, n, w]) => `<span class="${sys.power === k ? "on" : ""}">${n}</span>`).join("")}</span></div>`;
     if (r.type === "switch") return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qsw${sys[r.k] ? " on" : ""}"></span></div>`;
     if (r.type === "media") return mediaCard(f);
-    if (r.type === "mix") { const m = r.m; return `<div class="qrow qmix${f}"><span class="mico">${mixIcon(m)}</span><span class="qlab">${esc(m.name)}</span><span class="qbar"><i style="width:${m.volume}%"></i></span><span class="qval">${m.volume}</span></div>`; }
+    if (r.type === "mix") { const m = r.m; return `<div class="qrow qmix qsub${f}${m.volume <= 0 ? " muted" : ""}"><span class="mico">${mixIcon(m)}</span><span class="qlab">${esc(m.name)}</span><span class="qbar"><i style="width:${m.volume}%"></i></span><span class="qval">${m.volume}</span></div>`; }
     if (r.type === "output") { const o = (QM.outs || []).find(x => x.current) || QM.outs[0]; return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qout">${esc(o ? o.name : "")}</span><span class="qval qarr">‹ ›</span></div>`; }
     return "";
   };
@@ -2942,7 +2987,9 @@ function renderQuick() {
   const rowAt = (r, i) => row(r, i).replace('<div class="qrow', `<div data-qi="${i}" class="qrow`);
   q.innerHTML = `<div class="qhead"><span class="qclock clock">${clockText()}</span><span class="qb"><span class="batt">${Math.round(deviceBatt * 100)} % ${battSvg(deviceBatt)}</span><span>${battEstimate()}</span></span></div>
     ${showDolby ? `<div class="dolby qdolby">${DOLBY_HTML}</div>` : ""}
-    <div class="qrows">${rows.map(rowAt).join("")}<div class="qbtns">${rows.map((r, i) => r.type === "btn" ? `<div data-qi="${i}" class="qrow${QM.i === i ? " focused" : ""}">${r.label}</div>` : "").join("")}</div></div>
+    <div class="qrows">${qmGroups(rows).map(g => g.grp === "radio" ? `<div class="qpair">${g.items.map(i => rowAt(rows[i], i)).join("")}</div>`
+      : g.grp === "act" ? `<div class="qbtns">${g.items.map(i => `<div data-qi="${i}" class="qrow${QM.i === i ? " focused" : ""}">${rows[i].icon || ""}<span>${rows[i].label}</span></div>`).join("")}</div>`
+      : g.items.map(i => rowAt(rows[i], i)).join("")).join("")}</div>
     <div class="qhint"><span class="hint"><span class="glyph">B</span>Cerrar</span><span class="hint"><span class="glyph">◀▶</span>Ajustar</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
   const qr = $(".qrows", q);
   q.classList.remove("dense2");
@@ -2966,6 +3013,8 @@ function qmTouchSetup() {
     Snd.ensure(); lastActivity = performance.now();
     const el = e.target.closest("[data-qi]"); if (!el) return;
     const i = +el.dataset.qi, r = qmRows()[i]; if (!r) return;
+    const seek = e.target.closest(".qmprog .qbar");
+    if (seek && r.type === "media" && media && media.duration) { const b = seek.getBoundingClientRect(); QM.i = i; return mediaSeek((e.clientX - b.left) / b.width * media.duration); }
     const bar = e.target.closest(".qbar");
     if (bar && (r.type === "slider" || r.type === "mix")) { QM.i = i; qmDrag = { r, bar, id: e.pointerId }; qmSetBar(r, qmBarValue(bar, e.clientX)); play(r.k === "volume" || r.type === "mix" ? "volume" : "tick"); }
   });
@@ -2976,7 +3025,7 @@ function qmTouchSetup() {
     if (e.target.closest(".qhint .hint")) { const t = e.target.closest(".qhint .hint").textContent; return qmInput(/Cerrar/.test(t) ? "b" : /Aceptar/.test(t) ? "a" : "right"); }
     const el = e.target.closest("[data-qi]"); if (!el) return;
     const i = +el.dataset.qi, r = qmRows()[i]; if (!r) return;
-    if (e.target.closest(".qbar") && (r.type === "slider" || r.type === "mix")) return;   // ya lo hizo pointerdown
+    if (e.target.closest(".qbar") && (r.type === "slider" || r.type === "mix" || r.type === "media" && e.target.closest(".qmprog"))) return;   // ya lo hizo pointerdown
     QM.i = i;
     if (r.type === "media") {
       const mb = e.target.closest(".qmb");
@@ -3069,13 +3118,19 @@ function setRadio(k, on) {
 function qmInput(k) {
   const rows = qmRows(), r = rows[QM.i], n = rows.length;
   if (k === "b") return closeQuick();
+  const G = qmGroups(rows), gi = G.findIndex(g => g.items.includes(QM.i)), col = gi >= 0 ? G[gi].items.indexOf(QM.i) : 0;
   if (k === "up" || k === "down") {
-    let i = QM.i;
-    if (k === "down") i = r.k === "sleep" || r.k === "settings" ? i : i + 1;
-    else i = r.k === "settings" ? i - 2 : i - 1;
-    if (i < 0 || i >= n || i === QM.i) { play("bump"); return; }
-    QM.i = i; play("move"); return renderQuick();
+    const t = G[gi + (k === "down" ? 1 : -1)];
+    if (!t) { play("bump"); return; }
+    QM.i = t.items[Math.min(col, t.items.length - 1)]; play("move"); return renderQuick();
   }
+  // En los grupos lado a lado (cuadritos, Apagar/Ajustes), izquierda y derecha cambian de cuadro.
+  if ((k === "left" || k === "right") && gi >= 0 && G[gi].items.length > 1) {
+    const j = col + (k === "right" ? 1 : -1);
+    if (j < 0 || j >= G[gi].items.length) { play("bump"); return; }
+    QM.i = G[gi].items[j]; play("move"); return renderQuick();
+  }
+  if (r.type === "media" && (k === "lb" || k === "rb")) return mediaSeek((media ? mediaPos() : 0) + (k === "rb" ? 10 : -10));
   if (r.type === "media" && (k === "left" || k === "right")) {
     const opts = mediaButtons().map((b, j) => b.ok ? j : -1).filter(j => j >= 0);
     const at = opts.indexOf(QM.m), n2 = opts[at + (k === "right" ? 1 : -1)];
@@ -3085,7 +3140,7 @@ function qmInput(k) {
   if (r.type === "media" && k === "a") { const b = mediaButtons()[QM.m]; if (!b || !b.ok) return play("bump"); play("select"); return b.run(); }
   if (r.type === "media" && k === "y") { const b = mediaButtons()[0]; if (b.ok) { play("select"); b.run(); } return; }
   if (r.type === "mix" && (k === "left" || k === "right")) {
-    const v = clamp(r.m.volume + (k === "right" ? 10 : -10), 0, 100); if (v === r.m.volume) return play("bump");
+    const v = clamp(r.m.volume + (k === "right" ? 5 : -5), 0, 100); if (v === r.m.volume) return play("bump");
     r.m.volume = v; QM.mixTouched = Date.now(); play("volume", v / 50); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {});
     return renderQuick();
   }
@@ -3099,14 +3154,14 @@ function qmInput(k) {
   if (k === "left" || k === "right") {
     const d = k === "right" ? 1 : -1;
     if (r.type === "slider" && r.k === "brightness" && QM.noBri) { play("bump"); return toast("Esta pantalla no deja cambiar el brillo desde Windows"); }
-    if (r.type === "slider") { const v = clamp(sys[r.k] + d * 10, 0, 100); if (v === sys[r.k]) return play("bump"); sys[r.k] = v; play(r.k === "volume" ? "volume" : d > 0 ? "up" : "down", v / 50); applySys(r.k); }
+    if (r.type === "slider") { const v = clamp(sys[r.k] + d * 5, 0, 100); if (v === sys[r.k]) return play("bump"); sys[r.k] = v; play(r.k === "volume" ? "volume" : d > 0 ? "up" : "down", v / 50); applySys(r.k); }
     else if (r.type === "seg") { const j = POWER.findIndex(p => p[0] === sys.power) + d; if (j < 0 || j >= POWER.length) return play("bump"); sys.power = POWER[j][0]; play("move"); applySys("power"); }
     else if (r.type === "btn") { const j = r.k === "sleep" ? QM.i + 1 : QM.i - 1; QM.i = j; play("move"); }
     else if (r.type === "switch") { if (sys[r.k] === (d > 0)) return play("bump"); return setRadio(r.k, d > 0); }
     return renderQuick();
   }
   if (k === "a") {
-    if (r.type === "switch") return setRadio(r.k, !sys[r.k]);
+    if (r.type === "switch" || r.type === "tile") return setRadio(r.k, !sys[r.k]);
     if (r.type === "seg") { const j = (POWER.findIndex(p => p[0] === sys.power) + 1) % POWER.length; sys.power = POWER[j][0]; play("select"); applySys("power"); return renderQuick(); }
     if (OVERLAY && (r.k === "sleep" || r.k === "settings")) {   // lo hace la pantalla principal
       closeQuick(true); return setTimeout(() => Host.call("quick.action", { action: r.k }).catch(() => {}), 240);
@@ -3131,7 +3186,14 @@ const MI = {
 };
 let media = null, mediaTimer = 0;
 /* Si la app de música no acepta el botón, el menú vuelve a mostrar cómo está de verdad (no se queda en "pausa" falsa). */
-const mediaCmd = cmd => Host.has ? Host.call("media.cmd", { cmd }).then(ok => { if (ok === false) return Host.call("media.state").then(m => setMedia(m)); }).catch(() => {}) : null;
+const mediaCmd = (cmd, value) => Host.has ? Host.call("media.cmd", { cmd, value: value || 0 }).then(ok => { if (ok === false) return Host.call("media.state").then(m => setMedia(m)); }).catch(() => {}) : null;
+/* Adelantar o regresar la canción (tocando la barra, o LB / RB con la tarjeta de música elegida). */
+function mediaSeek(sec) {
+  if (!media || !media.duration) return play("bump");
+  const t = clamp(sec, 0, media.duration - 1);
+  media.position = t; media.at = Date.now(); play("tick");
+  mediaCmd("seek", t); renderQuick();
+}
 function mediaButtons() {
   const m = media || {};
   return [

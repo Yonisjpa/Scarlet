@@ -95,6 +95,24 @@ static class AudioThread
     }
 }
 
+/// <summary>
+/// La ÚNICA "llave" del audio de Windows en toda la app. Antes había tres clases con el mismo nombre (volumen general,
+/// barras de apps, silenciar el juego) y Windows le da a la app una sola conexión compartida: cuando una la abría con su
+/// llave y otra intentaba usarla con la suya, .NET no las reconocía como la misma y fallaba ("Unable to cast
+/// MMDeviceEnumeratorCom to MMDeviceEnumeratorCom"), y el cambio de volumen no se aplicaba hasta otro intento.
+/// </summary>
+static class AudioCom
+{
+    [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
+    class MMDeviceEnumeratorCom { }
+
+    static object enumerator;
+    static AudioCom() { AudioThread.Reset += () => enumerator = null; }
+
+    /// <summary>La conexión con el audio de Windows (siempre la misma; cada parte la usa con su propia interfaz).</summary>
+    public static object Enumerator => enumerator ??= new MMDeviceEnumeratorCom();
+}
+
 /// <summary>Para que un mismo error no llene el log: se anota una vez por minuto (con cuántas veces se repitió).</summary>
 static class Errors
 {

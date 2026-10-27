@@ -6,8 +6,6 @@ namespace XboxScarlet;
 /// </summary>
 static class AudioMixer
 {
-    [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
-    class MMDeviceEnumeratorCom { }
 
     [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     interface IMMDeviceEnumerator
@@ -112,9 +110,8 @@ static class AudioMixer
     }
 
     // Una sola conexión con el audio de Windows, en el hilo del audio (AudioThread); se rehace si falla.
-    static IMMDeviceEnumerator enumerator;
-    static IMMDeviceEnumerator Enumerator() => enumerator ??= (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
-    static AudioMixer() { AudioThread.Reset += () => { enumerator = null; lock (volCache) volCache.Clear(); }; }
+    static IMMDeviceEnumerator Enumerator() => (IMMDeviceEnumerator)AudioCom.Enumerator;
+    static AudioMixer() { AudioThread.Reset += () => { lock (volCache) volCache.Clear(); masterTargets = default; }; }
 
     // ───── Salidas de audio ─────
 
@@ -232,22 +229,28 @@ static class AudioMixer
     /// por la que esté sonando algo. Antes solo se cambiaba la principal y, si una app sonaba por otra salida (Windows
     /// deja elegir una salida por app), seguía oyéndose con el volumen en 0. En 0 además se silencia.
     /// </summary>
+    // Salidas a las que se les cambia el volumen general (la predeterminada y las que suenan): se guardan 5 s, así
+    // mover la barra varias veces seguidas no vuelve a revisar todas las salidas en cada paso (era lo que se sentía lento).
+    static (DateTime at, List<(IAudioEndpointVolume ev, string name)> list) masterTargets;
+
     static void SetMasterCore(int value)
     {
         var ctx = Guid.Empty;
         float level = Math.Clamp(value, 0, 100) / 100f;
-        var sounding = DevicesWithSound();
-        int done = 0;
-        foreach (var (dev, id, name, isDefault) in Devices())
+        if (masterTargets.list == null || DateTime.Now - masterTargets.at > TimeSpan.FromSeconds(5))
         {
-            if (!isDefault && !sounding.Contains(id)) continue;
-            var ev = EndpointVolume(dev); if (ev == null) continue;
+            var sounding = DevicesWithSound();
+            var list = new List<(IAudioEndpointVolume, string)>();
+            foreach (var (dev, id, name, isDefault) in Devices())
+                if ((isDefault || sounding.Contains(id)) && EndpointVolume(dev) is { } ev) list.Add((ev, name));
+            masterTargets = (DateTime.Now, list);
+        }
+        if (masterTargets.list.Count == 0) { Log.Write("volumen: no encontré ninguna salida de audio"); return; }
+        foreach (var (ev, name) in masterTargets.list)
+        {
             ev.SetMasterVolumeLevelScalar(level, ref ctx);
             ev.SetMute(value == 0, ref ctx);
-            done++;
-            if (ev.GetMasterVolumeLevelScalar(out float now) == 0 && Math.Abs(now - level) > 0.02f) Log.Write($"volumen: {name} no aceptó {value} % (quedó en {(int)Math.Round(now * 100)} %)");
         }
-        if (done == 0) Log.Write("volumen: no encontré ninguna salida de audio");
     }
 
     public static int? GetMaster() => AudioThread.Run(GetMasterCore, (int?)null, 1500);

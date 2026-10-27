@@ -25,6 +25,8 @@ sealed class SystemService
     /// Cambia el brillo y comprueba que haya quedado. Se llama a través de AudioMixer.Queue (solo el último valor): WMI
     /// tarda y antes, al moverlo rápido, los cambios llegaban desordenados y quedaba un valor viejo.
     /// </summary>
+    static volatile int lastBrightness = -1;
+
     public static void SetBrightness(int value)
     {
         byte want = (byte)Math.Clamp(value, 0, 100);
@@ -35,17 +37,22 @@ sealed class SystemService
             foreach (ManagementObject o in s.Get())
                 using (o) { o.InvokeMethod("WmiSetBrightness", new object[] { (uint)0, want }); n++; }
             if (n == 0) { Log.Write("brillo: esta pantalla no deja cambiar el brillo"); return; }
-            int? now = GetBrightness();
-            if (now != null && Math.Abs(now.Value - want) > 3)
-                Log.Write($"brillo: se pidió {want} y quedó en {now} (¿brillo automático de Windows o del fabricante?)");
+            // Windows cambia el brillo con una transición suave: se revisa cuando termina (antes se revisaba al instante
+            // y el log decía "quedó en" el valor de antes). Solo si sigue siendo lo último que pediste.
+            lastBrightness = want;
+            _ = Task.Delay(1500).ContinueWith(_ =>
+            {
+                if (lastBrightness != want) return;
+                int? now = GetBrightness();
+                if (now != null && Math.Abs(now.Value - want) > 3)
+                    Log.Write($"brillo: se pidió {want} y quedó en {now} (¿brillo automático de Windows o del fabricante?)");
+            });
         }
         catch (Exception ex) { Log.Error("brillo", ex); }
     }
 
     // ───── Volumen (Core Audio) ─────
 
-    [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
-    class MMDeviceEnumeratorCom { }
 
     [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     interface IMMDeviceEnumerator
@@ -74,7 +81,7 @@ sealed class SystemService
 
     static IAudioEndpointVolume Endpoint()
     {
-        var en = (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
+        var en = (IMMDeviceEnumerator)AudioCom.Enumerator;
         if (en.GetDefaultAudioEndpoint(0 /* eRender */, 1 /* eMultimedia */, out var dev) != 0 || dev == null) return null;
         var iid = typeof(IAudioEndpointVolume).GUID;
         if (dev.Activate(ref iid, 23 /* CLSCTX_ALL */, IntPtr.Zero, out object o) != 0) return null;

@@ -7,8 +7,6 @@ namespace XboxScarlet;
 /// </summary>
 static class AudioFocus
 {
-    [ComImport, Guid("BCDE0395-E52F-467C-8E3D-C4579291692E")]
-    class MMDeviceEnumeratorCom { }
 
     [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     interface IMMDeviceEnumerator
@@ -203,8 +201,6 @@ static class AudioFocus
         return touched;
     }
 
-    static IMMDeviceEnumerator enumerator;
-    static AudioFocus() { AudioThread.Reset += () => enumerator = null; }
 
     /// <summary>Recorre las sesiones de sonido de las apps en todas las salidas activas (en el hilo del audio).</summary>
     static void Each(Action<ISimpleAudioVolume, string> act) => AudioThread.Run(() => { EachCore(act); return true; }, false);
@@ -213,7 +209,7 @@ static class AudioFocus
     {
         try
         {
-            var en = enumerator ??= (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
+            var en = (IMMDeviceEnumerator)AudioCom.Enumerator;
             if (en.EnumAudioEndpoints(0 /* eRender */, 1 /* ACTIVE */, out var col) != 0 || col == null) return;
             col.GetCount(out uint nd);
             var iid = typeof(IAudioSessionManager2).GUID;

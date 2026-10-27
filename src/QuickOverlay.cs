@@ -112,6 +112,7 @@ sealed class QuickOverlay : Form
         cw.NavigationCompleted += (_, _) =>
         {
             ready = true;
+            if (!IsOpen) SetMemory(false);
             if (reopen && IsOpen) { reopen = false; Post("quick.open"); Log.Write("menú rápido: recargado, se vuelve a abrir"); }
         };
         cw.Navigate("https://app.scarlet/index.html?overlay=quick&v=" + Uri.EscapeDataString(stamp));
@@ -148,6 +149,7 @@ sealed class QuickOverlay : Form
         if (!keepFocus && grabbers.Contains(ExeOf(front))) keepFocus = true;
         returnTo = front;
         Place(front);
+        SetMemory(true);
         IsOpen = true; IsClosing = false; FocusLost = false; drawn = false;
         this.keepFocus = keepFocus;
         Native.SetNoActivate(Handle, keepFocus);
@@ -199,6 +201,13 @@ sealed class QuickOverlay : Form
     }
 
     bool drawn, reopen, stale;
+
+    /// <summary>Cerrado, el menú usa la menor memoria posible (se nota mientras juegas).</summary>
+    void SetMemory(bool open)
+    {
+        try { if (web.CoreWebView2 != null) web.CoreWebView2.MemoryUsageTargetLevel = open ? CoreWebView2MemoryUsageTargetLevel.Normal : CoreWebView2MemoryUsageTargetLevel.Low; }
+        catch { }
+    }
 
     /// <summary>Revisa que haya quedado como panel; si no, lo corrige y lo anota en el log.</summary>
     async Task CheckSize()
@@ -271,6 +280,7 @@ sealed class QuickOverlay : Form
         if (!IsOpen) return;
         IsOpen = false; IsClosing = false; FocusLost = false;
         Hide();
+        SetMemory(false);
         try { Hidden?.Invoke(); } catch { }
         Log.Write($"menú rápido cerrado ({why ?? closeReason ?? "interfaz"})");
         closeReason = null;
