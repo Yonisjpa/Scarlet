@@ -104,6 +104,16 @@ static class Native
     /// <summary>Deja que la app que se va a abrir tome el foco (Scarlet está al frente y le "presta" el permiso).</summary>
     public static void AllowAnyForeground() { try { AllowSetForegroundWindow(-1); } catch { } }
 
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")] static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr value);
+
+    /// <summary>Ventana que no se activa al tocarla ni al mostrarse (WS_EX_NOACTIVATE).</summary>
+    public static void SetNoActivate(IntPtr hWnd, bool on)
+    {
+        long ex = GetWindowLongPtr(hWnd, GWL_EXSTYLE).ToInt64();
+        long want = on ? ex | 0x08000000L : ex & ~0x08000000L;
+        if (want != ex) SetWindowLongPtr(hWnd, GWL_EXSTYLE, new IntPtr(want));
+    }
+
     public static void Minimize(IntPtr hWnd) { if (hWnd != IntPtr.Zero && IsWindow(hWnd)) ShowWindow(hWnd, 6 /* SW_MINIMIZE */); }
 
     /// <summary>¿Hay un juego en pantalla completa exclusiva? Ahí Windows no deja poner nada encima de forma estable.</summary>

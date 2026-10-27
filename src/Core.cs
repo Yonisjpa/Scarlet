@@ -104,6 +104,8 @@ sealed class Config
     public Dictionary<string, long> PlaySeconds { get; set; } = new();
     /// <summary>Juegos que se pausan (se congelan) mientras estás en el Inicio.</summary>
     public List<long> PauseOnHome { get; set; } = new();
+    /// <summary>Juegos donde el menú rápido se abre sin quitarles el foco (siguen sonando; también reciben los botones).</summary>
+    public List<long> MenuKeepsFocus { get; set; } = new();
     public string InternalDisplay { get; set; } = "";
     public int? GameBarNexusBackup { get; set; }
     public int? GameBarLegacyBackup { get; set; }

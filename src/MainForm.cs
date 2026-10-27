@@ -308,7 +308,7 @@ sealed class MainForm : Form
                     if (a != null) e["hours"] = Hours(a.Id ?? a.Name ?? "");
                 }
                 lastGames = await WithXboxGamesAsync(lastGames);
-                foreach (var e in lastGames) e["pause"] = cfg.PauseOnHome.Contains((long)e["appid"]);
+                foreach (var e in lastGames) { e["pause"] = cfg.PauseOnHome.Contains((long)e["appid"]); e["keepFocus"] = cfg.MenuKeepsFocus.Contains((long)e["appid"]); }
                 if (!achKicked)
                 {
                     achKicked = true;
@@ -402,6 +402,7 @@ sealed class MainForm : Form
             case "game.state": return new { appid = tracker.Active ? tracker.AppId : 0, ready = tracker.IsReady };
             case "game.detach":   // dejar la app abierta en segundo plano (música, YouTube) y dejar de seguirla
                 GameFreezer.Resume(); FlushPlay(); playKey = null;
+                detachedApp = tracker.AppId;
                 Log.Write($"{tracker.AppId} queda abierta en segundo plano");
                 tracker.Stop(); steam.SetRunning(0); AudioFocus.RestoreAll();
                 return true;
@@ -446,7 +447,24 @@ sealed class MainForm : Form
                 return true;
             case "system.open": await OpenSystemAsync(P.S(p, "uri")); return true;
             case "system.armoury": return await sys.OpenArmouryAsync();
-            case "system.state": return await sys.StateAsync();
+            case "system.state":
+            {
+                var st = await sys.StateAsync();
+                st["mixer"] = await Task.Run(MixerState);
+                st["outputs"] = await Task.Run(() => AudioMixer.Outputs());
+                st["battery"] = await Task.Run(BatteryInfo);
+                return st;
+            }
+            case "mixer.set": { string exe = P.S(p, "exe"); int v = (int)P.L(p, "value"); _ = Task.Run(() => AudioMixer.SetVolume(exe, v)); return true; }
+            case "audio.output": return await Task.Run(() => AudioMixer.SetOutput(P.S(p, "id")));
+            case "game.menufocus":
+            {
+                long id = P.L(p, "appid");
+                cfg.MenuKeepsFocus.Remove(id);
+                if (P.B(p, "on")) cfg.MenuKeepsFocus.Add(id);
+                cfg.Save();
+                return true;
+            }
             case "system.brightness": { int v = (int)P.L(p, "value"); _ = Task.Run(() => SystemService.SetBrightness(v)); return true; }
             case "system.volume": SystemService.SetVolume((int)P.L(p, "value")); return true;
             case "system.power": SystemService.SetPower(P.S(p, "profile")); return true;
@@ -693,6 +711,89 @@ sealed class MainForm : Form
         TopMost = false;
         ShowUi();
         Emit("game.exited", new { appid });
+    }
+
+    long detachedApp;   // la última app que dejaste abierta en segundo plano (para ponerle nombre e ícono en el mezclador)
+
+    static readonly HashSet<string> NotApps = new(StringComparer.OrdinalIgnoreCase)
+    { "Scarlet", "msedgewebview2", "steam", "steamwebhelper", "explorer", "ShellExperienceHost", "SystemSettings", "audiodg", "GameBar", "ArmouryCrate", "ArmouryCrateSE", "RuntimeBroker" };
+
+    /// <summary>Una entrada de la biblioteca (nombre, ícono) para un id; si no está, un nombre suelto.</summary>
+    Dictionary<string, object> Entry(long appid, string exe, string fallbackName, int volume, string key)
+    {
+        var g = appid != 0 ? lastGames.FirstOrDefault(e => (long)e["appid"] == appid) : null;
+        return new Dictionary<string, object>
+        {
+            ["key"] = key, ["exe"] = exe, ["volume"] = volume, ["appid"] = appid,
+            ["name"] = g?["name"] ?? fallbackName, ["source"] = g?["source"] ?? "app", ["kind"] = g?["kind"] ?? "app",
+            ["art"] = g != null && g.TryGetValue("art", out var a) ? a : null
+        };
+    }
+
+    /// <summary>
+    /// Dos barras de volumen solo si suenan dos cosas a la vez: el juego (o app) en curso y otra app (Apple Music, YouTube…).
+    /// Si no, lista vacía y el menú se queda con su volumen general.
+    /// </summary>
+    List<Dictionary<string, object>> MixerState()
+    {
+        var empty = new List<Dictionary<string, object>>();
+        try
+        {
+            if (tracker == null || !tracker.Active || tracker.Pid == 0) return empty;
+            string gameExe;
+            try { using var gp = Process.GetProcessById((int)tracker.Pid); gameExe = gp.ProcessName; } catch { return empty; }
+            var sessions = AudioMixer.Sessions();
+            var other = sessions.Where(s => s.active && !s.exe.Equals(gameExe, StringComparison.OrdinalIgnoreCase) && !NotApps.Contains(s.exe))
+                                .OrderByDescending(s => AudioFocus.IsMusic(s.exe)).FirstOrDefault();
+            if (other == null) return empty;
+            int gameVol = sessions.FirstOrDefault(s => s.exe.Equals(gameExe, StringComparison.OrdinalIgnoreCase))?.volume ?? 100;
+
+            // ¿Qué app es? Apps de la Store por su carpeta; Edge/YouTube por la que dejaste abierta; si no, el nombre del programa.
+            long otherId = 0; string otherName = other.exe;
+            string path = Native.ProcessPath(other.pid) ?? "";
+            var store = xbox.Games.FirstOrDefault(x => x.IsApp && !string.IsNullOrEmpty(x.Dir) && Paths.Under(path, x.Dir));
+            if (store != null) { otherId = store.AppId; otherName = store.Name; }
+            else
+            {
+                var app = apps.FirstOrDefault(a => a.AppId == detachedApp) is AppEntry d && Path.GetFileNameWithoutExtension(d.Exec ?? "").Equals(other.exe, StringComparison.OrdinalIgnoreCase)
+                    ? d : apps.FirstOrDefault(a => Path.GetFileNameWithoutExtension(a.Exec ?? "").Equals(other.exe, StringComparison.OrdinalIgnoreCase));
+                if (app != null) { otherId = app.AppId; otherName = app.Name; }
+                else try { otherName = FileVersionInfo.GetVersionInfo(path).FileDescription is string fd && fd.Length > 0 ? fd : other.exe; } catch { }
+            }
+            return new List<Dictionary<string, object>>
+            {
+                Entry(tracker.AppId, gameExe, gameExe, gameVol, "game"),
+                Entry(otherId, other.exe, otherName, other.volume, "app")
+            };
+        }
+        catch (Exception ex) { Log.Error("mezclador (estado)", ex); return empty; }
+    }
+
+    /// <summary>Batería con datos reales de Windows: si carga, cuánto falta para llenarse; si no, cuánto queda.</summary>
+    static object BatteryInfo()
+    {
+        try
+        {
+            long rate = 0, remaining = 0, full = 0; bool charging = false, any = false;
+            using (var s = new System.Management.ManagementObjectSearcher(@"root\WMI", "SELECT ChargeRate, DischargeRate, RemainingCapacity, Charging FROM BatteryStatus"))
+                foreach (System.Management.ManagementObject o in s.Get())
+                    using (o)
+                    {
+                        any = true;
+                        charging |= o["Charging"] is bool c && c;
+                        remaining += Convert.ToInt64(o["RemainingCapacity"] ?? 0);
+                        rate += charging ? Convert.ToInt64(o["ChargeRate"] ?? 0) : Convert.ToInt64(o["DischargeRate"] ?? 0);
+                    }
+            using (var s = new System.Management.ManagementObjectSearcher(@"root\WMI", "SELECT FullChargedCapacity FROM BatteryFullChargedCapacity"))
+                foreach (System.Management.ManagementObject o in s.Get()) using (o) full += Convert.ToInt64(o["FullChargedCapacity"] ?? 0);
+            if (!any) return null;
+            var ps = SystemInformation.PowerStatus;
+            bool plugged = ps.PowerLineStatus == PowerLineStatus.Online;
+            int? toFull = charging && rate > 0 && full > remaining ? (int)Math.Round((full - remaining) * 60.0 / rate) : null;
+            int? left = !plugged && rate > 0 ? (int)Math.Round(remaining * 60.0 / rate) : ps.BatteryLifeRemaining > 0 ? ps.BatteryLifeRemaining / 60 : null;
+            return new { charging, plugged, minutesToFull = toFull, minutesLeft = plugged ? null : left };
+        }
+        catch (Exception ex) { Log.Error("batería", ex); return null; }
     }
 
     static bool? dolby;
@@ -1034,7 +1135,8 @@ sealed class MainForm : Form
         var fg = Native.GetForegroundWindow();
         if (fg == Handle && web.Visible) { Log.Write("toque: menú rápido de la interfaz"); Emit("quick.toggle", null); return; }
         if (IsGameBar(fg)) fg = beforeGuide;
-        if (quick != null && quick.ShowOver(fg)) { xin.ForwardKeys = true; WarnExclusive(); return; }
+        bool keepFocus = tracker != null && tracker.Active && cfg.MenuKeepsFocus.Contains(tracker.AppId);
+        if (quick != null && quick.ShowOver(fg, keepFocus)) { xin.ForwardKeys = true; if (!keepFocus) WarnExclusive(); return; }
         Log.Write("toque: menú rápido en la interfaz (el panel no está listo)");
         BringUiToFront(); Emit("quick.toggle", null);
     }

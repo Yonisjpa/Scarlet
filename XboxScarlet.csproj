@@ -19,8 +19,8 @@
     <RootNamespace>XboxScarlet</RootNamespace>
     <ApplicationIcon>scarlet.ico</ApplicationIcon>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
-    <Version>0.4.5</Version>
-    <InformationalVersion>0.4.5</InformationalVersion>
+    <Version>0.4.6</Version>
+    <InformationalVersion>0.4.6</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>Scarlet</Product>
     <Company>Proyecto personal</Company>

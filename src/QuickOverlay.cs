@@ -83,12 +83,30 @@ sealed class QuickOverlay : Form
     public bool IsClosing { get; private set; }
 
     /// <summary>Abre el panel encima de la ventana que estaba al frente (a la que se regresa al cerrar).</summary>
-    public bool ShowOver(IntPtr front)
+    bool keepFocus;
+    protected override bool ShowWithoutActivation => keepFocus;
+
+    /// <summary>
+    /// keepFocus: el menú se dibuja encima sin quitarle el foco al juego (el juego sigue sonando y no se pausa;
+    /// los botones le llegan al menú por la app, aunque el juego también los recibe).
+    /// </summary>
+    public bool ShowOver(IntPtr front, bool keepFocus = false)
     {
         if (!ready) { Log.Write("menú rápido: todavía cargando"); return false; }
         returnTo = front;
         Place();
         IsOpen = true; IsClosing = false; FocusLost = false;
+        this.keepFocus = keepFocus;
+        Native.SetNoActivate(Handle, keepFocus);
+        if (keepFocus)
+        {
+            Show();
+            Native.SetWindowPos(Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010 /* NOSIZE | NOMOVE | NOACTIVATE */);
+            FocusLost = true;
+            Post("quick.open");
+            Log.Write($"menú rápido abierto sobre {Native.Describe(front)} (sin quitarle el foco)");
+            return true;
+        }
         Show();
         Native.SetWindowPos(Handle, new IntPtr(-1) /* HWND_TOPMOST */, 0, 0, 0, 0, 0x0001 | 0x0002 /* NOSIZE | NOMOVE */);
         bool got = Native.ForceForeground(Handle);

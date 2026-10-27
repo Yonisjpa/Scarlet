@@ -456,6 +456,29 @@ html.overlay #quick{width:100%;box-shadow:none}
 .qsw.on{background:var(--accent)}.qsw.on::after{transform:translateX(2.2rem)}
 .qbtns{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-top:.9rem}
 .qbtns .qrow{justify-content:center}
+/* menú compacto cuando hay muchas filas (canción + mezclador + salida): todo cabe sin cortarse */
+#quick .qrows{overflow-y:auto;scrollbar-width:none;min-height:0}
+#quick .qrows::-webkit-scrollbar{display:none}
+#quick.dense .qhead{padding-bottom:1.1rem;margin-bottom:1rem}
+#quick.dense .qhead .qclock{font-size:2.7rem}
+#quick.dense .qdolby{padding:.55rem 0;margin:-.2rem 0 .9rem}
+#quick.dense .qdolby .dlogo{height:1.45rem}
+#quick.dense .qrows{gap:.55rem}
+#quick.dense .qrow{padding:.8rem 1.3rem;font-size:1.5rem}
+#quick.dense .qrow svg.qi{width:2.1rem;height:2.1rem}
+#quick.dense .qrow.qmedia{gap:.6rem;padding:.9rem 1.3rem .7rem}
+#quick.dense .qmart{width:5.4rem;height:5.4rem}
+#quick.dense .qmtxt b{font-size:1.55rem}
+#quick.dense .qmb{width:3.7rem;height:3.7rem}
+#quick.dense .qmb.big{width:4.3rem;height:4.3rem}
+#quick.dense .qbtns{margin-top:.55rem;gap:.55rem}
+#quick.dense .qhint{padding-top:1rem;margin-top:1rem}
+.qmix .mico{width:2.4rem;height:2.4rem;flex:0 0 auto;border-radius:.55rem;overflow:hidden;background:var(--line)}
+.qmix .mico img{width:100%;height:100%;object-fit:cover;display:block}
+.qmix .mico img.appicon{object-fit:contain;background:#fff;padding:12%;box-sizing:border-box}
+.qmix .qlab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qout{flex:1;min-width:0;text-align:right;font-size:1.4rem;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qarr{flex:0 0 auto;color:var(--accent)}
 .qhint{display:flex;justify-content:flex-end;gap:2rem;font-size:1.4rem;font-weight:700;padding-top:1.4rem;border-top:1px solid var(--line);margin-top:1.4rem}
 /* Reproduciendo ahora (Apple Music u otra app) */
 .qrow.qmedia{flex-direction:column;align-items:stretch;gap:1.1rem;padding:1.3rem 1.5rem 1.1rem}
@@ -1404,11 +1427,12 @@ function propsView(g) {
     s.push({ k: "groups", label: "Grupos" });
     s.push({ k: "hide", label: isHidden(g) ? "Mostrar en el Inicio" : "Ocultar" });
     if (Host.has && g.kind !== "app") s.push({ k: "pause", label: "Pausar al ir al Inicio" });
+    if (Host.has && g.kind !== "app") s.push({ k: "keepfocus", label: "Menú sin quitarle el foco" });
     if (state.running === g.appid) s.push({ k: "close", label: g.kind === "app" ? "Cerrar aplicación" : "Cerrar juego" });
     return s;
   };
   return {
-    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
+    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", keepfocus: g.keepFocus ? "Desactivar" : "Activar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
     render(el) {
       this.s = sections();
       el.innerHTML = head(I.gear, g.name, "Opciones") + `<div class="props"><div class="pmenu">${this.s.map((s, i) => `<button class="lrow fi" data-i="${i}"><span class="meta"><b>${esc(s.label)}</b></span></button>`).join("")}</div><div class="ppane"></div></div>`;
@@ -1450,6 +1474,8 @@ function propsView(g) {
         p.innerHTML = isHidden(g) ? `<h2>Mostrar en el Inicio</h2><p class="note">Ahora está oculto: solo aparece en la pestaña "Ocultos" de la Biblioteca.</p>` : `<h2>Ocultar</h2><p class="note">Deja de aparecer en el Inicio y en la Biblioteca. Lo encuentras en la pestaña "Ocultos" para volver a mostrarlo.</p>`;
       } else if (k === "pause") {
         p.innerHTML = `<h2>Pausar al ir al Inicio</h2><p class="note">${g.pause ? "<b>Activado.</b> " : ""}Al regresar al Inicio con el botón Xbox, el juego se congela (no gasta batería) y sigue justo donde estaba al volver. No lo actives en juegos en línea: congelarlos puede desconectarte.</p>`;
+      } else if (k === "keepfocus") {
+        p.innerHTML = `<h2>Menú sin quitarle el foco</h2><p class="note">${g.keepFocus ? "<b>Activado.</b> " : ""}El menú rápido se abre encima sin que el juego pierda el foco: sigue sonando y no se pausa (útil si el juego se silencia solo al abrir el menú). La contra: el juego también recibe tus botones mientras usas el menú.</p>`;
       } else if (k === "close") {
         p.innerHTML = `<h2>${g.kind === "app" ? "Cerrar aplicación" : "Cerrar juego"}</h2><p class="note">Está abierto en segundo plano. Al cerrarlo se perderá el progreso que no hayas guardado.</p>`;
       }
@@ -1469,6 +1495,12 @@ function propsView(g) {
         toast(isHidden(g) ? `${g.name} se ocultó` : `${g.name} vuelve al Inicio`);
         renderHome(); const lv = views.find(v => v.cols === 6 && v.refresh); if (lv) lv.refresh(true);
         this.render(this.el); updateFocus();
+      }
+      else if (k === "keepfocus") {
+        g.keepFocus = !g.keepFocus; play("select");
+        Host.call("game.menufocus", { appid: g.appid, on: g.keepFocus }).catch(() => {});
+        toast(g.keepFocus ? "El menú ya no le quitará el foco" : "El menú vuelve a tomar el foco");
+        this.pane("keepfocus"); updateFocus();
       }
       else if (k === "pause") {
         g.pause = !g.pause; play("select");
@@ -1494,7 +1526,7 @@ const dolbyOn = () => settings.dolbyTag === true || (settings.dolbyTag == null &
 function paintDolby() { const l = $("#launch .ldolby"); if (l) { l.innerHTML = DOLBY_HTML; l.classList.toggle("on", dolbyOn()); } }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.5";
+let APP_VERSION = "0.4.6";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2721,6 +2753,7 @@ const QI = {
   vol: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>',
   bolt: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg>',
   wifi: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.3a9.5 9.5 0 0 1 13 0M8.6 15.6a5 5 0 0 1 6.8 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg>',
+  out: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4.5" height="6.5" rx="1.5"/><rect x="16.5" y="14" width="4.5" height="6.5" rx="1.5"/></svg>',
   plane: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M10.5 3.5a1.5 1.5 0 0 1 3 0V9l7.5 4.5V16l-7.5-2.5V18l2.5 2v1.5L12 20.5l-4 1V20l2.5-2v-4.5L3 16v-2.5L10.5 9z"/></svg>'
 };
 const POWER = [["silent", "Silencioso", "13 W"], ["perf", "Rendimiento", "17 W"], ["turbo", "Turbo", "25 W"]];
@@ -2731,11 +2764,33 @@ const qmRows = () => [
   ...(media ? [{ k: "media", type: "media" }] : []),
   { k: "brightness", type: "slider", icon: QI.sun, label: "Brillo" },
   { k: "volume", type: "slider", icon: QI.vol, label: "Volumen" },
+  ...((QM.mix || []).length === 2 ? QM.mix.map((m, j) => ({ k: "mix" + j, type: "mix", m })) : []),
+  ...((QM.outs || []).length > 1 ? [{ k: "output", type: "output", icon: QI.out, label: "Salida" }] : []),
   { k: "wifi", type: "switch", icon: QI.wifi, label: "Wi-Fi" },
   { k: "airplane", type: "switch", icon: QI.plane, label: "Modo avión" },
   { k: "sleep", type: "btn", label: "Apagar…" }, { k: "settings", type: "btn", label: "Ajustes" }
 ];
-function battEstimate() { const h = deviceBatt * 4.2; return `≈ ${Math.floor(h)} h ${String(Math.round((h % 1) * 60)).padStart(2, "0")} min restantes`; }
+/* Batería: con datos reales de Windows (si los da). Cargando: cuánto falta para llenarse. */
+let battInfo = null;
+const hmin = m => `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, "0")} min`;
+function battEstimate() {
+  const b = battInfo, charging = deviceCharging || (b && (b.charging || b.plugged));
+  if (charging) {
+    if (deviceBatt >= .995) return "Carga completa";
+    if (b && b.minutesToFull > 0 && b.minutesToFull < 1440) return `≈ ${hmin(b.minutesToFull)} para cargar`;
+    return "Cargando";
+  }
+  if (b && b.minutesLeft > 0 && b.minutesLeft < 1440) return `≈ ${hmin(b.minutesLeft)} restantes`;
+  return `≈ ${hmin(deviceBatt * 4.2 * 60)} restantes`;
+}
+/* Íconos chiquitos del mezclador: los mismos de la interfaz principal (portada del juego / ícono de la app). */
+const mixIcons = {};
+function mixIcon(m) {
+  const g = { appid: m.appid || seeded(m.name, 99999), name: m.name, source: m.source, kind: m.kind, art: m.art };
+  if (mixIcons[g.appid] === undefined) { mixIcons[g.appid] = null; Art.get(g).then(u => { mixIcons[g.appid] = u || ""; if (QM.open) renderQuick(); }).catch(() => {}); }
+  const u = mixIcons[g.appid];
+  return `<img alt="" src="${esc(u || Art.placeholder(g))}"${u && Art.icons.has(u) ? ' class="appicon"' : ""}>`;
+}
 function renderQuick() {
   const rows = qmRows(), q = $("#quick");
   const row = (r, i) => {
@@ -2744,19 +2799,33 @@ function renderQuick() {
     if (r.type === "seg") return `<div class="qrow wrap${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qval">${POWER.find(p => p[0] === sys.power)[2]}</span><span class="qseg">${POWER.map(([k, n, w]) => `<span class="${sys.power === k ? "on" : ""}">${n}</span>`).join("")}</span></div>`;
     if (r.type === "switch") return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qsw${sys[r.k] ? " on" : ""}"></span></div>`;
     if (r.type === "media") return mediaCard(f);
+    if (r.type === "mix") { const m = r.m; return `<div class="qrow qmix${f}"><span class="mico">${mixIcon(m)}</span><span class="qlab">${esc(m.name)}</span><span class="qbar"><i style="width:${m.volume}%"></i></span><span class="qval">${m.volume}</span></div>`; }
+    if (r.type === "output") { const o = (QM.outs || []).find(x => x.current) || QM.outs[0]; return `<div class="qrow${f}">${r.icon}<span class="qlab">${r.label}</span><span class="qout">${esc(o ? o.name : "")}</span><span class="qval qarr">‹ ›</span></div>`; }
     return "";
   };
   const showDolby = dolbyOn() && (OVERLAY || state.running || (media && media.playing));
+  q.classList.toggle("dense", rows.length >= 8);
   q.innerHTML = `<div class="qhead"><span class="qclock clock">${clockText()}</span><span class="qb"><span class="batt">${Math.round(deviceBatt * 100)} % ${battSvg(deviceBatt)}</span><span>${battEstimate()}</span></span></div>
     ${showDolby ? `<div class="dolby qdolby">${DOLBY_HTML}</div>` : ""}
     <div class="qrows">${rows.map(row).join("")}<div class="qbtns">${rows.map((r, i) => r.type === "btn" ? `<div class="qrow${QM.i === i ? " focused" : ""}">${r.label}</div>` : "").join("")}</div></div>
     <div class="qhint"><span class="hint"><span class="glyph">B</span>Cerrar</span><span class="hint"><span class="glyph">◀▶</span>Ajustar</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
+  const fr = $(".qrows .focused", q); if (fr) fr.scrollIntoView({ block: "nearest" });
 }
 function openQuick() {
   if (QM.open || !["ui", "game"].includes(mode)) return;
   QM.open = true; QM.i = 0; QM.m = 2; renderQuick(); tintQuick(); mediaTick();
   if (Host.has) Host.call("media.state").then(m => setMedia(m)).catch(() => {});
-  if (Host.has) Host.call("system.state").then(st => { if (st) { for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; saveSys(); } if (QM.open) renderQuick(); }).catch(() => {});
+  QM.mix = null; QM.outs = null;
+  if (Host.has) Host.call("system.state").then(st => {
+    if (st) {
+      for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; saveSys();
+      const before = qmRows().length, volAt = qmRows().findIndex(r => r.k === "volume");
+      QM.mix = st.mixer || []; QM.outs = st.outputs || []; battInfo = st.battery || null;
+      const added = qmRows().length - before;
+      if (QM.open && added > 0 && QM.i > volAt) QM.i += added;   // que el foco no brinque si aparecen filas nuevas
+    }
+    if (QM.open) renderQuick();
+  }).catch(() => {});
   $("#quick").classList.add("show"); $("#qshade").classList.add("show"); play("select");
 }
 function closeQuick(stay, why = "B") {
@@ -2791,6 +2860,18 @@ function qmInput(k) {
   }
   if (r.type === "media" && k === "a") { const b = mediaButtons()[QM.m]; if (!b || !b.ok) return play("bump"); play("select"); return b.run(); }
   if (r.type === "media" && k === "y") { const b = mediaButtons()[0]; if (b.ok) { play("select"); b.run(); } return; }
+  if (r.type === "mix" && (k === "left" || k === "right")) {
+    const v = clamp(r.m.volume + (k === "right" ? 10 : -10), 0, 100); if (v === r.m.volume) return play("bump");
+    r.m.volume = v; play("tick", v / 50); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {});
+    return renderQuick();
+  }
+  if (r.type === "output" && (k === "left" || k === "right" || k === "a")) {
+    const outs = QM.outs, cur = Math.max(0, outs.findIndex(o => o.current)), nx = (cur + (k === "left" ? -1 : 1) + outs.length) % outs.length;
+    outs.forEach((o, j) => o.current = j === nx); play("select"); renderQuick();
+    Host.call("audio.output", { id: outs[nx].id }).then(() => setTimeout(() => Host.call("system.state").then(st => { if (st && st.volume != null) { sys.volume = st.volume; if (QM.open) renderQuick(); } }).catch(() => {}), 600)).catch(() => {});
+    toast("Salida: " + outs[nx].name);
+    return;
+  }
   if (k === "left" || k === "right") {
     const d = k === "right" ? 1 : -1;
     if (r.type === "slider") { const v = clamp(sys[r.k] + d * 10, 0, 100); if (v === sys[r.k]) return play("bump"); sys[r.k] = v; play("tick", v / 50); applySys(r.k); }

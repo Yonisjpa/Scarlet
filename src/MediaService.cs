@@ -87,7 +87,7 @@ sealed class MediaService
                 var tl = s.GetTimelineProperties();
                 if (props != null && !string.IsNullOrEmpty(props.Title))
                 {
-                    string artUrl = await ArtAsync(props);
+                    string artUrl = await ArtAsync(props) ?? await ItunesArtAsync(props);
                     double dur = tl != null ? (tl.EndTime - tl.StartTime).TotalSeconds : 0;
                     double pos = tl != null ? (tl.Position - tl.StartTime).TotalSeconds : 0;
                     long at = tl != null && tl.LastUpdatedTime.Year > 2000 ? tl.LastUpdatedTime.ToUnixTimeMilliseconds() : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -174,6 +174,39 @@ sealed class MediaService
             return lastArtUrl;
         }
         catch (Exception ex) { Log.Error("música (carátula)", ex); return null; }
+    }
+
+    // ───── Carátula de respaldo: el catálogo público de iTunes (es la misma carátula de Apple Music) ─────
+    static readonly HttpClient web = new() { Timeout = TimeSpan.FromSeconds(10) };
+    readonly Dictionary<string, string> itunes = new();
+
+    async Task<string> ItunesArtAsync(GlobalSystemMediaTransportControlsSessionMediaProperties props)
+    {
+        // Apple Music pone "Artista — Álbum" en el campo de artista.
+        string artist = (props.Artist ?? props.AlbumArtist ?? "").Split(new[] { " — ", " - " }, StringSplitOptions.None)[0].Trim();
+        string album = props.AlbumTitle;
+        if (string.IsNullOrEmpty(album) && (props.Artist ?? "").Contains(" — ")) album = props.Artist.Split(" — ", 2)[1].Trim();
+        string key = artist + "|" + props.Title;
+        if (itunes.TryGetValue(key, out var cached)) return cached;
+        itunes[key] = null;   // una sola búsqueda por canción
+        try
+        {
+            string url = "https://itunes.apple.com/search?entity=song&limit=8&country=mx&term=" + Uri.EscapeDataString($"{artist} {props.Title}");
+            using var d = JsonDocument.Parse(await web.GetStringAsync(url));
+            var results = d.RootElement.GetProperty("results").EnumerateArray().ToList();
+            if (results.Count == 0) return null;
+            static string S(JsonElement e, string k) => e.TryGetProperty(k, out var v) ? v.GetString() ?? "" : "";
+            var best = results.FirstOrDefault(r => S(r, "trackName").Equals(props.Title, StringComparison.OrdinalIgnoreCase) && (string.IsNullOrEmpty(album) || S(r, "collectionName").Equals(album, StringComparison.OrdinalIgnoreCase)));
+            if (best.ValueKind == JsonValueKind.Undefined) best = results.FirstOrDefault(r => S(r, "trackName").Equals(props.Title, StringComparison.OrdinalIgnoreCase));
+            if (best.ValueKind == JsonValueKind.Undefined) best = results[0];
+            string art = Regex.Replace(S(best, "artworkUrl100"), @"/\d+x\d+bb\.", "/600x600bb.");
+            if (art.Length == 0) return null;
+            string local = await this.art.CacheAsync(art, "music");
+            itunes[key] = local;
+            Log.Write($"música: carátula de {props.Title} desde iTunes");
+            return local;
+        }
+        catch (Exception ex) { Log.Error("música (iTunes)", ex); return null; }
     }
 
     public object State => last;
