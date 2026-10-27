@@ -1801,7 +1801,7 @@ sealed class MainForm : Form
         Log.Write($"Steam: instalar {appid}: paso {s}" + (Flag(r, "stale") ? " (el asistente ya no estaba)" : "") + (Flag(r, "stuck") ? " (contrato atorado)" : ""));
         if (Flag(r, "stale"))
         {
-            if (s == 14 || s == 0) return new { s = "started" };
+            if (s == 14) return new { s = "started" };   // ya iba en camino
             return new { s = "error", error = "Steam cerró el asistente. Intenta de nuevo." };
         }
         if (s == 8 && Flag(r, "stuck")) { await SteamCdp.CancelAsync(); return new { s = "steam", why = "el contrato no avanzó" }; }

@@ -1,12 +1,9 @@
-Novedades de la alpha 0.4.19
+Novedades de la alpha 0.4.20
 
-- Reanudar en vez de relanzar: si sales de un juego al Inicio y vuelves a entrar, Scarlet lo trae al frente; ya no lo cierra ni lo abre otra vez.
-  - Antes, cuando el juego cambiaba de ventana (pantalla de carga → ventana final, o al cambiar de modo de pantalla), Scarlet a veces pensaba que se había cerrado y lo "olvidaba".
-  - Si aun así lo olvida, al volver al Inicio le pregunta a Windows qué juego sigue abierto y recupera el "Jugando".
-  - Si el juego sigue abierto pero Scarlet no lo estaba siguiendo (por ejemplo, después de reiniciar Scarlet), lo adopta y lo reanuda en lugar de abrir una segunda copia.
-- Cuando un juego se cierra solo, Scarlet ya no le manda una orden de cierre extra ni lo vuelve a mostrar como abierto por una respuesta atrasada de Windows.
-- Si cierras un juego y lo vuelves a abrir enseguida, la limpieza de la sesión anterior ya no puede cerrar la partida nueva.
-- Al salir de Scarlet, los volúmenes que bajó (el juego detrás del menú, Steam) se restauran antes de cerrar, no después.
-- Compartir del Álbum: si compartes una foto y luego otra, el tiempo límite de la primera ya no apaga la segunda.
-- Aviso de batería baja (15 %) en la interfaz.
-- El botón Xbox ya no puede dejar de responder si Windows da un error al leer el mando.
+- Instalar juegos sin que se abra Steam: al darle A a un juego que no está instalado sale el diálogo "Instalar" de Scarlet con la portada, el tamaño, los discos de Steam y su espacio libre (con estrella el disco predeterminado).
+  - Si el juego no cabe, te dice cuánto falta y, si tienes otro disco, que lo elijas.
+  - Si el juego tiene contrato de licencia, se muestra en Scarlet; se lee con arriba/abajo (o LB/RB) y se acepta o se cancela.
+  - Scarlet le habla directo a Steam (su conexión local, la misma que usan Decky Loader y Millennium). La primera vez pide permiso: Steam se reinicia una sola vez para activarla.
+  - Si Steam pide algo que Scarlet no maneja (clave de producto, contraseña) o la conexión no está activa, se abre la ventanita de Steam de siempre.
+- Animación de descarga como en la consola: el juego pasa al primer lugar con una franja de rayas que avanzan y su barra de progreso. Arriba, junto al nombre, la tarjeta con flecha y el porcentaje ("En cola", "En pausa", "Preparando…").
+- El progreso de las descargas llega en vivo desde Steam (antes cada 3 s y a saltos), y si cancelas una descarga en Steam, la franja se quita sola.

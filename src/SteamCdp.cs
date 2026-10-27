@@ -297,7 +297,7 @@ const id = {appid};
 let info = await I.GetInstallManagerInfo();
 if (!info || info.eInstallState !== {ShowEULAs}) return Object.assign(pack(info), {{ stale: true }});
 const app = info.currentAppID || id;
-if (!{(accept ? "true" : "false")}) {{ I.CancelInstall(); await sleep(300); return pack(await I.GetInstallManagerInfo()); }}
+if (!{(accept ? "true" : "false")}) {{ I.CancelInstall(); await sleep(300); return Object.assign(pack(await I.GetInstallManagerInfo()), {{ s: {Canceled} }}); }}
 {marks}
 await sleep(200);
 I.ContinueInstall();
