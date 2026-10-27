@@ -1606,7 +1606,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.12";
+let APP_VERSION = "0.4.13";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2871,6 +2871,9 @@ const QI = {
 const POWER = [["silent", "Silencioso", "13 W"], ["perf", "Rendimiento", "17 W"], ["turbo", "Turbo", "25 W"]];
 const sys = Object.assign({ brightness: 70, volume: 55, power: "perf", wifi: true, airplane: false }, store.get("sys", {}));
 const saveSys = () => store.set("sys", sys);
+/* Lo que manda Windows, sin los datos que no pudo leer ("Volumen null" en el menú). */
+function mergeSys(st) { for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; }
+for (const k of ["brightness", "volume"]) if (typeof sys[k] !== "number" || !isFinite(sys[k])) sys[k] = k === "brightness" ? 70 : 55;
 const QM = { open: false, i: 0 };
 const qmRows = () => [
   ...(media ? [{ k: "media", type: "media" }] : []),
@@ -2917,17 +2920,56 @@ function renderQuick() {
   };
   const showDolby = dolbyOn();
   q.classList.remove("dense");
+  const rowAt = (r, i) => row(r, i).replace('<div class="qrow', `<div data-qi="${i}" class="qrow`);
   q.innerHTML = `<div class="qhead"><span class="qclock clock">${clockText()}</span><span class="qb"><span class="batt">${Math.round(deviceBatt * 100)} % ${battSvg(deviceBatt)}</span><span>${battEstimate()}</span></span></div>
     ${showDolby ? `<div class="dolby qdolby">${DOLBY_HTML}</div>` : ""}
-    <div class="qrows">${rows.map(row).join("")}<div class="qbtns">${rows.map((r, i) => r.type === "btn" ? `<div class="qrow${QM.i === i ? " focused" : ""}">${r.label}</div>` : "").join("")}</div></div>
+    <div class="qrows">${rows.map(rowAt).join("")}<div class="qbtns">${rows.map((r, i) => r.type === "btn" ? `<div data-qi="${i}" class="qrow${QM.i === i ? " focused" : ""}">${r.label}</div>` : "").join("")}</div></div>
     <div class="qhint"><span class="hint"><span class="glyph">B</span>Cerrar</span><span class="hint"><span class="glyph">◀▶</span>Ajustar</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
   const qr = $(".qrows", q);
   if (qr && qr.scrollHeight > qr.clientHeight + 2) q.classList.add("dense");   // no cabe: versión compacta
   const fr = $(".qrows .focused", q); if (fr) fr.scrollIntoView({ block: "nearest" });
 }
+/* Pantalla táctil en el menú rápido: tocar una fila la elige y la acciona; en las barras, tocar o arrastrar fija el valor. */
+let qmDrag = null;
+function qmBarValue(bar, x) { const b = bar.getBoundingClientRect(); return clamp(Math.round((x - b.left) / b.width * 20) * 5, 0, 100); }
+function qmSetBar(r, v) {
+  if (r.type === "slider") { if (sys[r.k] === v) return; sys[r.k] = v; applySys(r.k); }
+  else if (r.type === "mix") { if (r.m.volume === v) return; r.m.volume = v; QM.mixTouched = Date.now(); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {}); }
+  renderQuick();
+}
+function qmTouchSetup() {
+  const q = $("#quick"); if (q.dataset.touch) return; q.dataset.touch = "1";
+  q.addEventListener("pointerdown", e => {
+    if (!QM.open) return;
+    Snd.ensure(); lastActivity = performance.now();
+    const el = e.target.closest("[data-qi]"); if (!el) return;
+    const i = +el.dataset.qi, r = qmRows()[i]; if (!r) return;
+    const bar = e.target.closest(".qbar");
+    if (bar && (r.type === "slider" || r.type === "mix")) { QM.i = i; qmDrag = { r, bar, id: e.pointerId }; qmSetBar(r, qmBarValue(bar, e.clientX)); play(r.k === "volume" || r.type === "mix" ? "volume" : "tick"); }
+  });
+  addEventListener("pointermove", e => { if (qmDrag && e.pointerId === qmDrag.id) { const bar = $("#quick .focused .qbar") || qmDrag.bar; qmSetBar(qmDrag.r, qmBarValue(bar, e.clientX)); } });
+  addEventListener("pointerup", e => { if (qmDrag && e.pointerId === qmDrag.id) { qmDrag = null; return; } });
+  q.addEventListener("click", e => {
+    if (!QM.open) return;
+    if (e.target.closest(".qhint .hint")) { const t = e.target.closest(".qhint .hint").textContent; return qmInput(/Cerrar/.test(t) ? "b" : /Aceptar/.test(t) ? "a" : "right"); }
+    const el = e.target.closest("[data-qi]"); if (!el) return;
+    const i = +el.dataset.qi, r = qmRows()[i]; if (!r) return;
+    if (e.target.closest(".qbar") && (r.type === "slider" || r.type === "mix")) return;   // ya lo hizo pointerdown
+    QM.i = i;
+    if (r.type === "media") {
+      const mb = e.target.closest(".qmb");
+      if (mb) { QM.m = [...el.querySelectorAll(".qmb")].indexOf(mb); return qmInput("a"); }
+      play("movelist"); return renderQuick();
+    }
+    if (r.type === "slider" || r.type === "mix") { play("movelist"); return renderQuick(); }
+    if (r.type === "output") return qmInput("right");
+    return qmInput("a");
+  });
+}
 function openQuick() {
+  qmTouchSetup();
   if (QM.open || !["ui", "game"].includes(mode)) return;
-  QM.open = true; QM.i = 0; QM.m = 2; renderQuick(); tintQuick(); mediaTick();
+  QM.open = true; QM.i = 0; QM.m = 2; QM.src = null; renderQuick(); tintQuick(); mediaTick();
   // Cada vez que se abre se vuelve a leer todo (juego, barras, Salida, Dolby, canción, batería). Mientras llega,
   // se ve lo último que se sabía; lo que no conteste a tiempo se queda con su último valor.
   if (Host.has) {
@@ -3172,7 +3214,7 @@ Events.on("quick.toggle", () => QM.open ? closeQuick() : openQuick());
 Events.on("quick.open", () => { lastActivity = performance.now(); dimmed = false; mode = "ui"; QM.open = false; openQuick(); });
 Events.on("quick.close", () => { if (QM.open) closeQuick(false, "botón Xbox"); else Host.call("quick.close", { why: "botón Xbox" }).catch(() => {}); });
 /* Botones que manda la app cuando el juego se quedó con el foco: así el menú siempre se puede usar y cerrar. */
-Events.on("pad.key", k => { if (OVERLAY && QM.open && typeof k === "string") { lastActivity = performance.now(); input(k); } });
+Events.on("pad.key", k => { if (OVERLAY && QM.open && typeof k === "string" && QM.src !== "pad") { QM.src = "host"; lastActivity = performance.now(); input(k); } });
 /* El juego está en pantalla completa exclusiva: ahí el menú puede fallar. Encima del juego no se alcanza a ver, así que se avisa al volver al Inicio. */
 let exclusiveWarn = null;
 const flushExclusive = async () => {
@@ -3454,10 +3496,15 @@ addEventListener("keyup", e => {
   else if (lk === "k") { e.preventDefault(); captureUp(); }
 });
 const pad = { held: {}, next: {} };
+function padInput(k) {
+  if (OVERLAY && Host.has) { if (!QM.open || QM.src === "host") return; QM.src = "pad"; }
+  input(k);
+}
 function pollPads(t) {
-  // Encima del juego, los botones llegan siempre por la app (pad.key): el control del navegador dejaba de responder
-  // cuando el juego se quedaba con el foco y el menú no se podía ni cerrar (Zenless Zone Zero).
-  const list = navigator.getGamepads && !(OVERLAY && Host.has) ? [...navigator.getGamepads()].filter(Boolean) : [];
+  // Encima del juego, los botones pueden llegar por dos caminos: el control del navegador (si el menú tiene el foco) o
+  // la app (pad.key, si el juego se lo quedó). Cada vez que se abre, el que llegue primero se usa y el otro se ignora,
+  // para que nada cuente doble y el menú siempre responda.
+  const list = navigator.getGamepads && !(OVERLAY && Host.has && QM.src === "host") ? [...navigator.getGamepads()].filter(Boolean) : [];
   const p = list[0];
   if (p) {
     lastPad = p;
@@ -3466,13 +3513,13 @@ function pollPads(t) {
     const dirs = { up: B(12) || ax[1] < -.55, down: B(13) || ax[1] > .55, left: B(14) || ax[0] < -.55, right: B(15) || ax[0] > .55 };
     for (const d in dirs) {
       if (dirs[d]) {
-        if (!pad.held[d]) { pad.held[d] = true; pad.next[d] = t + 360; input(d); }
-        else if (t >= pad.next[d]) { pad.next[d] = t + 105; input(d); }
+        if (!pad.held[d]) { pad.held[d] = true; pad.next[d] = t + 360; padInput(d); }
+        else if (t >= pad.next[d]) { pad.next[d] = t + 105; padInput(d); }
       } else pad.held[d] = false;
     }
     // distribución Xbox: A0 B1 X2 Y3 LB4 RB5 LT6 RT7 Menú9 Xbox16 (el botón Xbox lo manda el anfitrión en la app real)
     const btns = { a: 0, b: 1, x: 2, y: 3, lb: 4, rb: 5, lt: 6, rt: 7, start: 9 };
-    for (const k in btns) { const pr = B(btns[k]); if (pr && !pad.held[k]) input(k); pad.held[k] = pr; }
+    for (const k in btns) { const pr = B(btns[k]); if (pr && !pad.held[k]) padInput(k); pad.held[k] = pr; }
     // en la app el botón Xbox lo maneja Scarlet (Windows); si la página también lo leyera, el menú rápido se abriría y cerraría a la vez
     if (!Host.has) { const gd = B(16); if (gd && !pad.held.guide) guideDown(); else if (!gd && pad.held.guide) guideUp(); pad.held.guide = gd; }
   }
@@ -3561,7 +3608,7 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
   if (OVERLAY) {   // solo el menú rápido: sin pantalla de inicio ni carga de juegos
     $("#boot").remove(); mode = "ui";
     const st = Host.has ? await Host.call("system.state").catch(() => null) : null;
-    if (st) { Object.assign(sys, st); saveSys(); }
+    if (st) { mergeSys(st); saveSys(); }
     if (Host.has) Host.call("sounds.list").then(m => { if (m && Object.keys(m).length) Snd.loadCustom(m); }).catch(() => {});
     if (Host.has) Host.call("app.info").then(i => { DOLBY = !!(i && i.dolby); }).catch(() => {});
     if (!Host.has) { DOLBY = true; ATMOS = true; demoMedia(); openQuick(); }
@@ -3572,7 +3619,7 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
     const pads = await Host.call("pads.list").catch(() => null); if (pads && pads.length) state.pads = pads;
     Host.call("audio.mutebehind", { on: settings.muteBehind !== false }).catch(() => {});
     Host.call("cursor.hide", { on: settings.hideCursor !== false }).catch(() => {});
-    const st = await Host.call("system.state").catch(() => null); if (st) { Object.assign(sys, st); saveSys(); }
+    const st = await Host.call("system.state").catch(() => null); if (st) { mergeSys(st); saveSys(); }
     Host.call("sounds.list").then(m => { if (m && Object.keys(m).length) Snd.loadCustom(m); }).catch(() => {});
     Host.call("sounds.info").then(i => { soundPack = (i && i.pack) || null; }).catch(() => {});
     const gs = await Host.call("game.state").catch(() => null);

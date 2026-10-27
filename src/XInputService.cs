@@ -31,6 +31,7 @@ sealed class XInputService : IDisposable
     /// Lo usa el menú rápido: si el juego se queda con el foco, el menú se sigue pudiendo usar y cerrar.
     /// </summary>
     public volatile bool ForwardKeys;
+    bool wgiNoted;
     public event Action<string> PadKey;
     static readonly (ushort bit, string key)[] KeyMap =
     {
@@ -85,6 +86,37 @@ sealed class XInputService : IDisposable
         return false;
     }
 
+    /// <summary>
+    /// Botones del mando por Windows.Gaming.Input, en los mismos bits que XInput. Hace falta porque en algunas consolas
+    /// XInput no da los botones (el botón Xbox ya se leía por aquí) y entonces el menú encima del juego no recibía nada.
+    /// </summary>
+    static ushort WgiButtons()
+    {
+        ushort b = 0;
+        try
+        {
+            foreach (var g in WGI.Gamepad.Gamepads)
+            {
+                var r = g.GetCurrentReading();
+                var x = r.Buttons;
+                if (x.HasFlag(WGI.GamepadButtons.DPadUp) || r.LeftThumbstickY > 0.5) b |= 0x0001;
+                if (x.HasFlag(WGI.GamepadButtons.DPadDown) || r.LeftThumbstickY < -0.5) b |= 0x0002;
+                if (x.HasFlag(WGI.GamepadButtons.DPadLeft) || r.LeftThumbstickX < -0.5) b |= 0x0004;
+                if (x.HasFlag(WGI.GamepadButtons.DPadRight) || r.LeftThumbstickX > 0.5) b |= 0x0008;
+                if (x.HasFlag(WGI.GamepadButtons.Menu)) b |= 0x0010;
+                if (x.HasFlag(WGI.GamepadButtons.View)) b |= 0x0020;
+                if (x.HasFlag(WGI.GamepadButtons.LeftShoulder)) b |= 0x0100;
+                if (x.HasFlag(WGI.GamepadButtons.RightShoulder)) b |= 0x0200;
+                if (x.HasFlag(WGI.GamepadButtons.A)) b |= 0x1000;
+                if (x.HasFlag(WGI.GamepadButtons.B)) b |= 0x2000;
+                if (x.HasFlag(WGI.GamepadButtons.X)) b |= 0x4000;
+                if (x.HasFlag(WGI.GamepadButtons.Y)) b |= 0x8000;
+            }
+        }
+        catch { }
+        return b;
+    }
+
     const ushort START = 0x0010, BACK = 0x0020;
     const int CHORD_HOLD_MS = 600;
 
@@ -135,6 +167,12 @@ sealed class XInputService : IDisposable
             tick++;
 
             long now = sw.ElapsedMilliseconds;
+            if (ForwardKeys)
+            {
+                ushort w = WgiButtons();
+                if (w != 0 && pad == 0 && !wgiNoted) { wgiNoted = true; Log.Write("mando → menú: los botones llegan por Windows.Gaming.Input (XInput no los da)"); }
+                pad |= w;
+            }
             Forward(pad, ref fwdPrev, fwdNext, now);
             if (guide && !down)
             {
