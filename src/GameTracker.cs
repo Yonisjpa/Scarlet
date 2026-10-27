@@ -189,17 +189,36 @@ sealed class GameTracker
         Ready?.Invoke(AppId);
     }
 
+    /// <summary>
+    /// ¿Sigue abierto? Si se conocía su ventana o su proceso y ya no existen, se da por cerrado aunque Steam tarde en
+    /// enterarse (RE Requiem cerrado desde el juego seguía "Jugando"). Los procesos que dejan algunos juegos al cerrarse
+    /// (reportero de errores, launcher, antitrampas) no cuentan.
+    /// </summary>
     void AliveTick()
     {
+        bool known = hwnd != IntPtr.Zero || pid != 0;
         bool alive = (hwnd != IntPtr.Zero && Native.IsWindow(hwnd)) || (pid != 0 && ProcessAlive(pid));
-        if (isSteam)
+        if (!alive && known)
         {
-            if (steam.RunningAppId() == AppId) alive = true;
-            else if (!alive) alive = AnyProcessIn(installDir);
+            // ¿Cambió de ventana o de proceso (un launcher que abre el juego de verdad)? Se sigue a la nueva.
+            var w = FindGameWindow(anyProcessInDir: true);
+            if (w != IntPtr.Zero) { hwnd = w; Native.GetWindowThreadProcessId(w, out pid); alive = true; Log.Write($"el juego cambió de ventana: {Native.Describe(w)}"); }
         }
-        else if (!alive && !string.IsNullOrEmpty(installDir)) alive = AnyProcessIn(installDir);
+        else if (!alive)
+        {
+            // Juegos marcados "listos" sin ventana ni proceso conocidos: Steam o lo que corra desde su carpeta.
+            alive = !string.IsNullOrEmpty(installDir) ? AnyProcessIn(installDir) : isSteam && steam.RunningAppId() == AppId;
+        }
         if (alive) { deadTicks = 0; return; }
-        if (++deadTicks >= 3) { long id = AppId; Stop(); Log.Write($"juego cerrado {id}"); Exited?.Invoke(id); }
+        if (++deadTicks >= 3) { long id = AppId; Stop(); Log.Write($"juego cerrado {id} (ya no está su proceso)"); Exited?.Invoke(id); }
+    }
+
+    /// <summary>Procesos que no son el juego aunque estén en su carpeta.</summary>
+    static bool IsHelper(string path)
+    {
+        string n = Path.GetFileNameWithoutExtension(path ?? "").ToLowerInvariant();
+        return n.Contains("crash") || n.Contains("report") || n.Contains("launcher") || n.Contains("easyanticheat") || n.Contains("battleye")
+            || n.Contains("unins") || n.Contains("redist") || n.Contains("vc_") || n.Contains("helper") || n.Contains("update");
     }
 
     static bool ProcessAlive(uint id)
@@ -217,11 +236,14 @@ sealed class GameTracker
         if (string.IsNullOrEmpty(dir)) return false;
         foreach (var p in Process.GetProcesses())
             using (p)
-                if (Paths.Under(Native.ProcessPath((uint)p.Id), dir)) return true;
+            {
+                string path = Native.ProcessPath((uint)p.Id);
+                if (Paths.Under(path, dir) && !IsHelper(path)) return true;
+            }
         return false;
     }
 
-    IntPtr FindGameWindow()
+    IntPtr FindGameWindow(bool anyProcessInDir = false)
     {
         IntPtr best = IntPtr.Zero;
         long bestArea = 0;
@@ -229,7 +251,8 @@ sealed class GameTracker
         {
             if (h == own) continue;
             string path = Native.WindowProcessPath(h, out uint wp);
-            bool mine = (pid != 0 && wp == pid) || (isSteam && Paths.Under(path, installDir));
+            bool inDir = !string.IsNullOrEmpty(installDir) && Paths.Under(path, installDir) && !IsHelper(path);
+            bool mine = (pid != 0 && wp == pid) || ((isSteam || anyProcessInDir) && inDir);
             if (!mine) continue;
             long a = Native.Area(h);
             if (a > bestArea) { bestArea = a; best = h; }

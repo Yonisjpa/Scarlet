@@ -1167,7 +1167,7 @@ const APPS = [
 /* ================= estado ================= */
 let games = [], friends = [], profile = MOCK.profile, albumData = null;
 let mode = "boot";                     // boot | ui | launching | game | sleep | lock | unlocking
-const state = { running: null, sleptFromGame: false, downloads: {}, overlay: null,
+const state = { running: null, side: null, sleptFromGame: false, downloads: {}, overlay: null,
   pads: [{ key: "ally", name: "ROG Xbox Ally X", type: "Integrado", player: 1 }] };
 const HOME_MAX = 12;
 /* Juegos ocultos (no salen en el Inicio ni en "Todos") y grupos propios, como en la Switch 2. */
@@ -1186,7 +1186,7 @@ const hasAch = g => g.ach && g.ach[1] > 0;
 function tileExtras(g) {
   let h = "";
   if (isMusicTile(g)) { const on = !!(media && media.playing && norm(media.app || "") === norm(g.name)); h += `<span class="playing music${on ? "" : " paused"}"><span class="pav">${avatarHTML()}</span><b><i class="eq"><i></i><i></i><i></i></i>${on ? "Sonando" : "En pausa"}</b></span>`; }
-  else if (g.appid === state.running) h += `<span class="playing"><span class="pav">${avatarHTML()}</span><b>Jugando</b></span>`;
+  else if (g.appid === state.running || g.appid === state.side) h += `<span class="playing"><span class="pav">${avatarHTML()}</span><b>Jugando</b></span>`;
   else if (!g.installed && !state.downloads[g.appid]) h += `<span class="badge cloud">${I.cloud}</span>`;
   const d = state.downloads[g.appid];
   if (d) h += `<div class="dl" data-dl="${g.appid}"><span>${esc(d.kind)} ${Math.round(d.p * 100)} %</span><b><i style="width:${d.p * 100}%"></i></b></div>`;
@@ -1196,7 +1196,7 @@ function tileExtras(g) {
 /* Apps de música (Apple Music, Spotify…) dicen "Sonando" / "En pausa" aunque sean la app abierta; YouTube, Netflix,
    Prime Video y demás siguen con "Jugando". */
 const MUSIC_APP = /apple music|spotify|itunes|amazon music|deezer|tidal|youtube music|soundcloud/i;
-const isMusicTile = g => g.kind === "app" && (media && media.app && norm(g.name) === norm(media.app) || (g.appid === state.running && MUSIC_APP.test(g.name)));
+const isMusicTile = g => g.kind === "app" && (media && media.app && norm(g.name) === norm(media.app) || ((g.appid === state.running || g.appid === state.side) && MUSIC_APP.test(g.name)));
 function buildTile(g, cls = "tile") {
   const b = document.createElement("button");
   b.className = cls + (g.installed ? "" : " uninst"); b.setAttribute("aria-label", g.name);
@@ -1522,7 +1522,7 @@ function propsView(g) {
       } else if (k === "hide") {
         p.innerHTML = isHidden(g) ? `<h2>Mostrar en el Inicio</h2><p class="note">Ahora está oculto: solo aparece en la pestaña "Ocultos" de la Biblioteca.</p>` : `<h2>Ocultar</h2><p class="note">Deja de aparecer en el Inicio y en la Biblioteca. Lo encuentras en la pestaña "Ocultos" para volver a mostrarlo.</p>`;
       } else if (k === "pause") {
-        p.innerHTML = `<h2>Pausar al ir al Inicio</h2><p class="note">${g.pause ? "<b>Activado.</b> " : ""}Al regresar al Inicio con el botón Xbox, el juego se congela (no gasta batería) y sigue justo donde estaba al volver. No lo actives en juegos en línea: congelarlos puede desconectarte.</p>`;
+        p.innerHTML = `<h2>Pausar al ir al Inicio</h2><p class="note"><b>${g.pause ? "Activado" : "Desactivado"}.</b> Como en la consola: al regresar al Inicio, el juego se congela (no gasta batería ni suena) y sigue justo donde estaba al volver. Viene activado en todos los juegos; desactívalo en juegos en línea o con antitrampas, donde congelarlos puede desconectarte o cerrarlos.</p>`;
       } else if (k === "keepfocus") {
         p.innerHTML = `<h2>Menú sin quitarle el foco</h2><p class="note">${g.keepFocus ? "<b>Activado.</b> " : ""}El menú rápido se abre encima sin que el juego pierda el foco: sigue sonando y no se pausa (útil si el juego se silencia solo al abrir el menú). La contra: el juego también recibe tus botones mientras usas el menú.</p>`;
       } else if (k === "close") {
@@ -1595,7 +1595,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.10";
+let APP_VERSION = "0.4.11";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2689,6 +2689,9 @@ async function launchGame(g, el, opt = {}) {
   }
   if (state.running) {
     const r = runningGame();
+    // Con un juego abierto, las apps (Apple Music, YouTube para ver una guía…) se abren junto a él: el juego se queda
+    // congelado y callado detrás, con su "Jugando", y regresas a él desde el Inicio.
+    if (r && r.kind !== "app" && g.kind === "app") return openAlongside(g, el);
     if (r && r.kind === "app") {   // música, YouTube…: se puede dejar sonando mientras juegas
       const v = await choiceDialog(`${r.name} está abierta.\n¿La cierras o la dejas en segundo plano (por ejemplo, para seguir oyendo música)?`,
         [{ label: "Cancelar", value: null }, { label: "Dejar abierta", value: "keep" }, { label: "Cerrar y abrir", value: "close" }], 1);
@@ -2728,6 +2731,16 @@ async function launchGame(g, el, opt = {}) {
     notifyAchievement(g, a ? a.name : "Nuevo logro");
   }, 9000);
 }
+async function openAlongside(g, el) {
+  mode = "launching"; play("launch");
+  if (el && el.isConnected) echo(el);
+  await wait(300);
+  state.side = g.appid; renderHome();
+  try { await Host.call("app.open", { appid: g.appid, source: g.source }); }
+  catch (e) { state.side = null; renderHome(); notify({ icon: I.power, title: "No se pudo abrir", text: g.name, sound: "error" }); }
+  mode = "ui"; updateFocus();
+}
+Events.on("app.closed", d => { if (d && d.appid == state.side) { state.side = null; if (mode !== "boot") renderHome(); } });
 async function resumeGame(el) {
   const g = runningGame(); if (!g || mode !== "ui") return;
   mode = "launching"; play("select");

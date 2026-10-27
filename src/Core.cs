@@ -102,8 +102,10 @@ sealed class Config
     public string UiStamp { get; set; } = "";
     /// <summary>Tiempo de juego que cuenta Scarlet (juegos de Xbox y apps; los de Steam los cuenta Steam). Clave = la de AppLastUsed.</summary>
     public Dictionary<string, long> PlaySeconds { get; set; } = new();
-    /// <summary>Juegos que se pausan (se congelan) mientras estás en el Inicio.</summary>
+    /// <summary>(Versiones viejas: juegos marcados para pausarse. Ya no se usa: ahora todos se pausan.)</summary>
     public List<long> PauseOnHome { get; set; } = new();
+    /// <summary>Juegos que NO se congelan al ir al Inicio (todos los demás sí, como en una consola; p. ej. juegos en línea).</summary>
+    public List<long> NoPauseOnHome { get; set; } = new();
     /// <summary>Juegos donde el menú rápido se abre sin quitarles el foco (siguen sonando; también reciben los botones).</summary>
     public List<long> MenuKeepsFocus { get; set; } = new();
     public string InternalDisplay { get; set; } = "";

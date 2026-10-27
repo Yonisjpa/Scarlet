@@ -13,8 +13,15 @@ static class AudioFocus
     [ComImport, Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     interface IMMDeviceEnumerator
     {
-        [PreserveSig] int EnumAudioEndpoints(int dataFlow, int stateMask, out IntPtr devices);
+        [PreserveSig] int EnumAudioEndpoints(int dataFlow, int stateMask, out IMMDeviceCollection devices);
         [PreserveSig] int GetDefaultAudioEndpoint(int dataFlow, int role, out IMMDevice endpoint);
+    }
+
+    [ComImport, Guid("0BD7A1BE-7A1A-44DB-8397-CC5392387B5E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMDeviceCollection
+    {
+        [PreserveSig] int GetCount(out uint count);
+        [PreserveSig] int Item(uint index, out IMMDevice device);
     }
 
     [ComImport, Guid("D666063F-1587-4E43-81F1-B948E807363F"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -95,12 +102,24 @@ static class AudioFocus
     public static bool MuteExe(string exe)
     {
         if (string.IsNullOrEmpty(exe) || Never.Contains(exe) || IsMusic(exe)) return false;
-        lock (gate) if (mutedApps.Contains(exe)) return true;
-        int n = Apply(exe, true);
+        // Siempre se revisa de verdad: algunos juegos se quitan el silencio solos (al ganar o perder el foco) o abren otra
+        // sesión de sonido; antes, una vez anotado como silenciado, ya no se volvía a mirar.
+        int n = Apply(exe, true, out int changed);
         if (n == 0) return false;   // todavía no tiene sonido: se vuelve a intentar al rato
-        lock (gate) { mutedApps.Add(exe); Save(); }
-        Log.Write($"audio: {exe} silenciada ({n} sesión/es)");
+        bool first;
+        lock (gate) { first = mutedApps.Add(exe); Save(); }
+        if (first) Log.Write($"audio: {exe} silenciada ({n} sesión/es)");
+        else if (changed > 0) Log.Write($"audio: {exe} se había quitado el silencio; se vuelve a silenciar ({changed} sesión/es)");
         return true;
+    }
+
+    /// <summary>¿Todas las sesiones de sonido de esa app están en silencio? (null si no tiene sonido).</summary>
+    public static bool? IsMuted(string exe)
+    {
+        if (string.IsNullOrEmpty(exe)) return null;
+        int total = 0, muted = 0;
+        Each((vol, name) => { if (!name.Equals(exe, StringComparison.OrdinalIgnoreCase)) return; total++; vol.GetMute(out bool m); if (m) muted++; });
+        return total == 0 ? null : muted == total;
     }
 
     public static bool AnyMuted { get { lock (gate) return mutedApps.Count > 0; } }
@@ -116,7 +135,7 @@ static class AudioFocus
     public static void MuteSteam(bool mute)
     {
         if (!mute && !steamMuted) return;
-        int n = Apply("steamwebhelper", mute) + Apply("steam", mute);
+        int n = Apply("steamwebhelper", mute, out _) + Apply("steam", mute, out _);
         if (mute != steamMuted) Log.Write($"audio: Steam {(mute ? "en silencio" : "con sonido")} ({n} sesión/es)");
         steamMuted = mute;
     }
@@ -129,7 +148,7 @@ static class AudioFocus
     {
         string[] list;
         lock (gate) { if (mutedApps.Count == 0) return; list = mutedApps.ToArray(); mutedApps.Clear(); Save(); }
-        foreach (var exe in list) Apply(exe, false);
+        foreach (var exe in list) Apply(exe, false, out _);
         Log.Write("audio: sonido devuelto a " + string.Join(", ", list));
     }
 
@@ -141,7 +160,7 @@ static class AudioFocus
             if (!File.Exists(StateFile)) return;
             var list = File.ReadAllLines(StateFile).Where(l => l.Trim().Length > 0).ToArray();
             File.Delete(StateFile);
-            foreach (var exe in list) Apply(exe.Trim(), false);
+            foreach (var exe in list) Apply(exe.Trim(), false, out _);
             if (list.Length > 0) Log.Write("audio: se recuperó el sonido de " + string.Join(", ", list));
         }
         catch (Exception ex) { Log.Error("audio (recuperar)", ex); }
@@ -157,37 +176,57 @@ static class AudioFocus
         catch { }
     }
 
-    /// <summary>Silencia o devuelve el sonido de todas las sesiones de audio cuyo proceso se llame así. Devuelve cuántas tocó.</summary>
-    static int Apply(string exe, bool mute)
+    /// <summary>
+    /// Silencia o devuelve el sonido de todas las sesiones de audio cuyo proceso se llame así, en TODAS las salidas
+    /// (bocinas, audífonos, HDMI…): un juego puede sonar por una que no es la principal. Devuelve cuántas tocó;
+    /// changed = cuántas no estaban ya como se pedía.
+    /// </summary>
+    static int Apply(string exe, bool mute, out int changed)
     {
-        int touched = 0;
+        int touched = 0, ch = 0;
+        var ctx = Guid.Empty;
+        Each((vol, name) =>
+        {
+            if (!name.Equals(exe, StringComparison.OrdinalIgnoreCase)) return;
+            if (vol.GetMute(out bool m) == 0 && m != mute) ch++;
+            vol.SetMute(mute, ref ctx);
+            touched++;
+        });
+        changed = ch;
+        return touched;
+    }
+
+    /// <summary>Recorre las sesiones de sonido de las apps en todas las salidas activas.</summary>
+    static void Each(Action<ISimpleAudioVolume, string> act)
+    {
         try
         {
             var en = (IMMDeviceEnumerator)new MMDeviceEnumeratorCom();
-            if (en.GetDefaultAudioEndpoint(0 /* eRender */, 1 /* eMultimedia */, out var dev) != 0 || dev == null) return 0;
+            if (en.EnumAudioEndpoints(0 /* eRender */, 1 /* ACTIVE */, out var col) != 0 || col == null) return;
+            col.GetCount(out uint nd);
             var iid = typeof(IAudioSessionManager2).GUID;
-            if (dev.Activate(ref iid, 23 /* CLSCTX_ALL */, IntPtr.Zero, out object o) != 0 || o is not IAudioSessionManager2 mgr) return 0;
-            if (mgr.GetSessionEnumerator(out var sessions) != 0 || sessions == null) return 0;
-            sessions.GetCount(out int count);
-            var ctx = Guid.Empty;
-            for (int i = 0; i < count; i++)
+            for (uint d = 0; d < nd; d++)
             {
-                if (sessions.GetSession(i, out object s) != 0 || s == null) continue;
-                try
+                if (col.Item(d, out var dev) != 0 || dev == null) continue;
+                if (dev.Activate(ref iid, 23 /* CLSCTX_ALL */, IntPtr.Zero, out object o) != 0 || o is not IAudioSessionManager2 mgr) continue;
+                if (mgr.GetSessionEnumerator(out var sessions) != 0 || sessions == null) continue;
+                sessions.GetCount(out int count);
+                for (int i = 0; i < count; i++)
                 {
-                    if (s is not IAudioSessionControl2 c2 || s is not ISimpleAudioVolume vol) continue;
-                    if (c2.IsSystemSoundsSession() == 0) continue;   // S_OK = es la de sonidos del sistema
-                    if (c2.GetProcessId(out uint pid) != 0 || pid == 0) continue;
-                    string name;
-                    try { using var p = Process.GetProcessById((int)pid); name = p.ProcessName; } catch { continue; }
-                    if (!name.Equals(exe, StringComparison.OrdinalIgnoreCase)) continue;
-                    vol.SetMute(mute, ref ctx);
-                    touched++;
+                    if (sessions.GetSession(i, out object s) != 0 || s == null) continue;
+                    try
+                    {
+                        if (s is not IAudioSessionControl2 c2 || s is not ISimpleAudioVolume vol) continue;
+                        if (c2.IsSystemSoundsSession() == 0) continue;   // S_OK = es la de sonidos del sistema
+                        if (c2.GetProcessId(out uint pid) != 0 || pid == 0) continue;
+                        string name;
+                        try { using var p = Process.GetProcessById((int)pid); name = p.ProcessName; } catch { continue; }
+                        act(vol, name);
+                    }
+                    finally { Marshal.ReleaseComObject(s); }
                 }
-                finally { Marshal.ReleaseComObject(s); }
             }
         }
-        catch (Exception ex) { Log.Error("audio " + exe, ex); }
-        return touched;
+        catch (Exception ex) { Log.Error("audio (sesiones)", ex); }
     }
 }

@@ -1,6 +1,8 @@
-Novedades de la alpha 0.4.10
+Novedades de la alpha 0.4.11
 
-- Paquetes de sonidos: Ajustes › Paquete de sonidos › Importar. Scarlet busca en Descargas, Escritorio y Documentos un paquete para Steam Deck (carpeta o .zip con pack.json) y asigna cada sonido a su acción. Se guarda en tus datos de Scarlet, así que las actualizaciones no lo borran. "Volver a los de Scarlet" lo quita.
-- Sonidos nuevos que usan los paquetes: abrir y cerrar el menú rápido, mover dentro de listas, abrir y cerrar diálogos, abrir las propiedades de un juego, prender y apagar interruptores, subir y bajar el brillo, volumen, cambiar de pestaña, amigo conectado o jugando, captura, grabación y error. Sin paquete, suenan como antes.
-
-Incluye todo lo de la alpha 0.4.9 (menú rápido que se vuelve a leer al abrirse, juegos que ya no se quedan en ventana o en negro, aviso de juego que no responde, silencio del juego al entrar a Scarlet y más).
+- El menú rápido encima de los juegos vuelve a ser el panel de la derecha (salía a pantalla completa). Su tamaño se fija en píxeles reales de la pantalla y nada lo puede agrandar.
+- Al ir a Scarlet el juego se congela, como en la consola, y sigue donde lo dejaste al volver. Viene activado en todos los juegos; se desactiva por juego en sus propiedades (recomendado en juegos en línea o con antitrampas).
+- El juego se queda callado de verdad: mientras estás en Scarlet se revisa cada 3 segundos, en todas las salidas de audio, y se vuelve a silenciar si se quitó el silencio solo. La música sigue sonando.
+- Con un juego abierto, Apple Music, YouTube, Netflix y demás apps se abren sin cerrarlo: el juego queda congelado y callado detrás, con su "Jugando".
+- Si cierras el juego desde el propio juego, Scarlet lo detecta en unos segundos y lo trata como cerrado (antes seguía "Jugando" y en el menú).
+- Diagnóstico muestra si el juego está callado y si está congelado.

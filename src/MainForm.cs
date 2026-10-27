@@ -231,14 +231,20 @@ sealed class MainForm : Form
         PointerForFront();
         // Si saliste de Scarlet por otro lado (selector de ventanas, Alt+Tab), lo que estaba silenciado vuelve a sonar.
         var front = Native.GetForegroundWindow();
-        if (front != Handle && !(quick != null && front == quick.Handle))
+        bool sideFront = IsSideApp(front);   // la app que abriste junto al juego (Apple Music, YouTube): el juego sigue callado
+        if (front != Handle && !(quick != null && front == quick.Handle) && !sideFront)
         {
             AudioFocus.RestoreAll();
-            if (GameFreezer.IsFrozen && tracker != null && front == tracker.Window && GameFreezer.Resume()) playStart = DateTime.UtcNow;
+            if (GameFreezer.IsFrozen && tracker != null && IsGameWindow(front) && GameFreezer.Resume()) playStart = DateTime.UtcNow;
         }
-        else if (front == Handle && cfg.MuteBehind && web.Visible && tracker != null && tracker.Active && tracker.IsReady && !AudioFocus.AnyMuted && !muting)
-            MuteGameBehind(IntPtr.Zero);   // estás en Scarlet con el juego detrás: siempre callado (aunque se haya llegado por otro camino)
-        CheckHung(front);
+        else if ((front == Handle && web.Visible || sideFront) && tracker != null && tracker.Active && tracker.IsReady)
+        {
+            // Estás en Scarlet (o en la app de al lado) con el juego detrás: se revisa que de verdad siga callado y congelado.
+            if (cfg.MuteBehind && !muting) MuteGameBehind(IntPtr.Zero);
+            PauseGameIfMarked();
+        }
+        CheckSideApp();
+        if (!GameFreezer.IsFrozen) CheckHung(front);   // congelado, Windows lo marca "no responde": es normal
         CheckTouchBlocked();
         try { steam.PollDownloads(); } catch (Exception ex) { Log.Error("descargas", ex); }
         if (slowTicks % 20 == 0) _ = steam.PollRunningAchievementsAsync();   // cada minuto mientras juegas
@@ -325,7 +331,7 @@ sealed class MainForm : Form
                     if (a != null) e["hours"] = Hours(a.Id ?? a.Name ?? "");
                 }
                 lastGames = await WithXboxGamesAsync(lastGames);
-                foreach (var e in lastGames) { e["pause"] = cfg.PauseOnHome.Contains((long)e["appid"]); e["keepFocus"] = cfg.MenuKeepsFocus.Contains((long)e["appid"]); }
+                foreach (var e in lastGames) { e["pause"] = !cfg.NoPauseOnHome.Contains((long)e["appid"]); e["keepFocus"] = cfg.MenuKeepsFocus.Contains((long)e["appid"]); }
                 if (!achKicked)
                 {
                     achKicked = true;
@@ -393,6 +399,7 @@ sealed class MainForm : Form
                 return true;
             }
             case "game.focus": FocusGame(); return true;
+            case "app.open": await OpenAlongsideAsync(P.L(p, "appid"), P.S(p, "source")); return true;
             case "media.state": return media.State;
             case "app.icon": return await AppIconAsync(P.L(p, "appid"));
             case "app.info": return new { startup, updated, rolledBack = UpdateService.TakeRolledBackNotice(), version = Application.ProductVersion, dolby = DolbyInstalled() };
@@ -402,8 +409,8 @@ sealed class MainForm : Form
             case "game.pausepref":
             {
                 long id = P.L(p, "appid");
-                cfg.PauseOnHome.Remove(id);
-                if (P.B(p, "on")) cfg.PauseOnHome.Add(id);
+                cfg.NoPauseOnHome.Remove(id);
+                if (!P.B(p, "on")) cfg.NoPauseOnHome.Add(id);
                 cfg.Save();
                 return true;
             }
@@ -822,7 +829,7 @@ sealed class MainForm : Form
     /// que está cargando), lo que suene desde su carpeta y, si Scarlet no lo está siguiendo, la ventana sobre la que
     /// abriste el menú. Así el menú lo reconoce desde el primer momento, sin esperar a que suene.
     /// </summary>
-    (string exe, uint pid) GameProcess(IntPtr hint, List<AudioMixer.Session> sessions)
+    (string exe, uint pid, bool tracked) GameProcess(IntPtr hint, List<AudioMixer.Session> sessions)
     {
         string Name(uint id) { try { using var gp = Process.GetProcessById((int)id); return gp.ProcessName; } catch { return null; } }
         if (tracker != null && tracker.Active)
@@ -835,16 +842,17 @@ sealed class MainForm : Form
             if (!string.IsNullOrEmpty(dir) && sessions != null)
             {
                 var s = sessions.FirstOrDefault(x => Paths.Under(Native.ProcessPath(x.pid) ?? "", dir));
-                if (s != null && (gpid == 0 || Name(gpid) is not string n0 || !sessions.Any(x => x.exe.Equals(n0, StringComparison.OrdinalIgnoreCase)))) return (s.exe, s.pid);
+                if (s != null && (gpid == 0 || Name(gpid) is not string n0 || !sessions.Any(x => x.exe.Equals(n0, StringComparison.OrdinalIgnoreCase)))) return (s.exe, s.pid, true);
             }
-            if (gpid != 0 && Name(gpid) is string n) return (n, gpid);
+            if (gpid != 0 && Name(gpid) is string n) return (n, gpid, true);
+            return (null, 0, false);   // Scarlet lo sigue pero ya no hay proceso: no se confunde con otra ventana
         }
         if (hint != IntPtr.Zero && hint != hMain && hint != hQuick && Native.IsWindow(hint))
         {
             Native.GetWindowThreadProcessId(hint, out uint hp);
-            if (hp != 0 && Name(hp) is string hn && !NotApps.Contains(hn) && !AudioFocus.IsMusic(hn)) return (hn, hp);
+            if (hp != 0 && Name(hp) is string hn && !NotApps.Contains(hn) && !AudioFocus.IsMusic(hn)) return (hn, hp, false);
         }
-        return (null, 0);
+        return (null, 0, false);
     }
 
     string lastOtherExe; DateTime lastOtherAt;
@@ -857,7 +865,7 @@ sealed class MainForm : Form
     {
         var empty = new List<Dictionary<string, object>>();
         var sessions = AudioMixer.Sessions(strict: true);
-        var (gameExe, _) = GameProcess(hint, sessions);
+        var (gameExe, _, tracked) = GameProcess(hint, sessions);
         if (gameExe == null) return empty;
         // La otra app: la que suena ahora; entre canción y canción (unos segundos sin sonar) se sigue mostrando.
         bool sticky = lastOtherExe != null && DateTime.Now - lastOtherAt < TimeSpan.FromSeconds(10);
@@ -880,7 +888,7 @@ sealed class MainForm : Form
             if (app != null) { otherId = app.AppId; otherName = app.Name; }
             else try { otherName = FileVersionInfo.GetVersionInfo(path).FileDescription is string fd && fd.Length > 0 ? fd : other.exe; } catch { }
         }
-        long gameId = tracker != null && tracker.Active ? tracker.AppId : 0;
+        long gameId = tracked ? tracker.AppId : 0;   // si se detectó por la ventana del frente, no se le pone el nombre de otro juego
         string gameName = gameExe;
         if (gameId == 0) try { var gp = Native.ProcessPath(sessions.FirstOrDefault(s => s.exe.Equals(gameExe, StringComparison.OrdinalIgnoreCase))?.pid ?? 0); if (gp != null && FileVersionInfo.GetVersionInfo(gp).FileDescription is string gd && gd.Length > 0) gameName = gd; } catch { }
         return new List<Dictionary<string, object>>
@@ -905,7 +913,7 @@ sealed class MainForm : Form
         {
             try
             {
-                var (exe, _) = GameProcess(hint, AudioMixer.Sessions());
+                var (exe, _, _) = GameProcess(hint, AudioMixer.Sessions());
                 if (exe != null) AudioFocus.MuteExe(exe);
                 // Lo que estaba al frente, si era otra cosa (YouTube encima del juego, por ejemplo).
                 if (hint != IntPtr.Zero && hint != hMain && hint != hQuick && Native.IsWindow(hint)) AudioFocus.MuteWindow(hint);
@@ -1030,6 +1038,8 @@ sealed class MainForm : Form
             ["Steam"] = $"{(steamUiAllowed ? "visible (tienda/chat)" : "escondido")}{(BigPictureWindow() != IntPtr.Zero ? " · Big Picture abierto" : "")}{(AudioFocus.SteamMuted ? " · en silencio" : "")}",
             ["Puntero"] = CursorHider.Hidden ? "escondido" : "visible",
             ["Silenciadas por Scarlet"] = AudioFocus.MutedList() is string m && m.Length > 0 ? m : "ninguna",
+            ["Juego callado"] = gameExe == null ? "—" : AudioFocus.IsMuted(gameExe) switch { true => "sí", false => "no (está sonando)", _ => "no tiene sonido" },
+            ["Juego congelado"] = GameFreezer.IsFrozen ? "sí" : "no",
             ["Toque en pantalla"] = lastBlocked != IntPtr.Zero && Native.IsWindow(lastBlocked) ? "bloqueado por " + Native.Describe(lastBlocked) : "normal"
         };
     }
@@ -1206,12 +1216,111 @@ sealed class MainForm : Form
         cfg.Save();
     }
 
-    /// <summary>Si marcaste el juego para pausarse, se congela mientras estás en el Inicio (vuelve a correr al regresar).</summary>
+    /// <summary>
+    /// Como en la consola: al ir al Inicio el juego se congela (no gasta batería ni suena) y sigue donde estaba al volver.
+    /// Todos los juegos, menos los que apagues en sus propiedades (juegos en línea). Las apps (música, YouTube) no.
+    /// </summary>
     void PauseGameIfMarked()
     {
-        if (tracker == null || !tracker.Active || !tracker.IsReady || !cfg.PauseOnHome.Contains(tracker.AppId)) return;
-        if (GameFreezer.Suspend(tracker.Pid, tracker.AppId)) FlushPlay();
+        if (tracker == null || !tracker.Active || !tracker.IsReady || GameFreezer.IsFrozen || cfg.NoPauseOnHome.Contains(tracker.AppId)) return;
+        var g = lastGames.FirstOrDefault(e => (long)e["appid"] == tracker.AppId);
+        if (g == null || (g.TryGetValue("kind", out var k) && (k as string) == "app")) return;
+        if (freezeFailed == tracker.AppId) return;   // ya falló una vez (p. ej. un antitrampas no deja): no se insiste
+        uint pid = tracker.Pid;
+        if ((pid == 0 || !ProcessAlive(pid)) && tracker.Window != IntPtr.Zero) Native.GetWindowThreadProcessId(tracker.Window, out pid);
+        if (pid == 0 || !ProcessAlive(pid)) pid = GameProcess(IntPtr.Zero, AudioMixer.Sessions()).pid;
+        if (pid == 0) return;
+        if (GameFreezer.Suspend(pid, tracker.AppId)) FlushPlay();
+        else freezeFailed = tracker.AppId;
     }
+    long freezeFailed;
+
+    // ───── Apps abiertas junto al juego (Apple Music, YouTube para ver una guía…) ─────
+    long sideAppId; IntPtr sideWindow; string sideExe; DateTime sideSince;
+
+    bool IsSideApp(IntPtr h)
+    {
+        if (sideAppId == 0 || h == IntPtr.Zero || h == Handle) return false;
+        if (h == sideWindow) return true;
+        string exe = Path.GetFileNameWithoutExtension(Native.WindowProcessPath(h, out _) ?? "");
+        return sideExe != null && exe.Equals(sideExe, StringComparison.OrdinalIgnoreCase);
+    }
+
+    bool IsGameWindow(IntPtr h)
+    {
+        if (tracker == null || !tracker.Active || h == IntPtr.Zero) return false;
+        if (h == tracker.Window) return true;
+        string path = Native.WindowProcessPath(h, out uint pid);
+        return (tracker.Pid != 0 && pid == tracker.Pid) || (!string.IsNullOrEmpty(tracker.InstallDir) && Paths.Under(path ?? "", tracker.InstallDir));
+    }
+
+    /// <summary>
+    /// Abre una app (música, video) sin cerrar el juego: el juego se queda congelado y callado detrás, con su "Jugando",
+    /// y regresas a él desde el Inicio. Si la app ya estaba abierta, solo se trae al frente.
+    /// </summary>
+    async Task OpenAlongsideAsync(long appid, string source)
+    {
+        if (sideAppId == appid && sideWindow != IntPtr.Zero && Native.IsWindow(sideWindow))
+        {
+            TopMost = false; Native.ForceForeground(sideWindow); HideSoon(); return;
+        }
+        MuteGameBehind(IntPtr.Zero);
+        PauseGameIfMarked();
+        var before = Native.TopWindows().ToHashSet();
+        string exe = null, dir = null;
+        TopMost = false;
+        Native.AllowAnyForeground();
+        if (source == "xbox")
+        {
+            var g = xbox.Find(appid) ?? throw new InvalidOperationException("No encontré esa app de Xbox");
+            cfg.AppLastUsed["xbox:" + g.Pfn] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            dir = g.Dir;
+            xbox.Launch(g);
+        }
+        else
+        {
+            var a = apps.FirstOrDefault(x => x.AppId == appid) ?? throw new InvalidOperationException("No encontré esa app en apps.json");
+            cfg.AppLastUsed[a.Id ?? a.Name ?? ""] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            exe = Path.GetFileNameWithoutExtension(a.Exec ?? "");
+            a.Start();
+        }
+        cfg.Save();
+        sideAppId = appid; detachedApp = appid; sideWindow = IntPtr.Zero; sideExe = exe; sideSince = DateTime.Now;
+        Log.Write($"abriendo {appid} junto al juego {tracker?.AppId}");
+        for (int i = 0; i < 40; i++)   // hasta 10 s: su ventana nueva (o la que ya tenía, si estaba abierta)
+        {
+            await Task.Delay(250);
+            foreach (var h in Native.TopWindows())
+            {
+                if (h == Handle || Native.Area(h) < 200_000) continue;
+                string path = Native.WindowProcessPath(h, out _) ?? "";
+                string name = Path.GetFileNameWithoutExtension(path);
+                bool mine = (dir != null && Paths.Under(path, dir)) || (exe != null && name.Equals(exe, StringComparison.OrdinalIgnoreCase)) || (!before.Contains(h) && !NotApps.Contains(name) && !IsGameWindow(h));
+                if (!mine) continue;
+                sideWindow = h; sideExe = name;
+                Native.ForceForeground(h);
+                Log.Write($"app junto al juego: {Native.Describe(h)}");
+                HideSoon();
+                return;
+            }
+        }
+        Log.Write("app junto al juego: no apareció su ventana");
+    }
+
+    /// <summary>Si cerraste la app de al lado, la interfaz le quita su "Sonando" / "Jugando".</summary>
+    void CheckSideApp()
+    {
+        if (sideAppId == 0) return;
+        // Con su ventana conocida se mira esa (Edge sigue abierto aunque cierres YouTube); si no, su programa.
+        bool alive = sideWindow != IntPtr.Zero ? Native.IsWindow(sideWindow) && Native.IsWindowVisible(sideWindow)
+                     : sideExe != null && Process.GetProcessesByName(sideExe).Any(p => { using (p) return p.MainWindowHandle != IntPtr.Zero; });
+        if (alive || DateTime.Now - sideSince < TimeSpan.FromSeconds(15)) return;
+        Log.Write($"la app {sideAppId} que estaba junto al juego se cerró");
+        Emit("app.closed", new { appid = sideAppId });
+        sideAppId = 0; sideWindow = IntPtr.Zero; sideExe = null;
+    }
+
+    static bool ProcessAlive(uint id) { try { using var p = Process.GetProcessById((int)id); return !p.HasExited; } catch { return false; } }
 
     /// <summary>Volver al juego (o a lo que estaba abierto antes del menú).</summary>
     void FocusGame()

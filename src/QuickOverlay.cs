@@ -44,12 +44,47 @@ sealed class QuickOverlay : Form
         }
     }
 
-    /// <summary>Panel a la derecha, del alto de la pantalla (mismo ancho que el menú rápido de la interfaz: 44rem a 1.5vh).</summary>
-    void Place()
+    [StructLayout(LayoutKind.Sequential)] struct MONITORINFO { public int cbSize; public Native.RECT rcMonitor, rcWork; public uint dwFlags; }
+    [StructLayout(LayoutKind.Sequential)] struct WINDOWPOS { public IntPtr hwnd, hwndInsertAfter; public int x, y, cx, cy; public uint flags; }
+    [DllImport("user32.dll")] static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+    [DllImport("user32.dll")] static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO info);
+
+    Rectangle want;   // dónde debe quedar el panel, en píxeles reales de la pantalla
+
+    /// <summary>
+    /// Panel a la derecha, del alto de la pantalla (mismo ancho que el menú rápido de la interfaz: 44rem a 1.5vh), en la
+    /// pantalla donde está el juego. Se mide en píxeles reales: cuando un juego cambiaba la resolución, Windows reescalaba
+    /// la ventana y el menú salía a pantalla completa. Nunca mide más de la mitad del ancho.
+    /// </summary>
+    void Place(IntPtr over = default)
     {
-        var b = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
-        int w = (int)Math.Round(b.Height * 0.66);
-        Bounds = new Rectangle(b.Right - w, b.Top, w, b.Height);
+        var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        IntPtr mon = MonitorFromWindow(over != IntPtr.Zero ? over : IsHandleCreated ? Handle : IntPtr.Zero, 1 /* MONITOR_DEFAULTTOPRIMARY */);
+        Rectangle b = mon != IntPtr.Zero && GetMonitorInfo(mon, ref mi)
+            ? Rectangle.FromLTRB(mi.rcMonitor.Left, mi.rcMonitor.Top, mi.rcMonitor.Right, mi.rcMonitor.Bottom)
+            : Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+        int w = Math.Min((int)Math.Round(b.Height * 0.66), b.Width / 2);
+        want = new Rectangle(b.Right - w, b.Top, w, b.Height);
+        if (IsHandleCreated) Native.SetWindowPos(Handle, new IntPtr(-1) /* TOPMOST */, want.X, want.Y, want.Width, want.Height, 0x0010 /* NOACTIVATE */);
+        else Bounds = want;
+    }
+
+    /// <summary>Si algo intenta agrandar o mover el panel (cambio de escala de Windows, el juego), se queda en su lugar.</summary>
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == 0x02E0 /* WM_DPICHANGED */) { BeginInvoke(new Action(() => Place())); return; }   // no aceptar el tamaño que propone Windows
+        if (m.Msg == 0x0046 /* WM_WINDOWPOSCHANGING */ && !want.IsEmpty)
+        {
+            var wp = Marshal.PtrToStructure<WINDOWPOS>(m.LParam);
+            bool sizing = (wp.flags & 0x0001 /* NOSIZE */) == 0, moving = (wp.flags & 0x0002 /* NOMOVE */) == 0;
+            if ((sizing && (wp.cx != want.Width || wp.cy != want.Height)) || (moving && (wp.x != want.X || wp.y != want.Y)))
+            {
+                wp.x = want.X; wp.y = want.Y; wp.cx = want.Width; wp.cy = want.Height;
+                wp.flags &= ~0x0003u;
+                Marshal.StructureToPtr(wp, m.LParam, false);
+            }
+        }
+        base.WndProc(ref m);
     }
 
     /// <summary>Se prepara oculto al arrancar, para que abra al instante.</summary>
@@ -106,7 +141,7 @@ sealed class QuickOverlay : Form
     {
         if (!ready) { Log.Write("menú rápido: todavía cargando"); return false; }
         returnTo = front;
-        Place();
+        Place(front);
         IsOpen = true; IsClosing = false; FocusLost = false; drawn = false;
         this.keepFocus = keepFocus;
         Native.SetNoActivate(Handle, keepFocus);
@@ -118,6 +153,7 @@ sealed class QuickOverlay : Form
             Post("quick.open");
             Log.Write($"menú rápido abierto sobre {Native.Describe(front)} (sin quitarle el foco)");
             _ = CheckDrawn();
+            _ = CheckSize();
             return true;
         }
         _ = Task.Run(() => Log.Write("audio al abrir el menú: " + AudioMixer.Describe()));
@@ -129,6 +165,7 @@ sealed class QuickOverlay : Form
         Log.Write($"menú rápido abierto sobre {Native.Describe(front)}{(got ? "" : " (sin foco todavía)")}");
         _ = Reassert();
         _ = CheckDrawn();
+        _ = CheckSize();
         return true;
     }
 
@@ -155,6 +192,21 @@ sealed class QuickOverlay : Form
     }
 
     bool drawn, reopen, stale;
+
+    /// <summary>Revisa que haya quedado como panel; si no, lo corrige y lo anota en el log.</summary>
+    async Task CheckSize()
+    {
+        foreach (int ms in new[] { 150, 700 })
+        {
+            await Task.Delay(ms);
+            if (!IsOpen) return;
+            Native.GetWindowRect(Handle, out var r);
+            var now = Rectangle.FromLTRB(r.Left, r.Top, r.Right, r.Bottom);
+            if (now == want) continue;
+            Log.Write($"menú rápido: quedó de {now.Width}×{now.Height} en vez de {want.Width}×{want.Height}; se corrige");
+            Place(returnTo);
+        }
+    }
 
     /// <summary>La interfaz avisa que ya pintó el menú.</summary>
     public void Ack() => drawn = true;
