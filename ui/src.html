@@ -85,9 +85,14 @@ svg{display:block}
 .badge svg{width:1.6rem;height:1.6rem}
 .run{left:.9rem;bottom:.9rem}.run svg{width:1.3rem;margin-left:.2rem}
 .cloud{right:.9rem;top:.9rem}
-.dl{position:absolute;left:.9rem;right:.9rem;bottom:.9rem;background:rgba(0,0,0,.72);border-radius:.6rem;padding:.6rem .8rem .7rem;color:#fff;font-size:1.2rem;font-weight:700;display:flex;flex-direction:column;gap:.45rem}
-.dl b{display:block;height:.5rem;background:rgba(255,255,255,.25);border-radius:99rem;overflow:hidden}
-.dl i{display:block;height:100%;background:var(--accent);border-radius:inherit;transition:width .5s}
+/* descarga: franja de rayas diagonales que avanzan + barra (como en la consola) */
+.dl{position:absolute;left:0;right:0;bottom:0;height:15%;min-height:2.2rem;display:flex;align-items:center;padding:0 8%;border-radius:0 0 var(--r,1rem) var(--r,1rem);background-color:#151515;background-image:linear-gradient(135deg,#3b3b3b 25%,transparent 25%,transparent 50%,#3b3b3b 50%,#3b3b3b 75%,transparent 75%,transparent);background-size:2.1rem 2.1rem;animation:dlStripes .9s linear infinite;pointer-events:none}
+.dl b{flex:1;display:block;height:.62rem;background:rgba(232,232,232,.78);border-radius:99rem;overflow:hidden}
+.dl i{display:block;height:100%;width:0;background:var(--accent);border-radius:inherit;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.dl.paused{animation-play-state:paused;filter:brightness(.8)}
+.dl.queued b{background:rgba(232,232,232,.45)}
+@keyframes dlStripes{from{background-position:0 0}to{background-position:2.1rem 0}}
+@media (prefers-reduced-motion:reduce){.dl{animation:none}}
 .tile.all{width:10.5rem;height:10.5rem;border-radius:50%;--r:50%;background:var(--icon);display:grid;place-items:center;color:var(--iconfg);margin-left:.6rem}
 .tile.all svg{width:4rem;height:4rem}
 @keyframes tileIn{from{opacity:0;transform:translateX(2.5rem)}to{opacity:1;transform:none}}
@@ -647,6 +652,9 @@ body{font-weight:400}
 #gameTitle{font-weight:400;font-size:2.1rem;color:var(--accent);display:flex;align-items:center;gap:.8rem;text-align:left;transition:opacity .12s}
 #gameTitle .gt-ic{flex:0 0 auto;width:1.7rem;height:2.1rem;display:block;color:var(--accent)}
 #gameTitle .mqbox{min-width:0;overflow:hidden}
+#gameTitle .gt-ic.cloud{width:2.5rem;height:2.5rem}
+#gameTitle .gt-pct{flex:0 0 auto;color:var(--fg2);font-size:1.75rem;min-width:5.5ch;padding-left:.3rem}
+#gameTitle .gt-pct:empty{display:none}
 .rowwrap{padding:1rem 0}
 .track{gap:1.37rem;padding:0 4.6rem 0 9.94rem}
 .tile{--r:1.12rem;width:23.85rem;height:23.85rem;border-radius:1.12rem;box-shadow:none}
@@ -734,6 +742,40 @@ body{font-weight:400}
 #toast{font-weight:400;background:var(--bg3)}
 .tab{font-weight:400}
 .cap{font-weight:400}
+/* instalar con Steam: diálogos Instalar y Contrato de licencia */
+.dbox.inst,.dbox.eula{width:74rem;max-width:92vw}
+.dbox .dh{font-size:2.5rem;font-weight:400;padding:3.4rem 4.4rem 1.8rem;margin:0}
+.dsec{margin:0 4.4rem;border-top:1px solid var(--line)}
+.irow{display:flex;align-items:center;gap:1.8rem;padding:1.8rem 0;border-bottom:1px solid var(--line)}
+.irow .icap{width:10.2rem;height:4.8rem;border-radius:.3rem;object-fit:cover;flex:0 0 auto;background:var(--bg3)}
+.irow b{flex:1;min-width:0;font-weight:400;font-size:1.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.irow .isz{color:var(--fg2);font-size:1.6rem;white-space:nowrap}
+.ilab{color:var(--fg2);font-size:1.55rem;padding:2rem 0 .6rem}
+.idrives{display:flex;flex-direction:column;padding-bottom:1.6rem}
+.idrv{--r:.6rem;display:flex;align-items:center;gap:1.4rem;padding:1.5rem 1.6rem;border-bottom:1px solid var(--line);font-size:1.9rem;text-align:left;position:relative;color:var(--fg)}
+.idrv:last-child{border-bottom:0}
+.idrv svg{width:2.2rem;height:2.2rem;flex:0 0 auto;color:var(--fg2)}
+.idrv.sel,.idrv.sel svg{color:var(--accent)}
+.idrv .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.idrv .fr{display:flex;align-items:center;gap:.7rem;color:var(--fg2);font-size:1.5rem;white-space:nowrap}
+.idrv .fr svg{width:1.7rem;height:1.7rem;color:var(--accent)}
+.idrv.off{opacity:.45}
+.idrv.focused{background:var(--bg3)}
+.iwarn{color:#ff6b6b;font-size:1.55rem;padding:0 0 1.6rem;line-height:1.4}
+.iload{display:flex;align-items:center;gap:1.4rem;color:var(--fg2);font-size:1.7rem;padding:2rem 0 2.6rem}
+.iload i,.dbtns i.sp{width:2rem;height:2rem;border-radius:50%;border:.25rem solid var(--line);border-top-color:var(--accent);animation:vspin .8s linear infinite;flex:0 0 auto;display:inline-block;vertical-align:middle}
+.dbtns button.off{opacity:.4}
+.dbtns button.busy{color:var(--fg2)}
+.dbtns i.sp{margin-right:1rem;width:1.8rem;height:1.8rem}
+.dbox .esub{font-size:1.6rem;line-height:1.5;color:var(--fg2);padding:1.6rem 0 1.4rem;margin:0;text-align:center}
+.dbox.eula{display:flex;flex-direction:column;max-height:calc(100vh - 6rem)}
+.dbox.eula .dsec{display:flex;flex-direction:column;min-height:0;flex:1}
+.etext{max-height:min(46vh,42rem);min-height:8rem;flex:1 1 auto;overflow-y:auto;padding:1.4rem 1.6rem 2rem;margin-bottom:2rem;font-size:1.55rem;line-height:1.6;border-top:1px solid var(--line);border-bottom:1px solid var(--line);scrollbar-width:thin;overscroll-behavior:contain}
+.etext h4{font-size:1.65rem;margin:1.8rem 0 .8rem;font-weight:700}
+.etext h4:first-child{margin-top:.4rem}
+.dbox .etext p{margin:0 0 1rem;padding:0;font-size:1.55rem;line-height:1.6;text-align:left;white-space:pre-line;overflow-wrap:anywhere}
+.etext .eload{display:flex;flex-direction:column;align-items:center;gap:1.6rem;color:var(--fg2);padding:5rem 0}
+.etext .eload i{width:3.6rem;height:3.6rem;border-radius:50%;border:.3rem solid var(--line);border-top-color:var(--accent);animation:vspin .8s linear infinite}
 </style>
 </head>
 <body>
@@ -1233,7 +1275,7 @@ function tileExtras(g) {
   else if (g.appid === state.running || g.appid === state.side) h += `<span class="playing"><span class="pav">${avatarHTML()}</span><b>Jugando</b></span>`;
   else if (!g.installed && !state.downloads[g.appid]) h += `<span class="badge cloud">${I.cloud}</span>`;
   const d = state.downloads[g.appid];
-  if (d) h += `<div class="dl" data-dl="${g.appid}"><span>${esc(d.kind)} ${Math.round(d.p * 100)} %</span><b><i style="width:${d.p * 100}%"></i></b></div>`;
+  if (d) h += `<div class="dl${d.st === "paused" ? " paused" : d.st === "queued" ? " queued" : ""}" data-dl="${g.appid}" aria-label="${esc(dlLabel(d))}"><b><i style="width:${d.p * 100}%"></i></b></div>`;
   return h;
 }
 /* ¿Este mosaico es la app que está sonando (Apple Music, Spotify…)? */
@@ -1243,7 +1285,7 @@ const MUSIC_APP = /apple music|spotify|itunes|amazon music|deezer|tidal|youtube 
 const isMusicTile = g => g.kind === "app" && (media && media.app && norm(g.name) === norm(media.app) || ((g.appid === state.running || g.appid === state.side) && MUSIC_APP.test(g.name)));
 function buildTile(g, cls = "tile") {
   const b = document.createElement("button");
-  b.className = cls + (g.installed ? "" : " uninst"); b.setAttribute("aria-label", g.name);
+  b.className = cls + (g.installed || state.downloads[g.appid] ? "" : " uninst"); b.setAttribute("aria-label", g.name);
   const img = document.createElement("img"); img.alt = ""; b.append(img); Art.apply(img, g);
   b.insertAdjacentHTML("beforeend", tileExtras(g));
   return b;
@@ -1286,6 +1328,18 @@ function homeEl() {
 const focusedGame = () => home.zone === "games" && home.g < homeGames().length ? homeGames()[home.g] : null;
 const primaryLabel = g => g.appid === state.running ? "Reanudar" : !g.installed && !state.downloads[g.appid] ? "Instalar" : g.kind === "app" ? "Abrir" : "Iniciar";
 
+/* Ícono junto al nombre: tarjeta (instalado), nube (por instalar) o tarjeta con flecha (descargando) + "40 %". */
+const GT_CARD = '<svg class="gt-ic" viewBox="0 0 17 21" fill="currentColor"><path d="M2.2 0h12.6A2.2 2.2 0 0 1 17 2.2v16.6a2.2 2.2 0 0 1-2.2 2.2H2.2A2.2 2.2 0 0 1 0 18.8V2.2A2.2 2.2 0 0 1 2.2 0z"/><path d="M5 15.5h7v2.2H5z" fill="#1f1f1f"/></svg>';
+const GT_DL = '<svg class="gt-ic" viewBox="0 0 17 21" fill="currentColor"><path d="M2.2 0h12.6A2.2 2.2 0 0 1 17 2.2v16.6a2.2 2.2 0 0 1-2.2 2.2H2.2A2.2 2.2 0 0 1 0 18.8V2.2A2.2 2.2 0 0 1 2.2 0z"/><path d="M5.3 14.7 8.5 17.5l3.2-2.8" fill="none" stroke="#1f1f1f" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const GT_CLOUD = '<svg class="gt-ic cloud" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5 1.6A3.8 3.8 0 0 1 17.5 18"/><path d="M12 11v8M9 16l3 3 3-3"/></svg>';
+function paintTitleState() {
+  const t = $("#gameTitle"); if (!t) return;
+  const g = focusedGame(), d = g && state.downloads[g.appid];
+  const kind = !g ? "card" : d ? "dl" : !g.installed ? "cloud" : "card";
+  if (t.dataset.ic !== kind) { t.dataset.ic = kind; const ic = t.querySelector(".gt-ic"); if (ic) ic.outerHTML = kind === "dl" ? GT_DL : kind === "cloud" ? GT_CLOUD : GT_CARD; }
+  let pc = $("#gtPct"); if (!pc) { pc = document.createElement("span"); pc.id = "gtPct"; pc.className = "gt-pct"; t.append(pc); }
+  pc.textContent = d ? dlLabel(d) : "";
+}
 /* texto que se desplaza (como en la consola) si no cabe en su espacio */
 function marquee(box, text, active) {
   box.dataset.t = text; box.classList.add("mqbox"); box.classList.remove("scroll");
@@ -1328,6 +1382,7 @@ function updateFocus() {
     home.offset = Math.max(0, x);
     $("#track").style.transform = `translateX(${-home.offset}px)`;
     const g = focusedGame(), name = g ? g.name : "Biblioteca", txt = $("#gtText");
+    paintTitleState();
     // el nombre centrado arriba de su portada; si no cabe en pantalla, se desplaza
     title.style.width = "auto"; marquee(txt, name, false);
     const natural = title.scrollWidth, edge = rem() * 4.6, maxW = wrapW - 2 * edge;
@@ -2653,12 +2708,22 @@ Events.on("battery.low", d => notifyBattery(d.level));
 Events.on("achievement.unlocked", d => { const g = byId(d.appid); if (g && hasAch(g)) g.ach[0] = Math.min(g.ach[0] + 1, g.ach[1]); notifyAchievement(g, d.name, d); });
 
 /* ================= descargas y actualizaciones ================= */
+/* "Descargando 40 %", "En cola"… (título del juego, propiedades y lectores de pantalla) */
+function dlLabel(d) {
+  if (!d) return "";
+  if (d.st === "pending") return "Preparando…";
+  if (d.st === "queued") return "En cola";
+  if (d.st === "paused") return "En pausa";
+  return `${Math.round(d.p * 100)} %`;
+}
 function paintDownloads() {
   $$("[data-dl]").forEach(el => {
     const d = state.downloads[el.dataset.dl]; if (!d) return el.remove();
-    el.querySelector("span").textContent = `${d.kind} ${Math.round(d.p * 100)} %`;
     el.querySelector("i").style.width = d.p * 100 + "%";
+    el.classList.toggle("paused", d.st === "paused"); el.classList.toggle("queued", d.st === "queued");
+    el.setAttribute("aria-label", dlLabel(d));
   });
+  paintTitleState();
 }
 function finishDownload(appid) {
   const g = byId(appid), d = state.downloads[appid]; if (!d) return;
@@ -2666,28 +2731,360 @@ function finishDownload(appid) {
   if (g) { g.installed = true; notify({ icon: I.cloud, title: d.kind === "Descargando" ? "Descarga completada" : "Actualización completada", text: g.name }); }
   renderHome(); const lv = views.find(v => v.refresh && v.list && v.cols === 6); if (lv) lv.refresh(true);
 }
-function startDownload(g, kind) {
-  state.downloads[g.appid] = { p: 0, kind };
-  renderHome(); const lv = views.find(v => v.refresh && v.list && v.cols === 6); if (lv) lv.refresh(true);
+function refreshLibrary() { const lv = views.find(v => v.refresh && v.list && v.cols === 6); if (lv) lv.refresh(true); }
+function startDownload(g, kind, st = "active") {
+  state.downloads[g.appid] = { p: 0, kind, st };
+  renderHome(); refreshLibrary();
 }
-function startInstall(g) {
+/* El juego que empiezas a instalar pasa al primer lugar (y se queda ahí si de verdad se instala). */
+function pinFirst(g) {
   settings.installedAt = Object.assign({}, settings.installedAt, { [g.appid]: Date.now() }); saveSettings();
-  home.g = 0; renderHome();
+  if (!views.length) { home.zone = "games"; home.g = 0; }
+  renderHome();
+}
+function unpin(appid) {
+  const g = byId(appid);
+  if (g && !g.installed && settings.installedAt && settings.installedAt[appid]) { delete settings.installedAt[appid]; saveSettings(); }
+}
+/* La ventanita de Steam de siempre (sin conexión directa, o cuando Steam pide algo que Scarlet no maneja). */
+function installViaSteam(g) {
+  pinFirst(g);
   // Si cancelaste en Steam (no empezó a descargar), deja de estar primero.
-  setTimeout(() => { if (!state.downloads[g.appid] && !g.installed && settings.installedAt) { delete settings.installedAt[g.appid]; saveSettings(); renderHome(); } }, 180000);
+  setTimeout(() => { if (!state.downloads[g.appid] && !g.installed) { unpin(g.appid); renderHome(); } }, 180000);
   Data.open("steam://install/" + g.appid, "la instalación de " + g.name);
   if (!Host.has) startDownload(g, "Descargando");
 }
 Events.on("download.progress", d => {
-  const had = !!state.downloads[d.appid];
-  state.downloads[d.appid] = { p: d.progress, kind: d.kind || "Actualizando" };
-  if (!had) renderHome(); else paintDownloads();
+  const prev = state.downloads[d.appid];
+  const now = state.downloads[d.appid] = { p: clamp(+d.progress || 0, 0, 1), kind: d.kind || (prev && prev.kind) || "Actualizando", st: d.state || "active" };
+  if (!prev || prev.st !== now.st) { renderHome(); refreshLibrary(); } else paintDownloads();
 });
 Events.on("download.done", d => finishDownload(d.appid));
+Events.on("download.removed", d => {   // la quitaste de la lista de Steam (cancelada)
+  if (!state.downloads[d.appid]) return;
+  delete state.downloads[d.appid]; unpin(d.appid);
+  renderHome(); refreshLibrary();
+});
+/* ================= instalar con Steam, directo (sin sus ventanas) =================
+   Scarlet le pide a Steam su asistente de instalación (escondido) y muestra el suyo: portada, tamaño, disco con su
+   espacio libre y, si el juego lo tiene, el contrato de licencia. Si Steam pide algo que Scarlet no maneja (clave de
+   producto, contraseña…) o la conexión no está activa, se usa la ventanita de Steam de siempre. */
+const fmtBytes = b => { if (!(b > 0)) return "—"; const gb = b / 1073741824; return gb >= 1 ? `${gb.toFixed(2)} GB` : `${Math.max(1, Math.round(b / 1048576))} MB`; };
+const DRIVE_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 15 6.4 6.6A2 2 0 0 1 8.3 5.1h7.4a2 2 0 0 1 1.9 1.5L19.8 15"/><rect x="3.5" y="14.6" width="17" height="5" rx="1.5"/><path d="M7.2 17.1h.01M10.2 17.1h.01"/></svg>';
+const STAR_IC = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 2.8 2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/></svg>';
+let installing = 0;   // un solo asistente a la vez (Steam tiene uno)
+
+function dropView(v) {
+  if (!views.includes(v)) return;
+  if (topView() === v) return closeView();
+  views.splice(views.indexOf(v), 1); v.el.remove(); updateFocus();
+}
+/* Lo que eligió la persona en un diálogo (se guarda si llega antes de que alguien lo espere). */
+function actOn(v, a) { if (v.onAct) { const f = v.onAct; v.onAct = null; f(a); } else v.queued = a; }
+function nextAct(v) {
+  return new Promise(res => {
+    if (v.queued !== undefined) { const a = v.queued; v.queued = undefined; return res(a); }
+    v.onAct = res;
+    const t = setInterval(() => { if (!views.includes(v)) { clearInterval(t); actOn(v, "cancel"); } else if (!v.onAct) clearInterval(t); }, 700);   // si se cerró por fuera (suspender, un aviso)
+  });
+}
+const alertDialog = text => choiceDialog(text, [{ label: "Aceptar", value: true }], 0);
+/* Portada horizontal de Steam (como en la consola); si no hay, la del mosaico. */
+function capsule(img, g) {
+  if ((g.source || "steam") !== "steam") return Art.apply(img, g);
+  img.onerror = () => { img.onerror = null; Art.apply(img, g); };
+  const url = `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/header.jpg`;
+  Art.local(url).then(u => { if (u) img.src = u; else Art.apply(img, g); }).catch(() => { img.src = url; });
+}
+/* En el navegador (sin la app), un Steam de mentiras para probar los diálogos. */
+const demoSteam = {
+  async call(t, p) {
+    await wait(t === "install.prepare" ? 700 : 900);
+    const g = byId(p.appid) || {};
+    if (t === "install.prepare") return { mode: "cdp", size: 64.97 * 1073741824 * (g.appid % 3 ? .4 : 1), folder: 0, canChange: true, folders: [{ i: 0, name: "Disco local (C:)", free: 76.61 * 1073741824, def: true, ok: true }, { i: 1, name: "Juegos (D:)", free: 812.4 * 1073741824, def: false, ok: true }] };
+    if (t === "install.folder") return { ok: true, folder: p.folder };
+    if (t === "install.go") return g.appid % 4 === 0 ? { s: "eula", eulas: [{ id: "demo", version: 1, url: "", html: "<h1>Acuerdo de usuario</h1><p>Última actualización: 17 de julio de 2025.</p><p>1. ¡Hola! Este es un contrato de ejemplo para probar el diálogo.</p><p>2. Lo que ves aquí son las normas que regulan el uso del juego.</p>".repeat(6) }] } : { s: "started" };
+    if (t === "install.eula") return p.accept ? { s: "started" } : { s: "canceled" };
+    return true;
+  }
+};
+const steamCall = (t, p = {}) => Host.has ? Host.call(t, p) : demoSteam.call(t, p);
+
+async function startInstall(g) {
+  if ((g.source || "steam") !== "steam") {   // juegos de otras tiendas: como antes
+    const ok = await confirmDialog(`${g.name} no está instalado.\n¿Quieres instalarlo?`, "Instalar");
+    if (ok) installViaSteam(g);
+    return;
+  }
+  if (installing) { bump(homeEl()); return toast("Espera: Steam está preparando otra instalación"); }
+  installing = g.appid;
+  try { await installFlow(g); }
+  catch (e) { toast("No se pudo instalar: " + e.message); }
+  finally { installing = 0; }
+}
+
+function installView(g) {
+  const v = {
+    cls: "dialog", isInstall: true, phase: "load", msg: "Preparando con Steam…", size: 0, folders: [], sel: -1, i: 0,
+    hints() { return this.phase === "busy" ? [] : [["B", "Cancelar"], ["A", "Aceptar"]]; },
+    render(el) {
+      el.innerHTML = `<div class="dbox inst"><h3 class="dh">Instalar</h3><div class="dsec"><div class="irow"><img class="icap" alt=""><b>${esc(g.name)}</b><span class="isz"></span></div><div class="ibody"></div></div><div class="dbtns"><button class="fi" data-b="cancel">Cancelar</button><button class="fi" data-b="go">Instalar</button></div></div>`;
+      capsule($(".icap", el), g);
+      $$(".dbtns button", el).forEach(b => b.onclick = () => {
+        if (this.phase === "busy") return;
+        if (b.dataset.b === "cancel") return actOn(this, "cancel");
+        if (this.phase !== "config") return bump(b);
+        actOn(this, "go");
+      });
+      this.paint();
+    },
+    focusKey() { const it = this.items()[this.i]; return it ? (it.dataset.b ? "b:" + it.dataset.b : "f:" + it.dataset.f) : "b:cancel"; },
+    paint() {
+      const el = this.el; if (!el) return;
+      const key = this.focusKey();
+      $(".isz", el).textContent = this.phase === "load" ? "" : fmtBytes(this.size);
+      const usable = this.folders.filter(f => f.ok), multi = usable.length > 1 && this.canChange !== false;
+      const fo = this.folders.find(f => f.i === this.sel);
+      this.short = !!(fo && this.size > 0 && fo.free >= 0 && fo.free < this.size);
+      const body = $(".ibody", el);
+      if (this.phase === "load") body.innerHTML = `<div class="iload"><i></i>${esc(this.msg)}</div>`;
+      else body.innerHTML = `<div class="ilab">Instalar en:</div><div class="idrives">${this.folders.map(f =>
+        `<button class="idrv${multi && f.ok ? " fi" : ""}${f.i === this.sel ? " sel" : ""}${f.ok ? "" : " off"}" data-f="${f.i}">${DRIVE_IC}<span class="nm">${esc(f.name)}</span><span class="fr">${f.def ? STAR_IC : ""}${f.ok ? "Espacio libre: " + fmtBytes(f.free) : "No disponible"}</span></button>`).join("") || `<div class="iload">Steam no tiene bibliotecas</div>`}</div>` +
+        (this.short ? `<div class="iwarn">No cabe en este disco: faltan ${fmtBytes(this.size - fo.free)}.${multi ? " Elige otro disco." : ""}</div>` : "");
+      $$(".idrv.fi", el).forEach(b => b.onclick = () => { if (this.phase === "config") actOn(this, { folder: +b.dataset.f }); });
+      const go = $('[data-b="go"]', el), cancel = $('[data-b="cancel"]', el);
+      go.classList.toggle("off", this.phase === "load" || this.short);
+      go.classList.toggle("busy", this.phase === "busy"); cancel.classList.toggle("off", this.phase === "busy");
+      go.innerHTML = this.phase === "busy" ? '<i class="sp"></i>Instalando…' : "Instalar";
+      const items = this.items(), k = items.findIndex(x => (x.dataset.b ? "b:" + x.dataset.b : "f:" + x.dataset.f) === key);
+      this.i = k >= 0 ? k : items.indexOf(cancel);
+      if (topView() === this) updateFocus();
+    },
+    set(o) { Object.assign(this, o); this.paint(); },
+    items() { return fis(this.el); },
+    nav(dir) {
+      const items = this.items(), cur = items[this.i];
+      const to = x => { this.i = items.indexOf(x); play("move"); updateFocus(); return true; };
+      const no = () => { bump(cur, dir); return true; };
+      if (!cur || this.phase === "busy") return no();
+      const drv = items.filter(x => x.classList.contains("idrv")), btn = items.filter(x => !x.classList.contains("idrv"));
+      if (cur.classList.contains("idrv")) {
+        const k = drv.indexOf(cur);
+        if (dir === "up") return k > 0 ? to(drv[k - 1]) : no();
+        if (dir === "down") return k < drv.length - 1 ? to(drv[k + 1]) : to(btn[btn.length - 1]);
+        return no();
+      }
+      const k = btn.indexOf(cur);
+      if (dir === "left") return k > 0 ? to(btn[k - 1]) : no();
+      if (dir === "right") return k < btn.length - 1 ? to(btn[k + 1]) : no();
+      if (dir === "up" && drv.length) return to(drv.find(d => +d.dataset.f === this.sel) || drv[drv.length - 1]);
+      return no();
+    },
+    onKey(k) { return ["start", "x", "y", "lb", "rb", "lt", "rt"].includes(k) || (this.phase === "busy" && k !== "power"); },
+    onB() { if (this.phase !== "busy") actOn(this, "cancel"); return true; }
+  };
+  return v;
+}
+
+/* Convierte la página del contrato en párrafos de texto (nunca se inserta su HTML ni se ejecuta nada). */
+function eulaText(html) {
+  if (!html) return null;
+  let doc; try { doc = new DOMParser().parseFromString(html, "text/html"); } catch (e) { return null; }
+  if (!doc.body) return null;
+  doc.querySelectorAll("script,style,noscript,svg,iframe,img,video,header,footer,nav,form,button,select,input,#global_header,#footer,#footer_spacer,.responsive_page_menu_ctn,.responsive_header,#store_header,.page_header_ctn,.breadcrumbs").forEach(e => e.remove());
+  const len = e => (e.textContent || "").replace(/\s+/g, " ").trim().length;
+  let root = doc.querySelector("#eula_content,.eula_content,#eula,.eula,main,article") || doc.body;
+  if (len(root) < 80) root = doc.body;
+  for (let k = 0; k < 14; k++) {   // baja al bloque que tiene casi todo el texto (quita menús y pies de página)
+    const total = len(root); if (!total) break;
+    const big = [...root.children].find(c => len(c) >= total * .8);
+    if (!big) break; root = big;
+  }
+  const out = []; let cur = "", head = false;
+  const BLOCK = /^(P|DIV|LI|H[1-6]|BR|TR|SECTION|ARTICLE|UL|OL|TABLE|BLOCKQUOTE|PRE|DT|DD)$/;
+  const flush = () => { const t = cur.replace(/[ \t\r\n ]+/g, " ").trim(); if (t) out.push({ t, h: head }); cur = ""; head = false; };
+  const walk = n => {
+    if (n.nodeType === 3) { cur += n.nodeValue; return; }
+    if (n.nodeType !== 1) return;
+    const b = BLOCK.test(n.tagName);
+    if (b) flush();
+    if (/^H[1-6]$/.test(n.tagName)) head = true;
+    if (n.tagName === "LI") {   // listas numeradas conservan su número (las cláusulas de los contratos)
+      const ol = n.parentElement && n.parentElement.tagName === "OL" ? n.parentElement : null;
+      cur += ol ? `${(parseInt(ol.getAttribute("start"), 10) || 1) + [...ol.children].filter(c => c.tagName === "LI").indexOf(n)}. ` : "• ";
+    }
+    n.childNodes.forEach(walk);
+    if (b) flush();
+  };
+  walk(root); flush();
+  return out.reduce((a, x) => a + x.t.length, 0) > 80 ? out : null;
+}
+
+function eulaView(g, eulas) {
+  const v = {
+    cls: "dialog", isInstall: true, cols: 2, i: 1, busy: false,
+    hints() { return this.busy ? [] : [["B", "Cancelar"], ["A", "Aceptar"]]; },
+    render(el) {
+      el.innerHTML = `<div class="dbox eula"><h3 class="dh">Contrato de licencia</h3><div class="dsec"><p class="esub">Para jugar ${esc(g.name)} debes aceptar el Contrato de Licencia de Usuario Final. Léelo completo:</p><div class="etext"><div class="eload"><i></i>Cargando el contrato…</div></div></div><div class="dbtns"><button class="fi" data-b="cancel">Cancelar</button><button class="fi" data-b="accept">Aceptar</button></div></div>`;
+      $$(".dbtns button", el).forEach(b => b.onclick = () => { if (!this.busy) actOn(this, b.dataset.b); });
+      requestAnimationFrame(() => {   // el texto se arma después de abrir, para que el diálogo salga al instante
+        const t = $(".etext", el); if (!t) return;
+        const many = eulas.length > 1;
+        const parts = eulas.map((e, k) => {
+          const paras = eulaText(e.html);
+          const head = many ? `<h4>Contrato ${k + 1} de ${eulas.length}</h4>` : "";
+          if (!paras) return head + `<p>No se pudo cargar el texto de este contrato${e.url ? ". Está en:\n" + esc(e.url) : "."}</p>`;
+          return head + paras.map(x => x.h ? `<h4>${esc(x.t)}</h4>` : `<p>${esc(x.t)}</p>`).join("");
+        });
+        t.innerHTML = parts.join("") || "<p>Steam no mandó el texto del contrato.</p>";
+        t.scrollTop = 0;
+      });
+    },
+    set(o) {
+      Object.assign(this, o);
+      const a = $('[data-b="accept"]', this.el), c = $('[data-b="cancel"]', this.el);
+      if (a) { a.innerHTML = this.busy ? '<i class="sp"></i>Instalando…' : "Aceptar"; a.classList.toggle("busy", this.busy); }
+      if (c) c.classList.toggle("off", this.busy);
+      if (topView() === this) updateFocus();
+    },
+    items() { return fis(this.el); },
+    nav(dir) {   // arriba / abajo: leer el contrato
+      if (dir !== "up" && dir !== "down") return this.busy ? true : false;
+      const t = $(".etext", this.el); if (!t) return true;
+      const max = t.scrollHeight - t.clientHeight;
+      if ((dir === "down" && t.scrollTop >= max - 1) || (dir === "up" && t.scrollTop <= 0)) { bump(this.items()[this.i], dir); return true; }
+      t.scrollBy({ top: (dir === "down" ? 1 : -1) * t.clientHeight * .7, behavior: "smooth" }); play("move");
+      return true;
+    },
+    onKey(k) {   // LB / RB también leen; Start, X, Y no abren nada encima del contrato
+      if (k === "lb" || k === "rb") { this.nav(k === "lb" ? "up" : "down"); return true; }
+      if (["start", "x", "y", "lt", "rt"].includes(k)) return true;
+      return this.busy && k !== "power";
+    },
+    onB() { if (!this.busy) actOn(this, "cancel"); return true; }
+  };
+  return v;
+}
+
+async function installFlow(g) {
+  const v = installView(g); openView(v);
+  const gone = () => !views.includes(v);
+  let r;
+  for (let tries = 0; ; tries++) {   // Steam arrancando: se espera un poco
+    r = await steamCall("install.prepare", { appid: g.appid }).catch(e => ({ mode: "steam", why: e.message }));
+    if (gone()) { steamCall("install.cancel").catch(() => {}); return; }
+    if (r && r.mode === "wait" && tries < 25) { v.set({ msg: "Esperando a Steam…" }); await wait(3000); if (gone()) return; continue; }
+    break;
+  }
+  if (!r || r.mode === "wait") r = { mode: "steam", why: "Steam no terminó de abrir" };
+  if (r.mode !== "cdp") { dropView(v); return afterPrepare(g, r); }
+  v.set({ phase: "config", size: r.size || 0, folders: r.folders || [], sel: r.folder >= 0 ? r.folder : ((r.folders || []).find(f => f.def) || (r.folders || [])[0] || { i: -1 }).i, canChange: r.canChange });
+  for (;;) {
+    const a = await nextAct(v);
+    if (a === "cancel") { dropView(v); steamCall("install.cancel").catch(() => {}); return; }
+    if (a && a.folder != null) {
+      if (a.folder === v.sel) continue;
+      v.set({ sel: a.folder }); play("select");
+      const f = await steamCall("install.folder", { appid: g.appid, folder: a.folder }).catch(() => null);
+      if (gone()) { steamCall("install.cancel").catch(() => {}); return; }
+      if (f && f.ok) v.set({ size: f.size || v.size });
+      continue;
+    }
+    if (a === "go") {
+      if (v.short) { bump($('[data-b="go"]', v.el)); toast("No hay espacio suficiente en ese disco"); continue; }
+      v.set({ phase: "busy" });
+      const res = await steamCall("install.go", { appid: g.appid, folder: v.sel }).catch(e => ({ s: "steam", why: e.message }));
+      dropView(v);
+      return afterStep(g, res);
+    }
+  }
+}
+
+async function afterPrepare(g, r) {
+  if (r.mode === "setup") return setupDirect(g, r);
+  if (r.mode === "started") return began(g);
+  if (r.mode === "eula") return eulaFlow(g, r.eulas || []);
+  if (r.mode === "error") return alertDialog(`No se pudo instalar ${g.name}.\n${r.error || ""}`);
+  toast("Se abre la ventanita de Steam para instalar");
+  installViaSteam(g);
+}
+async function afterStep(g, r) {
+  const s = r && r.s;
+  if (s === "started") return began(g);
+  if (s === "eula") return eulaFlow(g, r.eulas || []);
+  if (s === "canceled") return toast("Se canceló la instalación");
+  if (s === "error") return alertDialog(`No se pudo instalar ${g.name}.\n${r.error || ""}`);
+  toast("Steam necesita algo más: se abre su ventanita");
+  installViaSteam(g);
+}
+async function eulaFlow(g, eulas) {
+  const v = eulaView(g, eulas); openView(v);
+  const ids = eulas.map(e => ({ id: e.id, version: e.version }));
+  for (;;) {
+    const a = await nextAct(v);
+    if (a === "cancel") { dropView(v); steamCall("install.eula", { appid: g.appid, accept: false, eulas: ids }).catch(() => {}); return toast("Se canceló la instalación"); }
+    if (a === "accept") {
+      v.set({ busy: true });
+      const r = await steamCall("install.eula", { appid: g.appid, accept: true, eulas: ids }).catch(e => ({ s: "steam", why: e.message }));
+      dropView(v);
+      return afterStep(g, r);
+    }
+  }
+}
+/* Ya empezó: pasa al primer lugar con su franja de descarga (Steam manda el progreso en vivo). */
+function began(g) {
+  play("select");
+  if (!state.downloads[g.appid]) state.downloads[g.appid] = { p: 0, kind: "Descargando", st: "pending" };
+  pinFirst(g); refreshLibrary();
+  setTimeout(() => {   // si Steam nunca la empezó, se quita la franja
+    const d = state.downloads[g.appid];
+    if (d && d.st === "pending" && !g.installed) { delete state.downloads[g.appid]; unpin(g.appid); renderHome(); refreshLibrary(); toast(`Steam no empezó a descargar ${g.name}`); }
+  }, 120000);
+}
+
+/* Primera vez: conectar Scarlet con Steam (un archivo en la carpeta de Steam y reiniciarlo una vez). */
+async function setupDirect(g, r) {
+  if (r.gameOpen) {
+    const c = await choiceDialog(`Para instalar desde Scarlet, Steam tiene que reiniciarse una vez, y ahora tienes un juego abierto.\nCiérralo y vuelve a intentarlo, o instala con la ventanita de Steam.`, [{ label: "Cancelar", value: null }, { label: "Usar Steam", value: "steam" }], 1);
+    if (c === "steam") installViaSteam(g);
+    return;
+  }
+  const text = (r.restart ? "Steam tiene que reiniciarse una vez para terminar de conectarse con Scarlet." :
+    "Para instalar desde Scarlet, sin que se abra Steam, Scarlet tiene que conectarse con Steam.\nSteam se reiniciará una sola vez (tarda unos segundos).") +
+    (r.millennium ? "\nTienes Millennium instalado: puede bloquear esta conexión." : "");
+  const c = await choiceDialog(text, [{ label: "Cancelar", value: null }, { label: "Usar Steam", value: "steam" }, { label: "Conectar", value: "go" }], 2);
+  if (c === "steam") return installViaSteam(g);
+  if (c !== "go") return;
+  const ok = await connectSteam();
+  if (ok === true) return installFlow(g);
+  if (ok === false) installViaSteam(g);
+}
+function connectSteam() {
+  return new Promise(async res => {
+    const r = await Host.call("install.enable").catch(e => ({ ok: false, error: e.message }));
+    if (!r || !r.ok) { await alertDialog((r && r.error) || "No se pudo conectar con Steam."); return res(false); }
+    let done = false, t = 0, off = () => {};
+    const v = {
+      cls: "dialog", isInstall: true, i: 0, hints: [["B", "Seguir en segundo plano"]],
+      render(el) { el.innerHTML = `<div class="dbox"><p><span class="iload" style="justify-content:center;padding:0"><i></i>Conectando con Steam…</span><span class="dsub">Steam se está reiniciando. Tarda entre 20 segundos y un minuto.</span></p></div>`; },
+      items() { return []; },
+      onKey(k) { return k !== "b" && k !== "power"; },
+      onB() { if (!done) { done = true; clearTimeout(t); dropView(v); toast("Te aviso cuando Steam esté listo"); res("later"); setTimeout(off, 150000); } return true; }
+    };
+    openView(v);
+    off = Events.on("install.enabled", d => {
+      if (done) { toast(d && d.ok ? "Scarlet ya está conectado con Steam" : (d && d.error) || "No se pudo conectar con Steam"); off(); return; }
+      done = true; off(); clearTimeout(t); dropView(v);
+      if (d && d.ok) { toast("Scarlet ya está conectado con Steam"); res(true); } else { toast((d && d.error) || "No se pudo conectar con Steam"); res(false); }
+    });
+    t = setTimeout(() => { if (done) return; done = true; off(); dropView(v); toast("Steam tardó demasiado en reiniciarse"); res(false); }, 150000);
+  });
+}
+
 setInterval(() => {   // simulación del progreso en el navegador
   if (Host.has) return;
   let done = [];
-  for (const id in state.downloads) { const d = state.downloads[id]; d.p = Math.min(1, d.p + .018 + Math.random() * .02); if (d.p >= 1) done.push(id); }
+  for (const id in state.downloads) { const d = state.downloads[id]; if (d.st === "paused" || d.st === "queued") continue; d.st = "active"; d.p = Math.min(1, d.p + .018 + Math.random() * .02); if (d.p >= 1) done.push(id); }
   paintDownloads(); done.forEach(finishDownload);
 }, 600);
 
@@ -2740,12 +3137,8 @@ async function launchGame(g, el, opt = {}) {
   if (mode !== "ui") return;
   if (state.running === g.appid) return resumeGame(el);
   const d = state.downloads[g.appid];
-  if (d) { bump(el); return toast(`Espera a que termine: ${d.kind.toLowerCase()} ${Math.round(d.p * 100)} %`); }
-  if (!g.installed) {
-    const ok = await confirmDialog(`${g.name} no está instalado.\n¿Quieres instalarlo con Steam?`, "Instalar");
-    if (ok) startInstall(g);
-    return;
-  }
+  if (d) { bump(el); return toast(d.st === "queued" ? `${g.name} está en la cola de descargas de Steam` : d.st === "paused" ? `La descarga de ${g.name} está en pausa en Steam` : d.st === "pending" ? `Steam está preparando ${g.name}` : `Espera a que termine: ${d.kind.toLowerCase()} ${Math.round(d.p * 100)} %`); }
+  if (!g.installed) return startInstall(g);
   if (state.running) {
     const r = runningGame();
     // Con un juego abierto, las apps (Apple Music, YouTube para ver una guía…) se abren junto a él: el juego se queda

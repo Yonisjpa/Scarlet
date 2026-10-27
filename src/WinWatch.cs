@@ -81,13 +81,15 @@ static class WinWatch
         if (idObject != 0 || hwnd == IntPtr.Zero) return;
         try
         {
-            if (DateTime.Now - steamPidsAt > TimeSpan.FromSeconds(5))
+            Native.GetWindowThreadProcessId(hwnd, out uint pid);
+            // Steam recién abierto (o reiniciado) tiene procesos nuevos: si la ventana no es de uno conocido, se vuelve a
+            // revisar la lista (a lo más una vez por segundo).
+            if (DateTime.Now - steamPidsAt > TimeSpan.FromSeconds(5) || (!steamPids.Contains(pid) && DateTime.Now - steamPidsAt > TimeSpan.FromSeconds(1)))
             {
                 steamPidsAt = DateTime.Now; steamPids.Clear();
                 foreach (var n in new[] { "steam", "steamwebhelper" })
                     foreach (var p in Process.GetProcessesByName(n)) using (p) steamPids.Add((uint)p.Id);
             }
-            Native.GetWindowThreadProcessId(hwnd, out uint pid);
             if (!steamPids.Contains(pid)) return;   // solo interesan las de Steam: lo demás ni se manda a la pantalla
             ui?.Post(_ => { try { SteamShown?.Invoke(hwnd); } catch (Exception ex) { Log.Error("ventana de Steam", ex); } }, null);
         }

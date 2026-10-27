@@ -181,6 +181,7 @@ sealed class MainForm : Form
             };
             steam.DownloadProgress += (id, p, kind) => Emit("download.progress", new { appid = id, progress = p, kind });
             steam.DownloadDone += id => Emit("download.done", new { appid = id });
+            _ = Task.Run(DownloadLoop);
             pads.Connected += d => Emit("pad.connected", d);
             pads.Disconnected += d => Emit("pad.disconnected", d);
             pads.Found += (id, name) => Emit("bt.found", new { id, name });
@@ -269,7 +270,9 @@ sealed class MainForm : Form
         if (!GameFreezer.IsFrozen) CheckHung(front);   // congelado, Windows lo marca "no responde": es normal
         CheckTouchBlocked();
         CheckBattery();
-        try { steam.PollDownloads(); } catch (Exception ex) { Log.Error("descargas", ex); }
+        // Con la conexión directa, el progreso llega en vivo (DownloadLoop); si no, de los archivos de Steam cada 3 s.
+        if (DateTime.UtcNow - cdpLiveAt > TimeSpan.FromSeconds(6))
+            try { steam.PollDownloads(); } catch (Exception ex) { Log.Error("descargas", ex); }
         if (slowTicks % 20 == 0) _ = steam.PollRunningAchievementsAsync();   // cada minuto mientras juegas
     }
 
@@ -474,6 +477,13 @@ sealed class MainForm : Form
                 return true;
             case "game.close": GameFreezer.Resume(); FlushPlay(); playKey = null; tracker.Close(); steam.SetRunning(0); AudioFocus.RestoreAll(); return true;   // congelado no podría cerrarse bien
             case "game.uninstall": _ = SteamDialogAsync("steam://uninstall/" + P.L(p, "appid"), "desinstalar"); return true;
+            // ── Instalar directo con Steam (sin sus ventanas)
+            case "install.prepare": return await InstallPrepare(P.L(p, "appid"));
+            case "install.folder": return await InstallFolder(P.L(p, "appid"), (int)P.L(p, "folder"));
+            case "install.go": return await InstallStep(P.L(p, "appid"), SteamCdp.ContinueAsync(P.L(p, "appid"), (int)P.L(p, "folder")));
+            case "install.eula": return await InstallStep(P.L(p, "appid"), SteamCdp.EulaAsync(P.L(p, "appid"), Flag(p, "accept"), EulaIds(p)));
+            case "install.cancel": await SteamCdp.CancelAsync(); return true;
+            case "install.enable": return InstallEnable();
 
             // ── Ventana y notificaciones
             case "ui.show": ShowUi(); return true;
@@ -1667,6 +1677,203 @@ sealed class MainForm : Form
         bool needs = exe is "SystemSettings" or "mmc" or "control" or "Taskmgr" or "regedit" or "notepad" || explorerWindow;
         if (needs && CursorHider.Hidden) CursorHider.Restore();
         else if (!needs && (!CursorHider.Hidden || slowTicks % 10 == 0)) CursorHider.Hide(force: true);   // cada ~30 s se reafirma
+    }
+
+    // ───────────────────────────── Instalar directo con Steam ─────────────────────────────
+    // Steam abre su asistente de instalación escondido (el guardián de ventanas lo oculta al aparecer) y Scarlet muestra
+    // sus propios diálogos: disco, espacio y contrato de licencia. Si algo no se puede (clave de producto, contraseña,
+    // la conexión no está activa), la interfaz regresa a la ventanita de Steam de siempre.
+
+    DateTime cdpLiveAt = DateTime.MinValue;
+    bool enabling;
+
+    static bool Num(JsonElement r, string k, out double v)
+    {
+        v = 0;
+        if (r.ValueKind != JsonValueKind.Object || !r.TryGetProperty(k, out var x) || x.ValueKind != JsonValueKind.Number) return false;
+        v = x.GetDouble(); return true;
+    }
+    static int State(JsonElement r) => Num(r, "s", out var v) ? (int)v : 0;
+    static string Str(JsonElement r, string k) => r.ValueKind == JsonValueKind.Object && r.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.String ? x.GetString() : "";
+    static bool Flag(JsonElement r, string k) => r.ValueKind == JsonValueKind.Object && r.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.True;
+
+    static List<(string id, int version)> EulaIds(JsonElement p)
+    {
+        var list = new List<(string, int)>();
+        if (p.ValueKind == JsonValueKind.Object && p.TryGetProperty("eulas", out var a) && a.ValueKind == JsonValueKind.Array)
+            foreach (var e in a.EnumerateArray())
+            {
+                string id = Str(e, "id");
+                if (!string.IsNullOrEmpty(id)) list.Add((id, Num(e, "version", out var v) ? (int)v : 0));
+            }
+        return list;
+    }
+
+    async Task<object> InstallPrepare(long appid)
+    {
+        if (appid <= 0 || steam.SteamPath == null) return new { mode = "steam", why = "Steam no está en este equipo" };
+        if (!SteamCdp.MarkerPresent(steam.SteamPath))
+            return new { mode = "setup", gameOpen = tracker != null && tracker.Active, millennium = SteamCdp.MillenniumInstalled(steam.SteamPath) };
+        if (enabling) return new { mode = "wait" };
+        var probe = await SteamCdp.ProbeAsync();
+        if (probe == SteamCdp.Probe.NoApi && SteamUptime() > TimeSpan.FromSeconds(60))
+        {
+            Log.Write("Steam: hay conexión pero Steam cambió su interfaz interna; se usa su ventanita");
+            return new { mode = "steam", why = "Steam cambió su interfaz interna" };
+        }
+        if (probe != SteamCdp.Probe.Ready)
+        {
+            if (!SteamCdp.SteamRunning) { StartSteamSilently(); return new { mode = "wait" }; }
+            // Steam ya estaba abierto desde antes de crear el archivo: necesita reiniciarse una vez.
+            if (SteamUptime() < TimeSpan.FromSeconds(90)) return new { mode = "wait" };
+            return new { mode = "setup", restart = true, gameOpen = tracker != null && tracker.Active, millennium = SteamCdp.MillenniumInstalled(steam.SteamPath) };
+        }
+        JsonElement r;
+        try { r = await SteamCdp.PrepareAsync(appid); }
+        catch (Exception ex) { Log.Write("Steam: preparar instalación: " + ex.Message); return new { mode = "steam", why = ex.Message }; }
+        Ui(() => { if (web.Visible && (tracker == null || !tracker.Active)) ShowUi(); });   // por si la ventanita de Steam alcanzó a robar el foco
+        int s = State(r);
+        Log.Write($"Steam: instalar {appid}: asistente en estado {s}");
+        if (!Flag(r, "mine") || s == 0) { await SteamCdp.CancelAsync(); return new { mode = "steam", why = "Steam no abrió su asistente" }; }
+        if (s == 15) { await SteamCdp.CancelAsync(); return new { mode = "error", error = SteamCdp.ErrorText(Num(r, "err", out var e) ? (int)e : 1, Str(r, "detail")) }; }
+        if (s == 16) return new { mode = "error", error = "Steam canceló la instalación." };
+        if (s == 14) return new { mode = "started" };
+        if (s == 8) return new { mode = "eula", eulas = await EulaTexts(r) };
+        if (s != 7) { await SteamCdp.CancelAsync(); return new { mode = "steam", why = $"Steam necesita algo más (paso {s})" }; }
+        Num(r, "need", out var need); Num(r, "folder", out var cur);
+        return new { mode = "cdp", size = need, folder = (int)cur, canChange = Flag(r, "canChange"), folders = Folders(r) };
+    }
+
+    /// <summary>Discos de Steam con el espacio libre real de Windows (y el nombre como lo muestra el Explorador).</summary>
+    static List<object> Folders(JsonElement r)
+    {
+        var list = new List<object>();
+        if (!r.TryGetProperty("folders", out var fs) || fs.ValueKind != JsonValueKind.Array) return list;
+        var rows = fs.EnumerateArray().ToList();
+        var roots = rows.Select(f => (Path.GetPathRoot(Str(f, "path")) ?? "").ToUpperInvariant()).ToList();
+        for (int k = 0; k < rows.Count; k++)
+        {
+            var f = rows[k];
+            string path = Str(f, "path"), root = Path.GetPathRoot(path) ?? "", user = Str(f, "label");
+            long free = -1; string vol = "";
+            try { var di = new DriveInfo(root); if (di.IsReady) { free = di.AvailableFreeSpace; vol = di.VolumeLabel; } } catch { }
+            if (free < 0 && long.TryParse(Str(f, "free"), out var sf)) free = sf;
+            string letter = root.TrimEnd('\\', '/').TrimEnd(':');
+            string name = !string.IsNullOrWhiteSpace(user) ? user : $"{(string.IsNullOrWhiteSpace(vol) ? "Disco local" : vol)} ({letter}:)";
+            if (roots.Count(x => x == roots[k]) > 1) name += " · " + Path.GetFileName(path.TrimEnd('\\', '/'));
+            bool mounted = !(f.TryGetProperty("mounted", out var m) && m.ValueKind == JsonValueKind.False);
+            list.Add(new { i = Num(f, "i", out var ix) ? (int)ix : k, name, free, def = Flag(f, "def"), ok = mounted && free >= 0, path });
+        }
+        return list;
+    }
+
+    async Task<object> InstallFolder(long appid, int folder)
+    {
+        try
+        {
+            var r = await SteamCdp.SetFolderAsync(appid, folder);
+            Num(r, "need", out var need); Num(r, "folder", out var cur);
+            return new { ok = !Flag(r, "stale"), size = need, folder = (int)cur };
+        }
+        catch (Exception ex) { return new { ok = false, error = ex.Message }; }
+    }
+
+    async Task<List<object>> EulaTexts(JsonElement r)
+    {
+        var list = new List<object>();
+        if (!r.TryGetProperty("eulas", out var es) || es.ValueKind != JsonValueKind.Array) return list;
+        foreach (var e in es.EnumerateArray())
+        {
+            string url = Str(e, "url");
+            list.Add(new { id = Str(e, "id"), version = Num(e, "version", out var v) ? (int)v : 0, url, html = await SteamCdp.EulaHtmlAsync(url) });
+        }
+        return list;
+    }
+
+    /// <summary>Resultado de "Instalar" o del contrato: qué sigue para la interfaz.</summary>
+    async Task<object> InstallStep(long appid, Task<JsonElement> step)
+    {
+        JsonElement r;
+        try { r = await step; }
+        catch (Exception ex) { Log.Write("Steam: instalación: " + ex.Message); return new { s = "steam", why = ex.Message }; }
+        Ui(() => { if (web.Visible && (tracker == null || !tracker.Active)) ShowUi(); });
+        int s = State(r);
+        Log.Write($"Steam: instalar {appid}: paso {s}" + (Flag(r, "stale") ? " (el asistente ya no estaba)" : "") + (Flag(r, "stuck") ? " (contrato atorado)" : ""));
+        if (Flag(r, "stale"))
+        {
+            if (s == 14 || s == 0) return new { s = "started" };
+            return new { s = "error", error = "Steam cerró el asistente. Intenta de nuevo." };
+        }
+        if (s == 8 && Flag(r, "stuck")) { await SteamCdp.CancelAsync(); return new { s = "steam", why = "el contrato no avanzó" }; }
+        if (s == 8) return new { s = "eula", eulas = await EulaTexts(r) };
+        if (s == 15) { await SteamCdp.CancelAsync(); return new { s = "error", error = SteamCdp.ErrorText(Num(r, "err", out var e) ? (int)e : 1, Str(r, "detail")) }; }
+        if (s == 16) return new { s = "canceled" };
+        if (s == 14 || s == 0 || s == 9) { Log.Write($"Steam: {appid} empezó a instalarse"); return new { s = "started" }; }
+        await SteamCdp.CancelAsync();
+        return new { s = "steam", why = $"Steam necesita algo más (paso {s})" };
+    }
+
+    /// <summary>Activa la conexión directa (archivo + reiniciar Steam). Contesta al instante; el resultado llega como evento.</summary>
+    object InstallEnable()
+    {
+        if (tracker != null && tracker.Active) return new { ok = false, error = "Cierra el juego primero: Steam tiene que reiniciarse." };
+        if (enabling) return new { ok = true };
+        enabling = true;
+        _ = Task.Run(async () =>
+        {
+            (bool ok, string error) r;
+            try { r = await SteamCdp.EnableAsync(steam.SteamPath, () => Ui(StartSteamSilently)); }
+            catch (Exception ex) { Log.Error("Steam: activar conexión", ex); r = (false, "No se pudo activar: " + ex.Message); }
+            enabling = false;
+            Emit("install.enabled", new { r.ok, r.error });
+        });
+        return new { ok = true };
+    }
+
+    static TimeSpan SteamUptime()
+    {
+        try
+        {
+            var ps = Process.GetProcessesByName("steam");
+            try { return ps.Length == 0 ? TimeSpan.Zero : DateTime.Now - ps.Min(x => x.StartTime); }
+            finally { foreach (var x in ps) x.Dispose(); }
+        }
+        catch { return TimeSpan.MaxValue; }
+    }
+
+    /// <summary>Progreso de descargas en vivo desde Steam (cada segundo mientras hay conexión directa).</summary>
+    async Task DownloadLoop()
+    {
+        var last = new Dictionary<long, (double p, string state)>();
+        while (!IsDisposed)
+        {
+            await Task.Delay(1000);
+            try
+            {
+                if (!SteamCdp.MarkerPresent(steam.SteamPath) || enabling) { await Task.Delay(4000); continue; }
+                if (!SteamCdp.Connected && !SteamCdp.SteamRunning) { await Task.Delay(4000); continue; }
+                var (live, done, ok) = await SteamCdp.DownloadsAsync();
+                if (!ok) { await Task.Delay(4000); continue; }
+                cdpLiveAt = DateTime.UtcNow;
+                var now = new HashSet<long>();
+                foreach (var d in live)
+                {
+                    now.Add(d.AppId);
+                    if (last.TryGetValue(d.AppId, out var prev) && Math.Abs(prev.p - d.Progress) < 0.001 && prev.state == d.State) continue;
+                    last[d.AppId] = (d.Progress, d.State);
+                    Emit("download.progress", new { appid = d.AppId, progress = d.Progress, kind = d.Kind, state = d.State });
+                }
+                foreach (long id in last.Keys.Where(k => !now.Contains(k)).ToList())
+                {
+                    last.Remove(id);
+                    bool installed = done.Contains(id) || steam.LocalApps().Any(a => a.AppId == id && a.FullyInstalled && a.BytesToDownload == 0);
+                    if (installed) { var fresh = steam.LocalApps().FirstOrDefault(a => a.AppId == id); if (fresh != null) Ui(() => steam.Installed[id] = fresh); }
+                    Log.Write($"Steam: descarga de {id} " + (installed ? "terminada" : "quitada de la lista"));
+                    Emit(installed ? "download.done" : "download.removed", new { appid = id });
+                }
+            }
+            catch (Exception ex) { Log.Error("descargas en vivo", ex); await Task.Delay(5000); }
+        }
     }
 
     // ───── Ventanas de Steam: se esconden en el instante en que aparecen ("Iniciando juego…", avisos) ─────
