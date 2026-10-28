@@ -204,10 +204,11 @@ static class SteamCdp
     }
 
     /// <summary>Reinicia Steam desde cero (para que detecte la conexión) y espera a que vuelva (hasta ~60 s).</summary>
-    public static async Task<bool> RestartSteamAsync(string steamPath, Action startSteam)
+    public static async Task<bool> RestartSteamAsync(string steamPath, Action startSteam, Action whileClosed = null)
     {
         if (steamPath == null) return false;
         if (!await CloseSteamAsync(steamPath)) { Log.Write("Steam: no se cerró para reiniciarse"); return false; }
+        try { whileClosed?.Invoke(); } catch (Exception ex) { Log.Error("Steam: con Steam cerrado", ex); }
         lastFail = DateTime.MinValue;
         startSteam();
         for (int i = 0; i < 60; i++)
@@ -244,7 +245,16 @@ const queued = id => { try { return flat(ensureDl().items).map(dlItem).some(i =>
 const pick = (o, ...ks) => { for (const k of ks) if (o && o[k] !== undefined && o[k] !== null) return o[k]; return undefined; };
 const dlItem = i => ({ a: Number(pick(i, 'appid', 'appID', 'nAppID', 'unAppID', 'app_id')) || 0, on: !!pick(i, 'active', 'bActive'), done: !!pick(i, 'completed', 'bCompleted'),
   p: !!pick(i, 'paused', 'bPaused'), q: Number(pick(i, 'queue_index', 'nQueueIndex', 'queueIndex') ?? -1), b: Number(pick(i, 'downloaded_bytes', 'nBytesDownloaded', 'bytes_downloaded')) || 0,
-  t: Number(pick(i, 'total_bytes', 'nBytesTotal', 'bytes_total')) || 0, inst: (Number(pick(i, 'buildid', 'nBuildID', 'build_id')) || 0) > 0 });
+  t: Number(pick(i, 'total_bytes', 'nBytesTotal', 'bytes_total')) || 0, inst: (Number(pick(i, 'buildid', 'nBuildID', 'build_id')) || 0) > 0,
+  g: sumProg(((pick(i, 'update_type_info') || []).find(u => u && u.has_update) || (pick(i, 'update_type_info') || [])[0] || i)) });
+// log-9: el avance llega en fases (progress: 7 entradas) + overall_percent_complete (0–100) y su tiempo restante.
+// Los bytes que se están moviendo pueden estar en cualquier fase (al copiar desde otra PC de la casa no es la primera).
+const sumProg = u => {
+  const ph = (Array.isArray(u && u.progress) ? u.progress : []).map(x => ({ d: Number(pick(x, 'bytes_in_progress', 'bytes_done')) || 0, t: Number(pick(x, 'bytes_total')) || 0, e: Number(pick(x, 'estimated_time_remaining_sec')) }));
+  const best = ph.filter(x => x.t > 0).sort((a, b) => b.d - a.d || b.t - a.t)[0] || { d: 0, t: 0, e: -1 };
+  const pct = Number(pick(u, 'overall_percent_complete')), eta = Number(pick(u, 'overall_estimated_time_remaining_sec'));
+  return { pct: isFinite(pct) ? pct : -1, eta: isFinite(eta) && eta >= 0 ? eta : (isFinite(best.e) ? best.e : -1), d: best.d, t: best.t || Math.max(0, ...ph.map(x => x.t)) };
+};
 // log-8: Steam agrupa por dispositivo { remote_client_id, item_data: [...] }; el ""0"" es esta consola.
 const local = x => x && (x.remote_client_id === undefined || x.remote_client_id == 0);
 const flat = items => { const out = []; for (const x of (items || [])) { if (x && Array.isArray(x.item_data)) { if (local(x)) out.push(...x.item_data); } else if (x) out.push(x); } return out; };
@@ -435,18 +445,18 @@ const d = w.__scarletDl;
 " + DlNorm + @"
 const ov = ovLocal(d.ov), raw = flat(d.items);
 const ph = (Array.isArray(ov.progress) ? ov.progress : []).map(x => ({ done: Number(pick(x, 'bytes_in_progress', 'bytes_done')) || 0, total: Number(pick(x, 'bytes_total')) || 0, eta: Number(pick(x, 'estimated_time_remaining_sec')) }));
-const pct = Number(pick(ov, 'overall_percent_complete'));
+const pct = Number(pick(ov, 'overall_percent_complete')), og = sumProg(ov);
 let sItem = '', sOv = '';
 try { if (raw.length) sItem = JSON.stringify(raw[0]).slice(0, 1500); } catch (e) {}
 try { if (ov.update_appid) sOv = JSON.stringify(ov).slice(0, 1500); } catch (e) {}
-return { paused: !!pick(ov, 'paused', 'bPaused', 'update_paused'), cur: Number(pick(ov, 'update_appid', 'unAppID', 'appid')) || 0, state: String(pick(ov, 'update_state') ?? ''),
+return { og, lan: String(pick(ov, 'lan_peer_hostname') || ''), paused: !!pick(ov, 'paused', 'bPaused', 'update_paused'), cur: Number(pick(ov, 'update_appid', 'unAppID', 'appid')) || 0, state: String(pick(ov, 'update_state') ?? ''),
   rate: Number(pick(ov, 'update_network_bytes_per_second')) || 0, pct: isFinite(pct) ? pct : -1, ph,
   curDl: Number(pick(ov, 'update_bytes_downloaded')) || 0, curTotal: Number(pick(ov, 'update_bytes_to_download')) || 0,
   items: raw.map(dlItem).filter(i => i.a > 0), sItem, sOv };
 })()";
 
     /// <summary>Una descarga de Steam: avance (0–1), bytes, tiempo restante (s, -1 si no se sabe), velocidad (B/s) y fase.</summary>
-    public sealed record Dl(long AppId, double Progress, string Kind, string State, double Bytes, double Total, double Eta, double Rate, string Phase);
+    public sealed record Dl(long AppId, double Progress, string Kind, string State, double Bytes, double Total, double Eta, double Rate, string Phase, string Peer = "");
     static bool itemLogged, ovLogged;
     /// <summary>Scarlet pausó todas las descargas (para jugar o desde el menú de descarga).</summary>
     public static volatile bool PausedAll;
@@ -467,13 +477,31 @@ return { paused: !!pick(ov, 'paused', 'bPaused', 'update_paused'), cur: Number(p
 
         bool allPaused = B(v, "paused") || PausedAll;
         long cur = (long)N(v, "cur");
-        double rate = N(v, "rate"), pct = N(v, "pct", -1);
-        // Fases del avance (log-8: "progress"): la primera es la descarga; las demás, instalar/acomodar archivos.
+        double rate = N(v, "rate");
+        string ovState = S(v, "state"), lan = S(v, "lan");
+        // log-9: el avance real es overall_percent_complete (0–100) con su tiempo restante; los bytes que se mueven
+        // pueden estar en cualquier fase (copiando desde otra PC de la casa no es la primera). Ver sumProg en DlNorm.
+        static (double pct, double eta, double d, double t) G(JsonElement o, string k)
+        {
+            if (!o.TryGetProperty(k, out var g) || g.ValueKind != JsonValueKind.Object) return (-1, -1, 0, 0);
+            return (N(g, "pct", -1), N(g, "eta", -1), N(g, "d"), N(g, "t"));
+        }
+        var og = G(v, "og");
         var ph = new List<(double done, double total, double eta)>();
         if (v.TryGetProperty("ph", out var pa) && pa.ValueKind == JsonValueKind.Array)
             foreach (var x in pa.EnumerateArray()) ph.Add((N(x, "done"), N(x, "total"), N(x, "eta", -1)));
         var live = new List<Dl>(); var done = new List<long>();
-        if (!v.TryGetProperty("items", out var items) || items.ValueKind != JsonValueKind.Array) return (live, done, true);
+        // Avance, bytes y tiempo con lo que haya: porcentaje de Steam primero, luego bytes.
+        static (double p, double b, double t, double eta) Mix((double pct, double eta, double d, double t) g, double b, double t)
+        {
+            if (g.t > 0) t = g.t;
+            if (g.d > 0) b = g.d;
+            double p = g.pct > 0 ? g.pct / 100 : t > 0 ? b / t : 0;
+            if (b <= 0 && t > 0 && p > 0) b = p * t;   // copiando por la red de la casa los bytes no vienen en las fases
+            return (Math.Clamp(p, 0, 1), b, t, g.eta);
+        }
+        bool installing = System.Text.RegularExpressions.Regex.IsMatch(ovState, "commit|stag|verif|install", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (v.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
         foreach (var i in items.EnumerateArray())
         {
             long a = (long)N(i, "a");
@@ -482,30 +510,34 @@ return { paused: !!pick(ov, 'paused', 'bPaused', 'update_paused'), cur: Number(p
             bool on = B(i, "on");
             int q = (int)N(i, "q", -1);
             if (!on && q < 0 && a != cur) continue;   // actualizaciones programadas para después: no se muestran
-            double b = N(i, "b"), t = N(i, "t"), eta = -1, p = t > 0 ? b / t : 0;
+            var (p, b, t, eta) = Mix(G(i, "g"), N(i, "b"), N(i, "t"));
             string phase = "download";
             if (a == cur)
             {
                 on = true;
-                (double done, double total, double eta) dl = ph.Count > 0 ? ph[0] : (0d, 0d, -1d);
-                if (dl.total > 0) { b = dl.done; t = dl.total; p = dl.done / dl.total; eta = dl.eta; }
-                else if (N(v, "curTotal") > 0) { b = N(v, "curDl"); t = N(v, "curTotal"); p = b / t; }
-                else if (pct >= 0) p = pct > 1 ? pct / 100 : pct;
-                if (t > 0 && b >= t)   // ya bajó todo: está instalando / acomodando archivos
+                // El avance general manda (es lo que Steam muestra); el del juego, si el general aún no trae nada.
+                var m = Mix(og, b, t);
+                if (m.p > 0) p = m.p;
+                if (m.b > 0) b = m.b;
+                if (m.t > 0) t = m.t;
+                if (og.eta >= 0) eta = og.eta;
+                if (installing || (t > 0 && b >= t))   // ya bajó todo: está instalando / acomodando archivos
                 {
+                    phase = "install";
                     var inst = ph.Skip(1).FirstOrDefault(x => x.total > 0 && x.done < x.total);
-                    if (inst.total > 0) { phase = "install"; eta = inst.eta; }
+                    if (eta < 0 && inst.total > 0) eta = inst.eta;
                 }
+                else if (lan.Length > 0) phase = "lan";
                 if (eta < 0) eta = ph.Where(x => x.eta >= 0).Select(x => x.eta).DefaultIfEmpty(-1).Max();
             }
             string state = B(i, "p") || allPaused ? "paused" : on ? "active" : "queued";
-            live.Add(new Dl(a, Math.Clamp(p, 0, 1), B(i, "inst") ? "Actualizando" : "Descargando", state, b, t, eta, a == cur ? rate : 0, phase));
+            live.Add(new Dl(a, Math.Clamp(p, 0, 1), B(i, "inst") ? "Actualizando" : "Descargando", state, b, t, eta, a == cur ? rate : 0, phase, a == cur ? lan : ""));
         }
         // Si la lista no trae el juego pero el avance general sí dice cuál está bajando, se usa ese.
-        if (cur > 0 && !live.Any(x => x.AppId == cur) && !done.Contains(cur) && ph.Count > 0 && ph[0].total > 0)
+        if (cur > 0 && !live.Any(x => x.AppId == cur) && !done.Contains(cur) && (og.t > 0 || og.pct > 0))
         {
-            var dl = ph[0];
-            live.Add(new Dl(cur, Math.Clamp(dl.done / dl.total, 0, 1), "Descargando", allPaused ? "paused" : "active", dl.done, dl.total, dl.eta, rate, "download"));
+            var m = Mix(og, 0, 0);
+            live.Add(new Dl(cur, m.p, "Descargando", allPaused ? "paused" : "active", m.b, m.t, m.eta, rate, installing ? "install" : lan.Length > 0 ? "lan" : "download", lan));
         }
         return (live, done, true);
     }
@@ -543,7 +575,10 @@ return true; }})()", 4000);
         catch (Exception ex) { Log.Write("Steam: reanudar descarga: " + ex.Message); return false; }
     }
 
-    /// <summary>Cancelar instalación = desinstalar en Steam (se quita de las descargas y se borra lo descargado).</summary>
+    /// <summary>
+    /// Cancelar instalación = desinstalar en Steam: se quita de sus descargas (eso detiene la descarga al instante) y se pide
+    /// desinstalar. En la versión de escritorio esa petición a veces no hace nada (log-9) o tarda; Scarlet revisa después.
+    /// </summary>
     public static async Task<string> CancelDownloadAsync(long appid)
     {
         try

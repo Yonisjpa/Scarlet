@@ -1751,6 +1751,7 @@ sealed class MainForm : Form
     async Task<object> InstallPrepare(long appid)
     {
         if (appid <= 0 || steam.SteamPath == null) return new { mode = "steam", why = "Steam no está en este equipo" };
+        steam.Canceled.TryRemove(appid, out _);   // la vuelves a instalar: ya no está cancelada (y no se borra nada)
         if (!NetCheck.Internet) return new { mode = "error", error = "No hay internet: no se puede descargar ahora." };
         if (!NetCheck.SteamReachable) return new { mode = "error", error = "Esta red bloquea Steam. Prende la VPN en el menú rápido y vuelve a intentarlo." };
         if (!SteamCdp.MarkerPresent(steam.SteamPath))
@@ -1946,35 +1947,116 @@ sealed class MainForm : Form
     }
 
     /// <summary>
-    /// Cancelar instalación: Steam la quita de sus descargas y la desinstala (borra lo descargado). Su ventanita, si sale,
-    /// se esconde. Se confirma mirando que ya no esté en sus archivos ni en la lista (hasta ~20 s).
+    /// Cancelar instalación (= desinstalar en Steam). Primero se quita de sus descargas: eso la detiene al instante y la
+    /// interfaz ya la da por cancelada. Luego se espera a que Steam borre lo descargado; si su desinstalador no hace nada
+    /// (en la versión de escritorio a veces lo ignora, log-9), Scarlet lo borra: cierra Steam, quita los archivos a medias
+    /// y lo vuelve a abrir. Solo con instalaciones que nunca terminaron; un juego ya instalado no se toca a mano.
     /// </summary>
     async Task<object> CancelDownload(long appid)
     {
         if (appid <= 0) return new { ok = false, error = "Juego no válido" };
         if (!await SteamCdp.ReadyAsync()) return new { ok = false, error = "Steam no está conectado con Scarlet ahora mismo." };
+        var before = steam.LocalApps().FirstOrDefault(a => a.AppId == appid);
         GuardSteam(30);
         string how = await SteamCdp.CancelDownloadAsync(appid);
         Log.Write($"Steam: cancelar instalación de {appid} ({how ?? "falló"})");
         if (how == null) { GuardSteam(3); return new { ok = false, error = "Steam no contestó." }; }
-        for (int i = 0; i < 40; i++)
+        // ¿Ya no está en las descargas de Steam? (hasta ~6 s)
+        bool stopped = false;
+        for (int i = 0; i < 12 && !stopped; i++)
         {
             await Task.Delay(500);
-            bool inFiles = steam.LocalApps().Any(a => a.AppId == appid);
             var (live, _, ok) = await SteamCdp.DownloadsAsync();
-            bool inList = ok && live != null && live.Any(d => d.AppId == appid);
-            if (!inFiles && !inList)
-            {
-                Ui(() => steam.Installed.Remove(appid));
-                GuardSteam(3);
-                Log.Write($"Steam: instalación de {appid} cancelada y borrada");
-                Emit("download.removed", new { appid });
-                return new { ok = true };
-            }
+            stopped = ok && live != null && !live.Any(d => d.AppId == appid);
         }
-        GuardSteam(3);
-        Log.Write($"Steam: la instalación de {appid} sigue ahí tras cancelar");
-        return new { ok = false, error = "Steam no terminó de cancelarla. Intenta de nuevo en unos segundos." };
+        if (!stopped) { Log.Write($"Steam: {appid} sigue en sus descargas tras cancelar"); return new { ok = false, error = "Steam no la quitó de sus descargas. Intenta de nuevo en unos segundos." }; }
+        steam.Canceled[appid] = true;
+        Ui(() => steam.Installed.Remove(appid));
+        Emit("download.removed", new { appid });
+        Log.Write($"Steam: descarga de {appid} detenida y quitada de la lista");
+        _ = WipeCanceledAsync(appid, before);
+        return new { ok = true };
+    }
+
+    /// <summary>Espera a que Steam borre lo descargado; si no lo hace, Scarlet lo borra con Steam cerrado.</summary>
+    async Task WipeCanceledAsync(long appid, LocalApp before)
+    {
+        try
+        {
+            for (int i = 0; i < 30; i++)
+            {
+                await Task.Delay(1000);
+                if (!steam.Canceled.ContainsKey(appid)) return;   // la volviste a instalar
+                if (!steam.LocalApps().Any(a => a.AppId == appid)) { steam.Canceled.TryRemove(appid, out _); Log.Write($"Steam: instalación de {appid} desinstalada por Steam"); Emit("download.cleanup", new { appid, state = "done" }); return; }
+            }
+            GuardSteam(3);
+            var app = steam.LocalApps().FirstOrDefault(a => a.AppId == appid) ?? before;
+            if (app == null) return;
+            if (app.FullyInstalled)
+            {
+                // Un juego que ya estaba instalado (una actualización): no se borra a mano.
+                Log.Write($"Steam: {appid} no se desinstaló (estaba instalado; la actualización quedó quitada de la lista)");
+                steam.Canceled.TryRemove(appid, out _);
+                Emit("download.cleanup", new { appid, state = "kept" });
+                return;
+            }
+            // Si hay un juego abierto, cerrar Steam lo cerraría: se espera a que salgas de él.
+            while (tracker != null && tracker.Active) await Task.Delay(3000);
+            while (reconnecting || installGuard.Enabled) await Task.Delay(2000);
+            if (!steam.Canceled.ContainsKey(appid)) return;
+            Log.Write($"Steam: su desinstalador no borró {appid}; Scarlet borra lo descargado con Steam cerrado");
+            Emit("download.cleanup", new { appid, state = "restarting" });
+            reconnecting = true; lastReconnect = DateTime.Now;
+            string gone = null;
+            bool ok = false;
+            try { ok = await SteamCdp.RestartSteamAsync(steam.SteamPath, () => Ui(StartSteamSilently), () => gone = WipeFiles(app)); }
+            finally { reconnecting = false; }
+            bool left = steam.LocalApps().Any(a => a.AppId == appid);
+            Log.Write($"Steam: borrado de {appid}: {gone ?? "Steam no se cerró"} · Steam {(ok ? "de vuelta" : "no terminó de abrir")}");
+            if (!left) steam.Canceled.TryRemove(appid, out _);
+            Emit("download.cleanup", new { appid, state = left ? "failed" : "done" });
+            _ = Task.Delay(4000).ContinueWith(_ => Emit("library.changed", new { }));
+        }
+        catch (Exception ex) { Log.Error("cancelar instalación: borrar", ex); Emit("download.cleanup", new { appid, state = "failed" }); }
+    }
+
+    /// <summary>Quita los archivos a medias de una instalación (con Steam cerrado). Devuelve qué se borró.</summary>
+    static string WipeFiles(LocalApp app)
+    {
+        string steamapps = Path.Combine(app.LibraryPath, "steamapps");
+        var did = new List<string>();
+        void Del(string path, bool dir)
+        {
+            try
+            {
+                if (dir ? !Directory.Exists(path) : !File.Exists(path)) return;
+                if (dir) Directory.Delete(path, true); else File.Delete(path);
+                did.Add(Path.GetFileName(path));
+            }
+            catch (Exception ex) { Log.Write($"borrar {path}: {ex.Message}"); }
+        }
+        Del(Path.Combine(steamapps, "downloading", app.AppId.ToString()), true);
+        Del(Path.Combine(steamapps, "temp", app.AppId.ToString()), true);
+        try { foreach (var f in Directory.EnumerateFiles(Path.Combine(steamapps, "downloading"), $"state_{app.AppId}_*")) Del(f, false); } catch { }
+        // La carpeta del juego, solo si es de verdad suya: nombre simple, dentro de common y que ningún otro juego la use.
+        string dirName = app.InstallDir ?? "";
+        if (dirName.Length > 0 && dirName.IndexOfAny(Path.GetInvalidFileNameChars()) < 0 && dirName.Trim('.').Length > 0)
+        {
+            bool shared = false;
+            try
+            {
+                foreach (var f in Directory.EnumerateFiles(steamapps, "appmanifest_*.acf"))
+                {
+                    if (Path.GetFileName(f).Equals($"appmanifest_{app.AppId}.acf", StringComparison.OrdinalIgnoreCase)) continue;
+                    var o = Vdf.Load(f)?.Obj("AppState");
+                    if (o != null && string.Equals(o.Str("installdir"), dirName, StringComparison.OrdinalIgnoreCase)) shared = true;
+                }
+            }
+            catch { shared = true; }
+            if (!shared) Del(Path.Combine(steamapps, "common", dirName), true);
+        }
+        Del(Path.Combine(steamapps, $"appmanifest_{app.AppId}.acf"), false);
+        return did.Count > 0 ? "se borró " + string.Join(", ", did) : "no había archivos";
     }
 
     /// <summary>Progreso de descargas en vivo desde Steam (cada segundo mientras hay conexión directa).</summary>
@@ -1994,7 +2076,10 @@ sealed class MainForm : Form
                 if (!ok) { await Task.Delay(4000); continue; }
                 cdpLiveAt = DateTime.UtcNow;
                 // Respaldo: lo que dicen los archivos de Steam (cada 3 s), por si su lista en vivo no trae algún juego.
-                if (tick++ % 3 == 0) acf = steam.LocalApps().Where(a => a.BytesToDownload > 0 && a.BytesDownloaded < a.BytesToDownload).ToList();
+                // Solo las que Steam marca como descargándose (256 en curso, 512 en pausa, 1024 empezada, 1048576 bajando).
+                if (tick++ % 3 == 0) acf = steam.LocalApps().Where(a => a.BytesToDownload > 0 && a.BytesDownloaded < a.BytesToDownload && (a.StateFlags & (256 | 512 | 1024 | 1048576)) != 0).ToList();
+                acf.RemoveAll(a => steam.Canceled.ContainsKey(a.AppId));
+                live.RemoveAll(d => steam.Canceled.ContainsKey(d.AppId));
                 foreach (var a in acf)
                     if (!live.Any(x => x.AppId == a.AppId) && !done.Contains(a.AppId))
                         live.Add(new SteamCdp.Dl(a.AppId, Math.Clamp((double)a.BytesDownloaded / a.BytesToDownload, 0, 1), a.FullyInstalled ? "Actualizando" : "Descargando",
@@ -2006,7 +2091,7 @@ sealed class MainForm : Form
                     // Se manda si cambió el avance o el estado, y cada 3 s de todos modos (tiempo restante y velocidad).
                     if (last.TryGetValue(d.AppId, out var prev) && Math.Abs(prev.p - d.Progress) < 0.001 && prev.state == d.State && DateTime.Now - prev.at < TimeSpan.FromSeconds(3)) continue;
                     last[d.AppId] = (d.Progress, d.State, DateTime.Now);
-                    Emit("download.progress", new { appid = d.AppId, progress = d.Progress, kind = d.Kind, state = d.State, bytes = d.Bytes, total = d.Total, eta = d.Eta, rate = d.Rate, phase = d.Phase });
+                    Emit("download.progress", new { appid = d.AppId, progress = d.Progress, kind = d.Kind, state = d.State, bytes = d.Bytes, total = d.Total, eta = d.Eta, rate = d.Rate, phase = d.Phase, peer = d.Peer });
                 }
                 foreach (long id in last.Keys.Where(k => !now.Contains(k)).ToList())
                 {

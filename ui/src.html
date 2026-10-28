@@ -1721,7 +1721,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.26";
+let APP_VERSION = "0.4.27";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2731,13 +2731,14 @@ function dlLabel(d) {
   if (d.st === "pending") return "Preparando…";
   if (d.st === "queued") return "En cola";
   if (d.st === "paused") return "En pausa";
+  if (d.st === "canceling") return "Cancelando…";
   return `${Math.round(d.p * 100)} %`;
 }
 function paintDownloads() {
   $$("[data-dl]").forEach(el => {
     const d = state.downloads[el.dataset.dl]; if (!d) return el.remove();
     el.querySelector("i").style.width = d.p * 100 + "%";
-    el.classList.toggle("paused", d.st === "paused"); el.classList.toggle("queued", d.st === "queued");
+    el.classList.toggle("paused", d.st === "paused" || d.st === "canceling"); el.classList.toggle("queued", d.st === "queued");
     el.setAttribute("aria-label", dlLabel(d));
   });
   paintTitleState();
@@ -2773,18 +2774,31 @@ function installViaSteam(g) {
   Data.open("steam://install/" + g.appid, "la instalación de " + g.name);
   if (!Host.has) startDownload(g, "Descargando");
 }
+const canceledAt = {};   // recién cancelada: un avance atrasado de Steam no la revive
 Events.on("download.progress", d => {
+  if (Date.now() - (canceledAt[d.appid] || 0) < 15000) return;
   const prev = state.downloads[d.appid];
+  if (prev && prev.st === "canceling") return;
   const now = state.downloads[d.appid] = { p: clamp(+d.progress || 0, 0, 1), kind: d.kind || (prev && prev.kind) || "Actualizando", st: d.state || "active",
-    bytes: +d.bytes || 0, total: +d.total || 0, eta: d.eta == null ? -1 : +d.eta, rate: +d.rate || 0, phase: d.phase || "download" };
+    bytes: +d.bytes || 0, total: +d.total || 0, eta: d.eta == null ? -1 : +d.eta, rate: +d.rate || 0, phase: d.phase || "download", peer: d.peer || "" };
   if (!prev || prev.st !== now.st) { renderHome(); refreshLibrary(); } else paintDownloads();
   const v = topView(); if (v && v.isDownload && v.appid == d.appid) v.paint();
 });
 Events.on("download.done", d => finishDownload(d.appid));
 Events.on("download.removed", d => {   // la quitaste de la lista de Steam (cancelada)
+  canceledAt[d.appid] = Date.now();
   if (!state.downloads[d.appid]) return;
   delete state.downloads[d.appid]; unpin(d.appid); closeDlView(d.appid);
   renderHome(); refreshLibrary();
+});
+/* Lo descargado de una instalación cancelada: Steam lo borra; si no, Scarlet lo borra con Steam cerrado unos segundos. */
+const cleanupShown = new Set();
+Events.on("download.cleanup", d => {
+  const g = byId(d.appid), name = g ? g.name : "el juego";
+  if (d.state === "restarting") { cleanupShown.add(d.appid); notify({ icon: I.cloud, title: "Borrando lo descargado", text: `Steam se reinicia unos segundos para borrar lo de ${name}.` }); }
+  else if (d.state === "done" && cleanupShown.delete(d.appid)) toast(`Se borró lo descargado de ${name}`);
+  else if (d.state === "failed") { cleanupShown.delete(d.appid); notify({ icon: I.cloud, title: "No se pudo borrar todo", text: `Lo descargado de ${name} sigue en el disco. Puedes desinstalarlo desde Steam.` }); }
+  if (g && d.state !== "kept") { g.installed = false; refreshLibrary(); }
 });
 /* ================= menú de descarga (como en la consola) =================
    A sobre un juego que se descarga: "Descargando datos…" con barra, porcentaje y tiempo restante, y "Opciones de descarga"
@@ -2794,9 +2808,11 @@ const fmtRate = b => b > 0 ? (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB/s` 
 function dlTitle(d) {
   if (!d) return "Descarga terminada";
   if (d.st === "pending") return "Preparando la descarga…";
+  if (d.st === "canceling") return "Cancelando la instalación…";
   if (d.st === "paused") return "Descarga en pausa";
   if (d.st === "queued") return "En la cola de descargas";
   if (d.phase === "install") return "Instalando archivos…";
+  if (d.phase === "lan") return d.peer ? `Transfiriendo desde ${d.peer}…` : "Transfiriendo por la red de la casa…";
   return d.kind === "Actualizando" ? "Descargando actualización…" : "Descargando datos…";
 }
 function downloadView(g) {
@@ -2844,13 +2860,21 @@ async function setDownloadPaused(g, pause) {
   const v = topView(); if (v && v.isDownload) v.paint();
 }
 async function cancelDownload(g, quiet) {
+  if ((state.downloads[g.appid] || {}).st === "canceling") { toast(`Ya se está cancelando ${g.name}…`); return false; }
   if (!quiet) {
     const ok = await confirmDialog(`¿Cancelar la instalación de ${g.name}?\nSe borrará lo que ya se descargó.`, "Cancelar instalación");
     if (!ok) return false;
   }
+  const was = state.downloads[g.appid], prevSt = was && was.st;
+  if (was) { was.st = "canceling"; paintDownloads(); const v = topView(); if (v && v.isDownload && v.appid == g.appid) v.paint(); }
   toast(`Cancelando ${g.name}…`);
   const r = await steamDl("download.cancel", g.appid);
-  if (!r || !r.ok) { await alertDialog(`No se pudo cancelar la instalación de ${g.name}.\n${(r && r.error) || ""}`); return false; }
+  if (!r || !r.ok) {
+    if (was && state.downloads[g.appid] === was && was.st === "canceling") was.st = prevSt;
+    paintDownloads();
+    await alertDialog(`No se pudo cancelar la instalación de ${g.name}.\n${(r && r.error) || ""}`); return false;
+  }
+  canceledAt[g.appid] = Date.now();
   delete state.downloads[g.appid]; g.installed = false; unpin(g.appid);
   const v = views.find(x => x.isDownload && x.appid == g.appid); if (v) dropView(v);
   renderHome(); refreshLibrary(); toast(`Se canceló la instalación de ${g.name}`);

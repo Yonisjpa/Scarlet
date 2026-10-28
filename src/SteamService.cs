@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 namespace XboxScarlet;
 
 /// <summary>Un juego instalado según su appmanifest_*.acf</summary>
@@ -735,11 +736,14 @@ sealed class SteamService
     // ───── Descargas y actualizaciones (archivos locales, cada 3 s) ─────
 
     readonly HashSet<long> downloading = new();
+    /// <summary>Instalaciones que cancelaste: sus archivos a medias ya no cuentan como descarga.</summary>
+    public readonly ConcurrentDictionary<long, bool> Canceled = new();
 
     public void PollDownloads()
     {
         foreach (var a in LocalApps())
         {
+            if (Canceled.ContainsKey(a.AppId)) continue;
             bool active = a.BytesToDownload > 0 && a.BytesDownloaded < a.BytesToDownload;
             if (active)
             {

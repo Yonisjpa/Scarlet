@@ -1,10 +1,11 @@
-Novedades de la alpha 0.4.26
+Novedades de la alpha 0.4.27
 
-- Descargas en tiempo real, de verdad: Steam manda su lista de descargas agrupada por dispositivo y el avance por fases; Scarlet ahora lo lee así (antes no encontraba el juego y por eso la franja se quitaba sola y la barra no avanzaba). Si Steam no lo trae en la lista, se usa su avance general o sus archivos.
-- La barra de la franja se llena en azul con el porcentaje real.
-- Menú de descarga (A sobre un juego que se descarga), como en la consola: "Descargando datos…" (o "Instalando archivos…", "En pausa", "En la cola"), barra con porcentaje, tiempo restante, cuánto lleva de cuánto y la velocidad; se actualiza en vivo y se cierra solo al terminar.
-  - Opciones de descarga: Pausar / Reanudar y Cancelar instalación (desinstala en Steam y borra lo descargado; pide confirmar).
-- Abrir un juego con una descarga en curso: Scarlet pregunta "Pausar y jugar", "Cancelar y jugar" o "Seguir descargando" (esta no abre el juego). Si la pausaste para jugar, sigue sola al cerrar el juego.
-- El nombre arriba del juego lleva solo el nombre y su ícono (sin porcentaje).
-- Darle Instalar a un juego que ya está en las descargas de Steam ya no intenta abrir el asistente otra vez.
-- Noticias: un artículo sin texto ya no deja la pantalla en blanco.
+- El avance de la descarga ya no se queda en 0 %: Scarlet ahora lee el porcentaje y el tiempo restante que Steam calcula (lo mismo que muestra Steam), y los bytes de la fase que de verdad se está moviendo. Antes solo miraba la primera fase, que se queda en 0 cuando Steam copia el juego desde otra PC de la casa.
+- Si Steam copia el juego desde otra PC de tu red (por ejemplo, tu laptop), el menú dice "Transfiriendo desde YONIS…".
+- Cancelar instalación, arreglado:
+  - La descarga se detiene y se quita de Steam en unos segundos; la franja dice "Cancelando…" mientras tanto y ya no se puede pedir dos veces.
+  - Después se espera a que Steam borre lo descargado. Si su desinstalador no hace nada (en la versión de escritorio a veces lo ignora), Scarlet lo borra: cierra Steam unos segundos, quita los archivos a medias y lo vuelve a abrir. Te avisa con "Borrando lo descargado".
+  - Solo se borra a mano una instalación que nunca terminó. A un juego ya instalado (cuando se cancela una actualización) no se le borra nada.
+  - Si tienes un juego abierto, el borrado espera a que lo cierres.
+  - Si vuelves a darle Instalar antes de que termine el borrado, no se borra nada.
+- Una descarga cancelada ya no reaparece en la franja por los archivos que quedaban de ella.
