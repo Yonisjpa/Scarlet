@@ -1268,7 +1268,7 @@ const APPS = [
 /* ================= estado ================= */
 let games = [], friends = [], profile = MOCK.profile, albumData = null;
 let mode = "boot";                     // boot | ui | launching | game | sleep | lock | unlocking
-const state = { running: null, side: null, sleptFromGame: false, downloads: {}, overlay: null,
+const state = { running: null, side: null, sleptFromGame: false, downloads: {}, updates: {}, overlay: null,
   pads: [{ key: "ally", name: "ROG Xbox Ally X", type: "Integrado", player: 1 }] };
 const HOME_MAX = 12;
 /* Juegos ocultos (no salen en el Inicio ni en "Todos") y grupos propios, como en la Switch 2. */
@@ -1721,7 +1721,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.28";
+let APP_VERSION = "0.4.29";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2745,11 +2745,35 @@ function paintDownloads() {
 }
 /* La descarga ya no existe (terminó o se quitó): su menú "Descargando datos…" se cierra. */
 function closeDlView(appid) { const v = views.find(x => x.isDownload && x.appid == appid); if (v) dropView(v); }
-function finishDownload(appid) {
-  const g = byId(appid), d = state.downloads[appid]; if (!d) return;
+/* Terminó. El aviso sale una sola vez por juego: se espera unos segundos por si Steam sigue con algo del mismo juego
+   (DLC justo después de instalar: es la misma descarga), y si terminan varias a la vez se avisan juntas. Lo que Steam
+   hace después (sombreadores, workshop) no avisa. Si Steam la exigió al abrir el juego, el juego se abre solo. */
+const recentFresh = {}, pendingDone = {};
+let doneBatch = [], doneBatchT = 0;
+function finishDownload(appid, info = {}) {
+  const g = byId(appid), d = state.downloads[appid];
+  delete state.updates[appid];
+  if (!d) { if (g && !info.extra) g.installed = true; return; }   // ya se había avisado (o era trabajo extra)
   delete state.downloads[appid]; closeDlView(appid);
-  if (g) { g.installed = true; notify({ icon: I.cloud, title: d.kind === "Descargando" ? "Descarga completada" : "Actualización completada", text: g.name }); }
-  renderHome(); const lv = views.find(v => v.refresh && v.list && v.cols === 6); if (lv) lv.refresh(true);
+  if (g) g.installed = true;
+  const fresh = d.fresh || d.kind === "Descargando" || info.fresh;
+  if (fresh) recentFresh[appid] = Date.now();
+  renderHome(); refreshLibrary();
+  if (!g) return;
+  if (launchAfter.delete(appid) && mode === "ui" && !state.running) { toast(`Abriendo ${g.name}…`); setTimeout(() => launchGame(g, null, { dlAsked: true, updAsked: true }), 600); return; }
+  if (info.extra) extraDone.add(appid);
+  if (pendingDone[appid]) clearTimeout(pendingDone[appid].t);
+  pendingDone[appid] = { fresh, t: setTimeout(() => {
+    delete pendingDone[appid];
+    if (state.downloads[appid]) return;   // siguió bajando algo del mismo juego: se avisa al final
+    doneBatch.push({ g, fresh });
+    clearTimeout(doneBatchT);
+    doneBatchT = setTimeout(() => {
+      const b = doneBatch; doneBatch = [];
+      if (b.length === 1) notify({ icon: I.cloud, title: b[0].fresh ? "Descarga completada" : "Actualización completada", text: b[0].g.name });
+      else if (b.length > 1) notify({ icon: I.cloud, title: b.every(x => !x.fresh) ? `${b.length} juegos actualizados` : `${b.length} descargas completadas`, text: b.map(x => x.g.name).join(", ") });
+    }, 1500);
+  }, fresh ? 6000 : 1500) };
 }
 function refreshLibrary() { const lv = views.find(v => v.refresh && v.list && v.cols === 6); if (lv) lv.refresh(true); }
 function startDownload(g, kind, st = "active") {
@@ -2775,18 +2799,44 @@ function installViaSteam(g) {
   if (!Host.has) startDownload(g, "Descargando");
 }
 const canceledAt = {};   // recién cancelada: un avance atrasado de Steam no la revive
+const launchAfter = new Set();   // se abre solo al terminar su actualización (Steam la exigió al abrirlo)
+const extraDone = new Set();     // ya se avisó que terminó; lo que sigue (sombreadores, workshop) no es otra descarga
+const errShown = {};
 Events.on("download.progress", d => {
   if (Date.now() - (canceledAt[d.appid] || 0) < 15000) return;
-  const prev = state.downloads[d.appid];
+  const prev = state.downloads[d.appid], g = byId(d.appid);
   if (prev && prev.st === "canceling") return;
-  const now = state.downloads[d.appid] = { p: clamp(+d.progress || 0, 0, 1), kind: d.kind || (prev && prev.kind) || "Actualizando", st: d.state || "active",
-    bytes: +d.bytes || 0, total: +d.total || 0, eta: d.eta == null ? -1 : +d.eta, rate: +d.rate || 0, phase: d.phase || "download", peer: d.peer || "" };
+  // Actualización pendiente que Steam no está bajando: no es una descarga (sin franja); al jugar se pregunta.
+  if (d.state === "needs") {
+    if (!state.updates[d.appid]) { state.updates[d.appid] = { since: Date.now() }; }
+    if (prev) { delete state.downloads[d.appid]; closeDlView(d.appid); renderHome(); refreshLibrary(); }
+    return;
+  }
+  delete state.updates[d.appid];
+  // Sombreadores o workshop de un juego que ya tiene su contenido: Steam lo hace solo y se puede jugar. Sin franja ni aviso.
+  if (d.phase === "extra") {
+    if (prev) finishDownload(d.appid, { extra: true });
+    return;
+  }
+  extraDone.delete(d.appid);
+  // Lo que sigue justo después de terminar una instalación (por ejemplo, su DLC) cuenta como la misma descarga.
+  const fresh = !!d.fresh || (prev && prev.fresh) || Date.now() - (recentFresh[d.appid] || 0) < 15 * 60000;
+  if (pendingDone[d.appid]) { clearTimeout(pendingDone[d.appid].t); delete pendingDone[d.appid]; }
+  const now = state.downloads[d.appid] = { p: clamp(+d.progress || 0, 0, 1), kind: fresh ? "Descargando" : d.kind || (prev && prev.kind) || "Actualizando", st: d.state || "active",
+    bytes: +d.bytes || 0, total: +d.total || 0, eta: d.eta == null ? -1 : +d.eta, rate: +d.rate || 0, phase: d.phase || "download", peer: d.peer || "", fresh,
+    err: +d.err || 0, errText: d.errText || "" };
+  // Steam detuvo la descarga por un problema (sin espacio, sin conexión…): se avisa una vez.
+  if (now.st === "error" && errShown[d.appid] !== now.err) {
+    errShown[d.appid] = now.err;
+    notify({ icon: I.cloud, title: "Descarga detenida", text: `${g ? g.name : "Un juego"}: ${now.errText || "Steam no pudo seguir."}`, sound: "error" });
+  } else if (now.st !== "error") delete errShown[d.appid];
   if (!prev || prev.st !== now.st) { renderHome(); refreshLibrary(); } else paintDownloads();
   const v = topView(); if (v && v.isDownload && v.appid == d.appid) v.paint();
 });
-Events.on("download.done", d => finishDownload(d.appid));
+Events.on("download.done", d => finishDownload(d.appid, { extra: d.extra, fresh: d.fresh }));
 Events.on("download.removed", d => {   // la quitaste de la lista de Steam (cancelada)
   canceledAt[d.appid] = Date.now();
+  delete state.updates[d.appid];
   if (!state.downloads[d.appid]) return;
   delete state.downloads[d.appid]; unpin(d.appid); closeDlView(d.appid);
   renderHome(); refreshLibrary();
@@ -2808,9 +2858,11 @@ const fmtRate = b => b > 0 ? (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB/s` 
 function dlTitle(d) {
   if (!d) return "Descarga terminada";
   if (d.st === "pending") return "Preparando la descarga…";
-  if (d.st === "canceling") return "Cancelando la instalación…";
+  if (d.st === "canceling") return d.fresh || d.kind === "Descargando" ? "Cancelando la instalación…" : "Cancelando la actualización…";
+  if (d.st === "error") return "Descarga detenida";
   if (d.st === "paused") return "Descarga en pausa";
   if (d.st === "queued") return "En la cola de descargas";
+  if (d.st === "active" && NET.internet === false && d.phase !== "install" && d.phase !== "verify") return "Esperando conexión…";
   if (d.phase === "prealloc") return "Reservando espacio en disco…";
   if (d.phase === "verify") return "Verificando archivos…";
   if (d.phase === "install") return "Instalando archivos…";
@@ -2837,8 +2889,9 @@ function downloadView(g) {
       const p = d ? d.p : 1, pending = !d || d.st === "pending";
       $(".bar i", el).style.width = (p * 100).toFixed(1) + "%";
       $(".pc", el).textContent = pending ? "" : `${Math.floor(p * 100)} %`;
-      $(".sp", el).classList.toggle("still", !d || d.st === "paused" || d.st === "queued");
-      $(".dle", el).textContent = !d ? "" : d.st === "paused" ? "En pausa" : d.st === "queued" ? "Empieza cuando terminen las de antes" : pending ? "Steam está preparando el juego" : `Tiempo restante: ${fmtEta(d.eta)}`;
+      $(".sp", el).classList.toggle("still", !d || d.st === "paused" || d.st === "queued" || d.st === "error");
+      $(".dle", el).textContent = !d ? "" : d.st === "error" ? (d.errText || "Steam no pudo seguir con la descarga.") : d.st === "paused" ? "En pausa" : d.st === "queued" ? "Empieza cuando terminen las de antes"
+        : pending ? "Steam está preparando el juego" : $(".dlh", el).textContent === "Esperando conexión…" ? "Sigue sola cuando vuelva el internet" : `Tiempo restante: ${fmtEta(d.eta)}`;
       $(".dlz", el).textContent = d && d.total > 0 ? `${fmtBytes(d.bytes)} de ${fmtBytes(d.total)}${d.st === "active" && fmtRate(d.rate) ? " · " + fmtRate(d.rate) : ""}` : "";
     },
     items() { return fis(this.el); }
@@ -2846,8 +2899,10 @@ function downloadView(g) {
 }
 async function downloadOptions(g) {
   const d = state.downloads[g.appid]; if (!d) return;
-  const paused = d.st === "paused";
-  const c = await choiceDialog(`Opciones de descarga\n${g.name}`, [{ label: "Atrás", value: null }, { label: "Cancelar instalación", value: "cancel" }, { label: paused ? "Reanudar descarga" : "Pausar descarga", value: paused ? "resume" : "pause" }], 2);
+  const paused = d.st === "paused" || d.st === "error", upd = !d.fresh && d.kind === "Actualizando";
+  const c = await choiceDialog(`Opciones de descarga\n${g.name}`, [{ label: "Atrás", value: null }, { label: upd ? "Cancelar actualización" : "Cancelar instalación", value: "cancel" },
+    { label: d.st === "error" ? "Reintentar" : paused ? "Reanudar descarga" : "Pausar descarga", value: paused ? "resume" : "pause" }], 2);
+  if (c === "resume" && d.st === "error") { const r = await steamDl("download.now", g.appid); return toast(r && r.ok ? "Steam lo vuelve a intentar" : "No se pudo reintentar"); }
   if (c === "pause" || c === "resume") return setDownloadPaused(g, c === "pause");
   if (c === "cancel") return cancelDownload(g);
 }
@@ -2855,7 +2910,7 @@ async function setDownloadPaused(g, pause) {
   const d = state.downloads[g.appid];
   const r = await steamDl(pause ? "download.pause" : "download.resume", g.appid);
   if (!r || !r.ok) return toast(`No se pudo ${pause ? "pausar" : "reanudar"} la descarga`);
-  for (const id in state.downloads) if (state.downloads[id].st !== "pending") state.downloads[id].st = pause ? "paused" : "active";
+  for (const id in state.downloads) if (!["pending", "error", "canceling"].includes(state.downloads[id].st)) state.downloads[id].st = pause ? "paused" : "active";
   if (d) d.st = pause ? "paused" : "active";
   play(pause ? "off" : "on"); toast(pause ? "Descarga en pausa" : "Descarga reanudada");
   renderHome(); refreshLibrary();
@@ -2863,8 +2918,10 @@ async function setDownloadPaused(g, pause) {
 }
 async function cancelDownload(g, quiet) {
   if ((state.downloads[g.appid] || {}).st === "canceling") { toast(`Ya se está cancelando ${g.name}…`); return false; }
+  const cur = state.downloads[g.appid], upd = !!cur && !cur.fresh && cur.kind === "Actualizando";
   if (!quiet) {
-    const ok = await confirmDialog(`¿Cancelar la instalación de ${g.name}?\nSe borrará lo que ya se descargó.`, "Cancelar instalación");
+    const ok = await confirmDialog(upd ? `¿Cancelar la actualización de ${g.name}?\nSe quita de las descargas y el juego se queda como está. Steam puede pedirla otra vez para jugar.`
+      : `¿Cancelar la instalación de ${g.name}?\nSe borrará lo que ya se descargó.`, upd ? "Cancelar actualización" : "Cancelar instalación");
     if (!ok) return false;
   }
   const was = state.downloads[g.appid], prevSt = was && was.st;
@@ -2874,19 +2931,55 @@ async function cancelDownload(g, quiet) {
   if (!r || !r.ok) {
     if (was && state.downloads[g.appid] === was && was.st === "canceling") was.st = prevSt;
     paintDownloads();
-    await alertDialog(`No se pudo cancelar la instalación de ${g.name}.\n${(r && r.error) || ""}`); return false;
+    await alertDialog(`No se pudo cancelar la ${upd ? "actualización" : "instalación"} de ${g.name}.\n${(r && r.error) || ""}`); return false;
   }
-  canceledAt[g.appid] = Date.now();
-  delete state.downloads[g.appid]; g.installed = false; unpin(g.appid);
+  canceledAt[g.appid] = Date.now(); launchAfter.delete(g.appid);
+  delete state.downloads[g.appid];
+  if (r.update || upd) { g.installed = true; }
+  else { g.installed = false; unpin(g.appid); }
   const v = views.find(x => x.isDownload && x.appid == g.appid); if (v) dropView(v);
-  renderHome(); refreshLibrary(); toast(`Se canceló la instalación de ${g.name}`);
+  renderHome(); refreshLibrary(); toast(r.update || upd ? `Se canceló la actualización de ${g.name}` : `Se canceló la instalación de ${g.name}`);
   return true;
+}
+/* Desinstalar: Scarlet ya preguntó, así que Steam lo hace sin su ventanita. "Desinstalado" sale cuando de verdad se borró. */
+const uninstalling = new Map();
+async function uninstallGame(g, after) {
+  if (!Host.has) { g.installed = false; renderHome(); if (after) after(); return notify({ icon: I.cloud, title: "Desinstalado", text: `${g.name} · ${fmtSize(gameSize(g))} liberados` }); }
+  const size = gameSize(g);
+  const r = await Host.call("game.uninstall", { appid: g.appid, source: g.source }).catch(e => ({ ok: false, error: e.message }));
+  if (!r || !r.ok) return alertDialog(`No se pudo desinstalar ${g.name}.\n${(r && r.error) || ""}`);
+  if (r.mode === "steam") return toast("Steam te pedirá confirmar la desinstalación");
+  if (r.mode === "gone") { g.installed = false; renderHome(); refreshLibrary(); if (after) after(); return; }
+  uninstalling.set(g.appid, { size, after });
+  toast(`Desinstalando ${g.name}…`); renderHome(); if (after) after();
+}
+Events.on("game.uninstalled", d => {
+  const u = uninstalling.get(d.appid), g = byId(d.appid); if (!g) return;
+  if (d.pending) return notify({ icon: I.cloud, title: "Desinstalando", text: `Steam se reinicia unos segundos para terminar de borrar ${g.name}.` });
+  uninstalling.delete(d.appid);
+  if (d.ok) {
+    g.installed = false; delete state.downloads[g.appid]; delete state.updates[g.appid]; unpin(g.appid);
+    const size = d.freed > 0 ? d.freed / 1073741824 : u ? u.size : 0;
+    notify({ icon: I.cloud, title: "Desinstalado", text: `${g.name}${size > 0 ? " · " + fmtSize(size) + " liberados" : ""}` });
+  } else alertDialog(`No se pudo desinstalar ${g.name}.\nIntenta desde Steam.`);
+  renderHome(); refreshLibrary(); if (u && u.after) u.after();
+});
+
+/* Actualizar ya (actualización pendiente que Steam no había puesto a bajar). */
+async function updateNow(g) {
+  const r = await steamDl("download.now", g.appid);
+  if (!r || !r.ok) return toast(`No se pudo actualizar ${g.name}`);
+  delete state.updates[g.appid];
+  if (!state.downloads[g.appid]) state.downloads[g.appid] = { p: 0, kind: "Actualizando", st: "pending" };
+  renderHome(); refreshLibrary(); openView(downloadView(g));
+  setTimeout(() => { const d = state.downloads[g.appid]; if (d && d.st === "pending") { delete state.downloads[g.appid]; closeDlView(g.appid); renderHome(); toast(`Steam no empezó a actualizar ${g.name}`); } }, 60000);
 }
 const steamDl = (type, appid) => Host.has ? Host.call(type, { appid }).catch(e => ({ ok: false, error: e.message })) : wait(500).then(() => ({ ok: true }));
 /* Abrir un juego con descargas en curso: pausar y jugar, cancelar y jugar, o seguir descargando (no abre el juego). */
 const autoPaused = new Set();
 async function askDownloadsBeforePlay(g) {
   const act = Object.keys(state.downloads).filter(id => id != g.appid && ["active", "pending", "queued"].includes(state.downloads[id].st)).map(id => byId(id)).filter(Boolean);
+  // (las actualizaciones pendientes y lo que Steam hace después de instalar no cuentan: no están bajando)
   if (!act.length) return true;
   const one = act.length === 1 ? act[0] : null;
   const opts = [{ label: "Seguir descargando", value: "keep" }, ...(one ? [{ label: "Cancelar y jugar", value: "cancel" }] : []), { label: "Pausar y jugar", value: "pause" }];
@@ -3267,8 +3360,10 @@ function waitReady(g) {
     if (!Host.has) return setTimeout(() => res(true), 3200 + Math.random() * 1400);
     let t;
     const off = Events.on("game.ready", d => { if (!d || d.appid == g.appid) { delete goneAt[g.appid]; clearTimeout(t); off(); off2(); res(true); } });
-    const off2 = Events.on("game.failed", d => { if (!d || d.appid == g.appid) { clearTimeout(t); off(); off2(); res(false); } });
-    t = setTimeout(() => { off(); res(false); }, 90000);
+    const off2 = Events.on("game.failed", d => { if (!d || d.appid == g.appid) { clearTimeout(t); off(); off2(); off3(); res(false); } });
+    // Steam se puso a actualizarlo antes de abrirlo (actualización obligatoria): se muestra la descarga.
+    const off3 = Events.on("game.updating", d => { if (d && d.appid == g.appid) { clearTimeout(t); off(); off2(); off3(); res("updating"); } });
+    t = setTimeout(() => { off(); off2(); off3(); res(false); }, 90000);
   });
 }
 function showGame(g, sub) {
@@ -3302,7 +3397,15 @@ async function launchGame(g, el, opt = {}) {
   if (state.running === g.appid) return resumeGame(el);
   const d = state.downloads[g.appid];
   if (d) return openView(downloadView(g), el);
+  if (uninstalling.has(g.appid)) return toast(`Se está desinstalando ${g.name}…`);
   if (!g.installed) return startInstall(g);
+  if (state.updates[g.appid] && !opt.updAsked) {   // Steam tiene una actualización pendiente: la pedirá para jugar
+    const c = await choiceDialog(`${g.name} tiene una actualización pendiente.\nSteam la pide para jugar.`,
+      [{ label: "Atrás", value: null }, { label: "Jugar así", value: "play" }, { label: "Actualizar ahora", value: "now" }], 2);
+    if (!c) return;
+    if (c === "now") return updateNow(g);
+    opt = Object.assign({}, opt, { updAsked: true });   // si Steam la exige al abrir, se ve como descarga y abre al terminar
+  }
   if (g.kind !== "app" && !opt.dlAsked) { const go = await askDownloadsBeforePlay(g); if (!go) return; }
   if (state.running) {
     const r = runningGame();
@@ -3331,6 +3434,14 @@ async function launchGame(g, el, opt = {}) {
   closeAllViews(); L.classList.add("logo");
   if (!opt.joined) Data.launch(g);
   const ok = await waitReady(g);
+  if (ok === "updating") {
+    L.classList.remove("logo", "show"); mode = "ui";
+    launchAfter.add(g.appid);
+    if (!state.downloads[g.appid]) state.downloads[g.appid] = { p: 0, kind: "Actualizando", st: "pending" };
+    renderHome(); openView(downloadView(g));
+    notify({ icon: I.cloud, title: "Primero se actualiza", text: `Steam está actualizando ${g.name}. Se abrirá cuando termine.` });
+    return;
+  }
   if (!ok) {
     L.classList.remove("logo", "show"); mode = "ui";
     notify({ icon: I.power, title: "No se pudo iniciar", text: g.name, sound: "error" });
@@ -4223,7 +4334,7 @@ function storageView() {
         <div class="sbar"><i style="width:${pct(DISK_.system)};background:var(--fg2)"></i><i style="width:${pct(used)};background:var(--accent)"></i></div>
         <div class="slegend"><span><i style="background:var(--fg2)"></i>${this.disk ? "Sistema y otros" : "Sistema"} · ${DISK_.system} GB</span><span><i style="background:var(--accent)"></i>Juegos y apps · ${used.toFixed(0)} GB</span><span><i style="background:var(--line)"></i>Libre · ${free.toFixed(0)} GB</span></div></div>
         <div class="sect">Instalados · de mayor a menor</div>` +
-        inst.map(g => `<button class="lrow fi" data-g="${g.appid}"><img class="mini" alt="" data-art="${g.appid}"><span class="meta"><b>${esc(g.name)}</b><span>${esc(SOURCES[g.source] || "Steam")}${g.appid === state.running ? " · en ejecución" : ""}</span></span><span class="val">${fmtSize(gameSize(g))}</span></button>`).join("");
+        inst.map(g => `<button class="lrow fi" data-g="${g.appid}"><img class="mini" alt="" data-art="${g.appid}"><span class="meta"><b>${esc(g.name)}</b><span>${esc(SOURCES[g.source] || "Steam")}${g.appid === state.running ? " · en ejecución" : uninstalling.has(g.appid) ? " · desinstalando…" : ""}</span></span><span class="val">${fmtSize(gameSize(g))}</span></button>`).join("");
       $$("[data-art]", this.el).forEach(im => Art.apply(im, byId(im.dataset.art)));
       $$("[data-g]", this.el).forEach(b => b.onclick = () => this.options(byId(b.dataset.g)));
       updateFocus();
@@ -4232,11 +4343,9 @@ function storageView() {
       openView(pickerView(g.name, I.gear, [{ label: g.kind === "app" ? "Desinstalar aplicación" : "Desinstalar juego", value: "rm" }, { label: "Abrir carpeta de instalación", value: "dir" }], null, v => {
         if (v === "dir") return openSystemApp({ ...SYS.explorer, name: g.name + " · carpeta" });
         if (g.appid === state.running) return toast("Cierra el juego antes de desinstalarlo");
+        if (uninstalling.has(g.appid)) return toast(`Ya se está desinstalando ${g.name}…`);
         confirmDialog(`¿Desinstalar ${g.name}?\nSe liberarán ${fmtSize(gameSize(g))}. Tus partidas en la nube no se borran.`, "Desinstalar").then(ok => {
-          if (!ok) return;
-          Host.call("game.uninstall", { appid: g.appid, source: g.source }).catch(() => {});
-          g.installed = false; renderHome(); this.refresh();
-          notify({ icon: I.cloud, title: "Desinstalado", text: `${g.name} · ${fmtSize(gameSize(g))} liberados` });
+          if (ok) uninstallGame(g, () => this.refresh());
         });
       }));
     },

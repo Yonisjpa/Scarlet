@@ -20,6 +20,10 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Pruebas de descargas
+        shell: pwsh
+        run: dotnet run --project tests/DlTests/DlTests.csproj -c Release
+
       - name: Compilar
         shell: pwsh
         run: dotnet publish XboxScarlet.csproj -c Release -r win-x64 --self-contained true -o dist/Scarlet --configfile nuget.config

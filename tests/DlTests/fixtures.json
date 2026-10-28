@@ -1,0 +1,753 @@
+{
+ "lan_dos_dispositivos": {
+  "ov": {
+   "cur": 1091500,
+   "state": "Downloading",
+   "paused": false,
+   "rate": 16300000,
+   "pct": 83,
+   "eta": 876,
+   "lan": "YONIS",
+   "install": true,
+   "shader": false,
+   "workshop": false,
+   "upload": false,
+   "ph": [
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 88786681446,
+     "total": 88786681446,
+     "eta": 0
+    },
+    {
+     "done": 65600000000,
+     "total": 78800000000,
+     "eta": 876
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    }
+   ],
+   "dl": 0,
+   "dlTotal": 0
+  },
+  "items": [
+   {
+    "a": 1091500,
+    "on": true,
+    "done": false,
+    "p": false,
+    "q": 0,
+    "def": 0,
+    "b": 65600000000,
+    "t": 78800000000,
+    "inst": false,
+    "fresh": true,
+    "pct": 83,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   }
+  ],
+  "others": 1,
+  "sItem": "{\"appid\":1091500,\"active\":true,\"paused\":false,\"completed\":false,\"deferred_time\":0,\"queue_index\":0,\"update_result\":0,\"update_error\":\"\",\"completed_time\":0,\"buildid\":0,\"target_buildid\":26161058,\"launch_on_completion\":false,\"update_type_info\":[{\"has_update\":true,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":88786681446,\"bytes_total\":88786681446,\"estimated_time_remaining_sec\":0},{\"bytes_in_progress\":65600000000,\"bytes_total\":78800000000,\"estimated_time_remaining_sec\":876},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}],\"overall_percent_complete\":83,\"overall_estimated_time_remaining_sec\":876},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_up",
+  "sOv": "{\"remote_client_id\":\"0\",\"update_appid\":1091500,\"update_is_upload\":false,\"update_network_bytes_per_second\":16300000,\"update_state\":\"Downloading\",\"update_state_flags\":0,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":88786681446,\"bytes_total\":88786681446,\"estimated_time_remaining_sec\":0},{\"bytes_in_progress\":65600000000,\"bytes_total\":78800000000,\"estimated_time_remaining_sec\":876},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}],\"overall_percent_complete\":83,\"overall_estimated_time_remaining_sec\":876,\"update_is_install\":true,\"update_is_workshop\":false,\"update_is_shader\":false,\"paused\":false,\"lan_peer_hostname\":\"YONIS\"}"
+ },
+ "lista_solo_remota": {
+  "ov": {
+   "cur": 1091500,
+   "state": "Downloading",
+   "paused": false,
+   "rate": 0,
+   "pct": 10,
+   "eta": -1,
+   "lan": "",
+   "install": true,
+   "shader": false,
+   "workshop": false,
+   "upload": false,
+   "ph": [
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 1000000000,
+     "total": 10000000000,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    }
+   ],
+   "dl": 0,
+   "dlTotal": 0
+  },
+  "items": [
+   {
+    "a": 1091500,
+    "on": true,
+    "done": false,
+    "p": false,
+    "q": 0,
+    "def": 0,
+    "b": 1000000000,
+    "t": 10000000000,
+    "inst": false,
+    "fresh": true,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   }
+  ],
+  "others": 0,
+  "sItem": "{\"appid\":1091500,\"active\":true,\"paused\":false,\"completed\":false,\"deferred_time\":0,\"queue_index\":0,\"update_result\":0,\"update_error\":\"\",\"completed_time\":0,\"buildid\":0,\"target_buildid\":5,\"launch_on_completion\":false,\"update_type_info\":[{\"has_update\":true,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":1000000000,\"bytes_total\":10000000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"b",
+  "sOv": "{\"remote_client_id\":\"0\",\"update_appid\":1091500,\"update_is_upload\":false,\"update_network_bytes_per_second\":0,\"update_state\":\"Downloading\",\"update_state_flags\":0,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":1000000000,\"bytes_total\":10000000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}],\"overall_percent_complete\":10,\"overall_estimated_time_remaining_sec\":-1,\"update_is_install\":true,\"update_is_workshop\":false,\"update_is_shader\":false,\"paused\":false,\"lan_peer_hostname\":\"\"}"
+ },
+ "sombreadores": {
+  "ov": {
+   "cur": 1091500,
+   "state": "Downloading",
+   "paused": false,
+   "rate": 0,
+   "pct": 22,
+   "eta": -1,
+   "lan": "",
+   "install": false,
+   "shader": true,
+   "workshop": false,
+   "upload": false,
+   "ph": [
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 200000000,
+     "total": 900000000,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    }
+   ],
+   "dl": 0,
+   "dlTotal": 0
+  },
+  "items": [
+   {
+    "a": 1091500,
+    "on": true,
+    "done": false,
+    "p": false,
+    "q": 0,
+    "def": 0,
+    "b": 79000000000,
+    "t": 79700000000,
+    "inst": true,
+    "fresh": false,
+    "pct": 0,
+    "game": false,
+    "extra": true,
+    "err": 0,
+    "errText": ""
+   }
+  ],
+  "others": 0,
+  "sItem": "{\"appid\":1091500,\"active\":true,\"paused\":false,\"completed\":false,\"deferred_time\":0,\"queue_index\":0,\"update_result\":0,\"update_error\":\"\",\"completed_time\":0,\"buildid\":26161058,\"target_buildid\":26161058,\"launch_on_completion\":false,\"update_type_info\":[{\"has_update\":true,\"completed\":true,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":78800000000,\"bytes_total\":78800000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":true,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estima",
+  "sOv": "{\"remote_client_id\":\"0\",\"update_appid\":1091500,\"update_is_upload\":false,\"update_network_bytes_per_second\":0,\"update_state\":\"Downloading\",\"update_state_flags\":0,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":200000000,\"bytes_total\":900000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}],\"overall_percent_complete\":22,\"overall_estimated_time_remaining_sec\":-1,\"update_is_install\":false,\"update_is_workshop\":false,\"update_is_shader\":true,\"paused\":false,\"lan_peer_hostname\":\"\"}"
+ },
+ "actualizacion_y_cola": {
+  "ov": {
+   "cur": 570,
+   "state": "Downloading",
+   "paused": false,
+   "rate": 5000000,
+   "pct": 40,
+   "eta": 120,
+   "lan": "",
+   "install": false,
+   "shader": false,
+   "workshop": false,
+   "upload": false,
+   "ph": [
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 400000000,
+     "total": 1000000000,
+     "eta": 120
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    }
+   ],
+   "dl": 0,
+   "dlTotal": 0
+  },
+  "items": [
+   {
+    "a": 570,
+    "on": true,
+    "done": false,
+    "p": false,
+    "q": 0,
+    "def": 0,
+    "b": 400000000,
+    "t": 1000000000,
+    "inst": true,
+    "fresh": false,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   },
+   {
+    "a": 440,
+    "on": false,
+    "done": false,
+    "p": false,
+    "q": 1,
+    "def": 0,
+    "b": 0,
+    "t": 500000000,
+    "inst": true,
+    "fresh": false,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   }
+  ],
+  "others": 0,
+  "sItem": "{\"appid\":570,\"active\":true,\"paused\":false,\"completed\":false,\"deferred_time\":0,\"queue_index\":0,\"update_result\":0,\"update_error\":\"\",\"completed_time\":0,\"buildid\":100,\"target_buildid\":120,\"launch_on_completion\":false,\"update_type_info\":[{\"has_update\":true,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":400000000,\"bytes_total\":1000000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"byt",
+  "sOv": "{\"remote_client_id\":\"0\",\"update_appid\":570,\"update_is_upload\":false,\"update_network_bytes_per_second\":5000000,\"update_state\":\"Downloading\",\"update_state_flags\":0,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":400000000,\"bytes_total\":1000000000,\"estimated_time_remaining_sec\":120},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}],\"overall_percent_complete\":40,\"overall_estimated_time_remaining_sec\":120,\"update_is_install\":false,\"update_is_workshop\":false,\"update_is_shader\":false,\"paused\":false,\"lan_peer_hostname\":\"\"}"
+ },
+ "pendientes": {
+  "ov": {
+   "cur": 0,
+   "state": "None",
+   "paused": false,
+   "rate": 0,
+   "pct": 0,
+   "eta": -1,
+   "lan": "",
+   "install": false,
+   "shader": false,
+   "workshop": false,
+   "upload": false,
+   "ph": [
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    }
+   ],
+   "dl": 0,
+   "dlTotal": 0
+  },
+  "items": [
+   {
+    "a": 10,
+    "on": false,
+    "done": false,
+    "p": false,
+    "q": -1,
+    "def": 0,
+    "b": 0,
+    "t": 2000000000,
+    "inst": true,
+    "fresh": false,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   },
+   {
+    "a": 20,
+    "on": false,
+    "done": false,
+    "p": false,
+    "q": -1,
+    "def": 1893456000,
+    "b": 0,
+    "t": 1000000000,
+    "inst": true,
+    "fresh": false,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   },
+   {
+    "a": 30,
+    "on": false,
+    "done": false,
+    "p": false,
+    "q": -1,
+    "def": 0,
+    "b": 500000000,
+    "t": 4000000000,
+    "inst": false,
+    "fresh": true,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   },
+   {
+    "a": 40,
+    "on": false,
+    "done": true,
+    "p": false,
+    "q": -1,
+    "def": 0,
+    "b": 1000000000,
+    "t": 1000000000,
+    "inst": true,
+    "fresh": false,
+    "pct": 0,
+    "game": false,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   }
+  ],
+  "others": 0,
+  "sItem": "{\"appid\":10,\"active\":false,\"paused\":false,\"completed\":false,\"deferred_time\":0,\"queue_index\":-1,\"update_result\":0,\"update_error\":\"\",\"completed_time\":0,\"buildid\":3,\"target_buildid\":4,\"launch_on_completion\":false,\"update_type_info\":[{\"has_update\":true,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":2000000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progr",
+  "sOv": ""
+ },
+ "error_y_pausa": {
+  "ov": {
+   "cur": 0,
+   "state": "None",
+   "paused": true,
+   "rate": 0,
+   "pct": 0,
+   "eta": -1,
+   "lan": "",
+   "install": false,
+   "shader": false,
+   "workshop": false,
+   "upload": false,
+   "ph": [
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    }
+   ],
+   "dl": 0,
+   "dlTotal": 0
+  },
+  "items": [
+   {
+    "a": 50,
+    "on": false,
+    "done": false,
+    "p": true,
+    "q": 0,
+    "def": 0,
+    "b": 3000000000,
+    "t": 6000000000,
+    "inst": false,
+    "fresh": true,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 12,
+    "errText": "Disk write failure"
+   },
+   {
+    "a": 60,
+    "on": false,
+    "done": false,
+    "p": false,
+    "q": 1,
+    "def": 0,
+    "b": 0,
+    "t": 1000000000,
+    "inst": true,
+    "fresh": false,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   }
+  ],
+  "others": 0,
+  "sItem": "{\"appid\":50,\"active\":false,\"paused\":true,\"completed\":false,\"deferred_time\":0,\"queue_index\":0,\"update_result\":12,\"update_error\":\"Disk write failure\",\"completed_time\":0,\"buildid\":0,\"target_buildid\":2,\"launch_on_completion\":false,\"update_type_info\":[{\"has_update\":true,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":3000000000,\"bytes_total\":6000000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining",
+  "sOv": ""
+ },
+ "solo_subida": {
+  "ov": {
+   "cur": 1091500,
+   "state": "Downloading",
+   "paused": false,
+   "rate": 0,
+   "pct": 50,
+   "eta": -1,
+   "lan": "",
+   "install": false,
+   "shader": false,
+   "workshop": false,
+   "upload": true,
+   "ph": [
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 40000000000,
+     "total": 80000000000,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    }
+   ],
+   "dl": 0,
+   "dlTotal": 0
+  },
+  "items": [],
+  "others": 0,
+  "sItem": "",
+  "sOv": "{\"remote_client_id\":\"0\",\"update_appid\":1091500,\"update_is_upload\":true,\"update_network_bytes_per_second\":0,\"update_state\":\"Downloading\",\"update_state_flags\":0,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":40000000000,\"bytes_total\":80000000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}],\"overall_percent_complete\":50,\"overall_estimated_time_remaining_sec\":-1,\"update_is_install\":false,\"update_is_workshop\":false,\"update_is_shader\":false,\"paused\":false,\"lan_peer_hostname\":\"\"}"
+ },
+ "reservando": {
+  "ov": {
+   "cur": 1091500,
+   "state": "Preallocating",
+   "paused": false,
+   "rate": 0,
+   "pct": 0,
+   "eta": -1,
+   "lan": "",
+   "install": true,
+   "shader": false,
+   "workshop": false,
+   "upload": false,
+   "ph": [
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 1000000000,
+     "total": 89000000000,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 78800000000,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    }
+   ],
+   "dl": 0,
+   "dlTotal": 0
+  },
+  "items": [
+   {
+    "a": 1091500,
+    "on": true,
+    "done": false,
+    "p": false,
+    "q": 0,
+    "def": 0,
+    "b": 0,
+    "t": 78800000000,
+    "inst": false,
+    "fresh": true,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   }
+  ],
+  "others": 0,
+  "sItem": "{\"appid\":1091500,\"active\":true,\"paused\":false,\"completed\":false,\"deferred_time\":0,\"queue_index\":0,\"update_result\":0,\"update_error\":\"\",\"completed_time\":0,\"buildid\":0,\"target_buildid\":1,\"launch_on_completion\":false,\"update_type_info\":[{\"has_update\":true,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":1000000000,\"bytes_total\":89000000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":78800000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}]},{\"has_update\":false,\"completed\":false,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_se",
+  "sOv": "{\"remote_client_id\":\"0\",\"update_appid\":1091500,\"update_is_upload\":false,\"update_network_bytes_per_second\":0,\"update_state\":\"Preallocating\",\"update_state_flags\":0,\"progress\":[{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":1000000000,\"bytes_total\":89000000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":78800000000,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1},{\"bytes_in_progress\":0,\"bytes_total\":0,\"estimated_time_remaining_sec\":-1}],\"overall_percent_complete\":0,\"overall_estimated_time_remaining_sec\":-1,\"update_is_install\":true,\"update_is_workshop\":false,\"update_is_shader\":false,\"paused\":false,\"lan_peer_hostname\":\"\"}"
+ },
+ "formato_viejo": {
+  "ov": {
+   "cur": 292030,
+   "state": "Updating",
+   "paused": false,
+   "rate": 0,
+   "pct": 30,
+   "eta": -1,
+   "lan": "",
+   "install": true,
+   "shader": false,
+   "workshop": false,
+   "upload": false,
+   "ph": [
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    },
+    {
+     "done": 0,
+     "total": 0,
+     "eta": -1
+    }
+   ],
+   "dl": 3000000000,
+   "dlTotal": 10000000000
+  },
+  "items": [
+   {
+    "a": 292030,
+    "on": true,
+    "done": false,
+    "p": false,
+    "q": 0,
+    "def": 0,
+    "b": 3000000000,
+    "t": 10000000000,
+    "inst": false,
+    "fresh": false,
+    "pct": 0,
+    "game": true,
+    "extra": false,
+    "err": 0,
+    "errText": ""
+   }
+  ],
+  "others": 0,
+  "sItem": "{\"appid\":292030,\"active\":true,\"paused\":false,\"completed\":false,\"deferred_time\":0,\"queue_index\":0,\"update_result\":0,\"update_error\":\"\",\"completed_time\":0,\"buildid\":0,\"target_buildid\":0,\"launch_on_completion\":false,\"downloaded_bytes\":3000000000,\"total_bytes\":10000000000}",
+  "sOv": "{\"remote_client_id\":\"0\",\"update_appid\":292030,\"update_is_upload\":false,\"update_network_bytes_per_second\":0,\"update_state\":\"Updating\",\"update_state_flags\":0,\"overall_percent_complete\":30,\"overall_estimated_time_remaining_sec\":-1,\"update_is_install\":true,\"update_is_workshop\":false,\"update_is_shader\":false,\"paused\":false,\"lan_peer_hostname\":\"\",\"update_bytes_downloaded\":3000000000,\"update_bytes_to_download\":10000000000}"
+ }
+}

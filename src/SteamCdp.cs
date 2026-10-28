@@ -236,30 +236,55 @@ const appsOf = info => ((info && (info.rgApps || info.rgAppIDs)) || []).map(a =>
 const mine = (info, id) => !!info && (appsOf(info).some(a => a == id) || info.currentAppID == id);
 const raw = info => { try { return JSON.stringify(info).slice(0, 700); } catch (e) { return String(info); } };
 const pack = info => info ? { s: sNum(info.eInstallState), need: Number(info.nDiskSpaceRequired) || 0, folder: info.iInstallFolder ?? -1, canChange: info.bCanChangeInstallFolder !== false, err: Number(info.eAppError) || 0, detail: info.errorDetail || '', cur: info.currentAppID || 0, raw: raw(info) } : { s: 0, raw: 'null' };
-const ensureDl = () => { const w = window; if (!w.__scarletDl) { w.__scarletDl = { items: [], ov: null }; SteamClient.Downloads.RegisterForDownloadItems((a, b) => { w.__scarletDl.items = Array.isArray(b) ? b : Array.isArray(a) ? a : (a && a.item_data ? [a] : []); }); SteamClient.Downloads.RegisterForDownloadOverview(o => { w.__scarletDl.ov = o; }); } return w.__scarletDl; };
 " + DlNorm + @"
-const queued = id => { try { return flat(ensureDl().items).map(dlItem).some(i => i.a == id && !i.done); } catch (e) { return false; } };";
+const queued = id => { try { return dlLocal().items.map(dlItem).some(i => i.a == id && !i.done && (i.on || i.q >= 0)); } catch (e) { return false; } };";
 
-    // Los nombres de Steam cambian entre versiones (ya pasó con rgApps): se lee cada dato con sus nombres posibles.
+    // Cómo lo lee la propia pantalla de descargas de Steam (su código, SteamTracking/steamui):
+    //  · Steam manda lista y avance POR DISPOSITIVO (remote_client_id); "0" es esta consola. Con otra PC conectada (la laptop
+    //    que le pasa el juego por la red de la casa) también llegan los de ella: antes Scarlet se quedaba con el último que
+    //    llegaba y mostraba el avance de la laptop (fotos 27-oct: 92.70 GB de 78.80 GB, 1 h 2 min fijo).
+    //  · Cada juego trae update_type_info por tipo: 0 juego, 1 workshop, 2 sombreadores; cada uno con 7 fases fijas:
+    //    0 verificar instalados, 1 reservar espacio, 2 descargar, 3 desempacar, 4 verificar, 5 copiar, 6 acomodar.
+    //  · Porcentaje del que está bajando = overall_percent_complete del avance (0–100); bytes = fase 2; tiempo = el general.
+    //  · Todas sus funciones de descargas e instalación llevan el dispositivo al final ("0"); sin él algunas no hacen nada.
+    //  · Los nombres pueden cambiar entre versiones: se lee cada dato con sus nombres posibles.
     const string DlNorm = @"
+const LOCAL = '0';
 const pick = (o, ...ks) => { for (const k of ks) if (o && o[k] !== undefined && o[k] !== null) return o[k]; return undefined; };
-const dlItem = i => ({ a: Number(pick(i, 'appid', 'appID', 'nAppID', 'unAppID', 'app_id')) || 0, on: !!pick(i, 'active', 'bActive'), done: !!pick(i, 'completed', 'bCompleted'),
-  p: !!pick(i, 'paused', 'bPaused'), q: Number(pick(i, 'queue_index', 'nQueueIndex', 'queueIndex') ?? -1), b: Number(pick(i, 'downloaded_bytes', 'nBytesDownloaded', 'bytes_downloaded')) || 0,
-  t: Number(pick(i, 'total_bytes', 'nBytesTotal', 'bytes_total')) || 0, inst: (Number(pick(i, 'buildid', 'nBuildID', 'build_id')) || 0) > 0,
-  g: sumProg(((pick(i, 'update_type_info') || []).find(u => u && u.has_update) || (pick(i, 'update_type_info') || [])[0] || i)) });
-// El avance llega en 7 fases fijas (EAppUpdateProgress de Steam): 0 verificar instalados, 1 reservar espacio, 2 descargar,
-// 3 desempacar, 4 verificar, 5 copiar, 6 acomodar; y overall_percent_complete (0–100), que es lo que Steam muestra.
-// «X de Y» sale de la fase 2: la de reservar espacio llega al 100 % casi al instante (foto de Jhon con la 0.4.27).
-const sumProg = u => {
-  const ph = (Array.isArray(u && u.progress) ? u.progress : []).map(x => ({ d: Number(pick(x, 'bytes_in_progress', 'bytes_done')) || 0, t: Number(pick(x, 'bytes_total')) || 0, e: Number(pick(x, 'estimated_time_remaining_sec')) }));
-  const best = (ph.length > 2 ? ph[2] : ph.filter(x => x.t > 0 && x.d < x.t)[0] || ph.find(x => x.t > 0)) || { d: 0, t: 0, e: -1 };
-  const pct = Number(pick(u, 'overall_percent_complete')), eta = Number(pick(u, 'overall_estimated_time_remaining_sec'));
-  return { pct: isFinite(pct) ? pct : -1, eta: isFinite(eta) && eta >= 0 ? eta : (isFinite(best.e) ? best.e : -1), d: best.d, t: best.t || Math.max(0, ...ph.map(x => x.t)) };
+const ensureDl = () => {
+  const w = window;
+  if (!w.__scarletDl2) {
+    const d = w.__scarletDl2 = { items: {}, ov: {} };
+    SteamClient.Downloads.RegisterForDownloadItems((a, b) => {
+      const gs = Array.isArray(b) ? b : Array.isArray(a) ? a : (a && a.item_data ? [a] : []);
+      let grouped = false;
+      for (const g of gs) if (g && Array.isArray(g.item_data)) { grouped = true; d.items[String(g.remote_client_id ?? LOCAL)] = g.item_data; }
+      if (!grouped && gs.length) d.items[LOCAL] = gs;   // versiones viejas: lista sin grupos
+    });
+    SteamClient.Downloads.RegisterForDownloadOverview(o => { for (const x of (Array.isArray(o) ? o : [o])) if (x) d.ov[String(x.remote_client_id ?? LOCAL)] = x; });
+  }
+  return w.__scarletDl2;
 };
-// log-8: Steam agrupa por dispositivo { remote_client_id, item_data: [...] }; el ""0"" es esta consola.
-const local = x => x && (x.remote_client_id === undefined || x.remote_client_id == 0);
-const flat = items => { const out = []; for (const x of (items || [])) { if (x && Array.isArray(x.item_data)) { if (local(x)) out.push(...x.item_data); } else if (x) out.push(x); } return out; };
-const ovLocal = o => Array.isArray(o) ? (o.find(local) || o[0] || {}) : (o || {});";
+const dlLocal = () => { const d = ensureDl(); return { items: d.items[LOCAL] || [], ov: d.ov[LOCAL] || {}, others: Object.keys(d.ov).filter(k => k != LOCAL).length }; };
+const fase = (u, n) => { const x = u && Array.isArray(u.progress) ? u.progress[n] : null; return { d: Number(pick(x, 'bytes_in_progress', 'bytes_done')) || 0, t: Number(pick(x, 'bytes_total')) || 0, e: Number(pick(x, 'estimated_time_remaining_sec') ?? -1) }; };
+const tipo = (ut, n) => { const u = ut[n] || {}; return { has: !!u.has_update, done: !!pick(u, 'completed', 'completed_update'), pct: Number(u.overall_percent_complete) || 0 }; };
+const dlItem = i => {
+  const ut = pick(i, 'update_type_info') || [];
+  let d = 0, t = 0; for (const u of ut) { const f = fase(u, 2); d += f.d; t += f.t; }
+  const c = tipo(ut, 0), w = tipo(ut, 1), s = tipo(ut, 2), bid = Number(pick(i, 'buildid', 'nBuildID', 'build_id')) || 0, tb = Number(pick(i, 'target_buildid')) || 0;
+  return { a: Number(pick(i, 'appid', 'appID', 'nAppID', 'unAppID', 'app_id')) || 0, on: !!pick(i, 'active', 'bActive'), done: !!pick(i, 'completed', 'bCompleted'),
+    p: !!pick(i, 'paused', 'bPaused'), q: Number(pick(i, 'queue_index', 'nQueueIndex', 'queueIndex') ?? -1), def: Number(pick(i, 'deferred_time')) || 0,
+    b: Number(pick(i, 'downloaded_bytes', 'nBytesDownloaded', 'bytes_downloaded') ?? d) || 0, t: Number(pick(i, 'total_bytes', 'nBytesTotal', 'bytes_total') ?? t) || 0,
+    inst: bid > 0, fresh: bid == 0 && tb > 0, pct: c.pct,
+    game: ut.length ? c.has && !c.done : true, extra: (w.has && !w.done) || (s.has && !s.done),
+    err: Number(pick(i, 'update_result')) || 0, errText: String(pick(i, 'update_error') || '') };
+};
+const dlOv = o => ({ cur: Number(pick(o, 'update_appid', 'unAppID', 'appid')) || 0, state: String(pick(o, 'update_state') ?? ''), paused: !!pick(o, 'paused', 'bPaused'),
+  rate: Number(pick(o, 'update_network_bytes_per_second')) || 0, pct: Number(pick(o, 'overall_percent_complete')) || 0,
+  eta: Number(pick(o, 'overall_estimated_time_remaining_sec', 'update_seconds_remaining') ?? -1), lan: String(pick(o, 'lan_peer_hostname') || ''),
+  install: !!o.update_is_install, shader: !!o.update_is_shader, workshop: !!o.update_is_workshop, upload: !!o.update_is_upload,
+  ph: [0, 1, 2, 3, 4, 5, 6].map(n => { const f = fase(o, n); return { done: f.d, total: f.t, eta: f.e }; }),
+  dl: Number(pick(o, 'update_bytes_downloaded')) || 0, dlTotal: Number(pick(o, 'update_bytes_to_download')) || 0 });";
 
     static readonly SemaphoreSlim installGate = new(1, 1);
 
@@ -283,7 +308,7 @@ const openWizard = () => {{
   tries++;
   const url = SteamClient.URL && SteamClient.URL.ExecuteSteamURL;
   if (url && tries % 2 === 1) {{ try {{ SteamClient.URL.ExecuteSteamURL('steam://install/' + id); how += 'url '; return; }} catch (e) {{}} }}
-  try {{ I.OpenInstallWizard([id]); how += 'api '; }} catch (e) {{ how += 'error '; }}
+  try {{ I.OpenInstallWizard([id], '0'); how += 'api '; }} catch (e) {{ how += 'error '; }}
 }};
 openWizard();
 const t0 = Date.now();
@@ -436,127 +461,139 @@ return r;
     // ───── descargas en vivo ─────
 
     static string DownloadsJs => @"(() => {
-const w = window;
-if (!w.__scarletDl) {
-  w.__scarletDl = { items: [], ov: null };
-  SteamClient.Downloads.RegisterForDownloadItems((a, b) => { w.__scarletDl.items = Array.isArray(b) ? b : Array.isArray(a) ? a : (a && a.item_data ? [a] : []); });
-  SteamClient.Downloads.RegisterForDownloadOverview(o => { w.__scarletDl.ov = o; });
-}
-const d = w.__scarletDl;
 " + DlNorm + @"
-const ov = ovLocal(d.ov), raw = flat(d.items);
-const ph = (Array.isArray(ov.progress) ? ov.progress : []).map(x => ({ done: Number(pick(x, 'bytes_in_progress', 'bytes_done')) || 0, total: Number(pick(x, 'bytes_total')) || 0, eta: Number(pick(x, 'estimated_time_remaining_sec')) }));
-const pct = Number(pick(ov, 'overall_percent_complete')), og = sumProg(ov);
+const L = dlLocal();
 let sItem = '', sOv = '';
-try { if (raw.length) sItem = JSON.stringify(raw[0]).slice(0, 1500); } catch (e) {}
-try { if (ov.update_appid) sOv = JSON.stringify(ov).slice(0, 1500); } catch (e) {}
-return { og, lan: String(pick(ov, 'lan_peer_hostname') || ''), paused: !!pick(ov, 'paused', 'bPaused', 'update_paused'), cur: Number(pick(ov, 'update_appid', 'unAppID', 'appid')) || 0, state: String(pick(ov, 'update_state') ?? ''),
-  rate: Number(pick(ov, 'update_network_bytes_per_second')) || 0, pct: isFinite(pct) ? pct : -1, ph,
-  curDl: Number(pick(ov, 'update_bytes_downloaded')) || 0, curTotal: Number(pick(ov, 'update_bytes_to_download')) || 0,
-  items: raw.map(dlItem).filter(i => i.a > 0), sItem, sOv };
+try { if (L.items.length) sItem = JSON.stringify(L.items[0]).slice(0, 1500); } catch (e) {}
+try { if (L.ov.update_appid) sOv = JSON.stringify(Object.assign({}, L.ov, { history: undefined })).slice(0, 1500); } catch (e) {}
+return { ov: dlOv(L.ov), items: L.items.map(dlItem).filter(i => i.a > 0), others: L.others, sItem, sOv };
 })()";
 
-    /// <summary>Una descarga de Steam: avance (0–1), bytes, tiempo restante (s, -1 si no se sabe), velocidad (B/s) y fase.</summary>
-    public sealed record Dl(long AppId, double Progress, string Kind, string State, double Bytes, double Total, double Eta, double Rate, string Phase, string Peer = "");
+    /// <summary>
+    /// Una descarga de Steam en esta consola. State: active / paused / queued / error / needs (actualización pendiente que
+    /// Steam no ha puesto a bajar: al jugar la pedirá). Phase: download / lan / prealloc / verify / install / extra
+    /// (sombreadores o workshop de un juego ya listo: no es descarga del juego). Fresh: instalación nueva (no actualización).
+    /// </summary>
+    public sealed record Dl(long AppId, double Progress, string Kind, string State, double Bytes, double Total, double Eta, double Rate, string Phase,
+        string Peer = "", bool Fresh = false, int Err = 0, string ErrText = "");
     static bool itemLogged, ovLogged;
     static DateTime lastDlLog;
-    /// <summary>Scarlet pausó todas las descargas (para jugar o desde el menú de descarga).</summary>
+    static string lastDlKey = "";
+    /// <summary>Scarlet pausó todas las descargas (solo cuenta si no hay conexión directa para preguntarle a Steam).</summary>
     public static volatile bool PausedAll;
 
-    /// <summary>Descargas según Steam en vivo; null si no hay conexión.</summary>
+    /// <summary>Descargas de esta consola según Steam en vivo; ok = false si no hay conexión directa.</summary>
     public static async Task<(List<Dl> live, List<long> done, bool ok)> DownloadsAsync()
     {
         JsonElement v;
         try { v = await EvalAsync(DownloadsJs, 3000); }
         catch { return (null, null, false); }
         if (v.ValueKind != JsonValueKind.Object) return (null, null, false);
-        static double N(JsonElement o, string k, double def = 0) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.Number ? x.GetDouble() : def;
-        static bool B(JsonElement o, string k) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.True;
-        static string S(JsonElement o, string k) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.String ? x.GetString() : "";
         // Una vez por sesión, cómo llegan de verdad (para afinar si Steam cambia algo).
         if (!itemLogged && S(v, "sItem") is { Length: > 0 } si) { itemLogged = true; Log.Write("Steam: así llega una descarga · " + si); }
         if (!ovLogged && S(v, "sOv") is { Length: > 0 } so) { ovLogged = true; Log.Write("Steam: así llega el avance · " + so); }
+        var (live, done, line) = ParseDownloads(v);
+        if (line != null)
+        {
+            string key = line.Split(',')[0] + "|" + (line.Contains("sombreadores") || line.Contains("workshop")) + "|" + line.Contains("SUBIDA");
+            if (key != lastDlKey || DateTime.Now - lastDlLog > TimeSpan.FromSeconds(60)) { lastDlKey = key; lastDlLog = DateTime.Now; Log.Write(line); }
+        }
+        return (live, done, true);
+    }
 
-        bool allPaused = B(v, "paused") || PausedAll;
-        long cur = (long)N(v, "cur");
-        double rate = N(v, "rate");
-        string ovState = S(v, "state"), lan = S(v, "lan");
-        // El avance real es overall_percent_complete (0–100) con su tiempo restante; los bytes, los de cada fase (ver DlNorm).
-        static (double pct, double eta, double d, double t) G(JsonElement o, string k)
-        {
-            if (!o.TryGetProperty(k, out var g) || g.ValueKind != JsonValueKind.Object) return (-1, -1, 0, 0);
-            return (N(g, "pct", -1), N(g, "eta", -1), N(g, "d"), N(g, "t"));
-        }
-        var og = G(v, "og");
-        var ph = new List<(double done, double total, double eta)>();
-        if (v.TryGetProperty("ph", out var pa) && pa.ValueKind == JsonValueKind.Array)
-            foreach (var x in pa.EnumerateArray()) ph.Add((N(x, "done"), N(x, "total"), N(x, "eta", -1)));
+    static double N(JsonElement o, string k, double def = 0) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.Number ? x.GetDouble() : def;
+    static bool B(JsonElement o, string k) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.True;
+    static string S(JsonElement o, string k) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.String ? x.GetString() : "";
+
+    /// <summary>
+    /// Lo que mandó Steam (ya normalizado por DownloadsJs) → descargas de esta consola, terminadas y una línea para el log
+    /// (null si no hay nada bajando). Sin efectos: se prueba en la compilación (tests/DlTests) con datos reales.
+    /// </summary>
+    internal static (List<Dl> live, List<long> done, string logLine) ParseDownloads(JsonElement v)
+    {
         var live = new List<Dl>(); var done = new List<long>();
-        // Avance, bytes y tiempo con lo que haya: porcentaje de Steam primero, luego los bytes de la descarga.
-        static (double p, double b, double t, double eta) Mix((double pct, double eta, double d, double t) g, double b, double t)
-        {
-            if (g.t > 0) t = g.t;
-            if (g.d > 0) b = g.d;
-            double p = g.pct > 0 ? g.pct / 100 : t > 0 ? b / t : 0;
-            if (b <= 0 && t > 0 && p > 0) b = p * t;   // copiando por la red de la casa a veces no vienen los bytes
-            return (Math.Clamp(p, 0, 1), b, t, g.eta);
-        }
+        if (!v.TryGetProperty("ov", out var ov) || ov.ValueKind != JsonValueKind.Object) return (live, done, null);
+        string ovState = S(ov, "state"), lan = S(ov, "lan");
+        // Si esta consola le está pasando un juego a otra PC (subida), ese avance no es una descarga de aquí.
+        bool upload = B(ov, "upload");
+        long cur = upload ? 0 : (long)N(ov, "cur");
+        bool allPaused = B(ov, "paused");
+        double rate = N(ov, "rate"), pct = N(ov, "pct"), oEta = N(ov, "eta", -1);
+        bool extraNow = B(ov, "shader") || B(ov, "workshop");
+        var ph = new List<(double done, double total, double eta)>();
+        if (ov.TryGetProperty("ph", out var pa) && pa.ValueKind == JsonValueKind.Array)
+            foreach (var x in pa.EnumerateArray()) ph.Add((N(x, "done"), N(x, "total"), N(x, "eta", -1)));
+        (double done, double total, double eta) F(int n) => n < ph.Count ? ph[n] : (0d, 0d, -1d);
         // Qué está haciendo Steam (update_state) y en cuál de sus 7 fases van los bytes de ese paso.
         var (phase, idx) = ovState switch
         {
             "Preallocating" => ("prealloc", 1),
             "Validating" or "VerifyingFiles" => ("verify", 0),
             "Verifying" => ("verify", 4),
-            "Unpacking" or "Patching" or "Installing" => ("install", 3),
+            "Unpacking" or "Patching" or "Installing" or "Staging" => ("install", 3),
+            "Copying" => ("install", 5),
             "Finalizing" or "Committing" => ("install", 6),
             "Transferring" => ("lan", 2),
             _ => (lan.Length > 0 ? "lan" : "download", 2)
         };
-        (double done, double total, double eta) step = idx < ph.Count ? ph[idx] : (0d, 0d, -1d);
+
         if (v.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
         foreach (var i in items.EnumerateArray())
         {
             long a = (long)N(i, "a");
             if (a <= 0) continue;
             if (B(i, "done")) { done.Add(a); continue; }
-            bool on = B(i, "on");
-            int q = (int)N(i, "q", -1);
-            if (!on && q < 0 && a != cur) continue;   // actualizaciones programadas para después: no se muestran
-            var (p, b, t, eta) = Mix(G(i, "g"), N(i, "b"), N(i, "t"));
+            bool active = a == cur, on = B(i, "on") || active;
+            int q = (int)N(i, "q", -1), err = (int)N(i, "err");
+            bool fresh = active ? B(ov, "install") : B(i, "fresh");
+            // Sombreadores / workshop de un juego que ya tiene su contenido: trabajo extra, no una descarga del juego.
+            bool extra = active ? extraNow && !B(i, "game") : !B(i, "game") && B(i, "extra");
+            double b = N(i, "b"), t = N(i, "t"), eta = -1, p;
             string itPhase = "download";
-            if (a == cur)
+            if (active)
             {
-                on = true;
-                // El avance general manda (es lo que Steam muestra); el del juego, si el general aún no trae nada.
-                var m = Mix(og, b, t);
-                if (m.p > 0) p = m.p;
-                if (m.b > 0) b = m.b;
-                if (m.t > 0) t = m.t;
-                if (og.eta >= 0) eta = og.eta;
+                var dl = F(2);
+                if (dl.total > 0) { b = dl.done; t = dl.total; }
+                else if (N(ov, "dlTotal") > 0) { b = N(ov, "dl"); t = N(ov, "dlTotal"); }
+                p = pct > 0 ? pct / 100 : t > 0 ? b / t : 0;
+                eta = oEta >= 0 ? oEta : dl.eta;
                 itPhase = phase;
-                // Reservando espacio, desempacando o verificando: "X de Y" es de ese paso (como lo muestra Steam).
-                if (phase is "prealloc" or "install" or "verify" && step.total > 0) { b = step.done; t = step.total; }
-                if (eta < 0 && step.eta >= 0) eta = step.eta;
+                // Reservando espacio, desempacando o verificando: «X de Y» es de ese paso (como lo muestra Steam).
+                var step = F(idx);
+                if (phase is "prealloc" or "install" or "verify" && step.total > 0) { b = step.done; t = step.total; if (eta < 0) eta = step.eta; }
             }
-            string state = B(i, "p") || allPaused ? "paused" : on ? "active" : "queued";
-            live.Add(new Dl(a, Math.Clamp(p, 0, 1), B(i, "inst") ? "Actualizando" : "Descargando", state, b, t, eta, a == cur ? rate : 0, itPhase, a == cur ? lan : ""));
+            else p = N(i, "pct") > 0 ? N(i, "pct") / 100 : t > 0 ? b / t : 0;
+            if (extra) itPhase = "extra";
+            if (t > 0) b = Math.Min(b, t);   // nunca «X de Y» con X mayor que Y
+            string state;
+            if (err != 0 && !active) state = "error";
+            else if (B(i, "p") || (allPaused && (on || q >= 0))) state = "paused";
+            else if (active || B(i, "on")) state = "active";
+            else if (q >= 0 && N(i, "def") == 0) state = "queued";
+            else state = "needs";   // sin cola (o programada para después): al jugar, Steam pedirá actualizar
+            if (state == "needs" && (fresh || extra)) continue;   // solo una actualización pendiente del juego cuenta así
+            live.Add(new Dl(a, Math.Clamp(p, 0, 1), fresh ? "Descargando" : "Actualizando", state, b, t, eta, active ? rate : 0, itPhase,
+                active ? lan : "", fresh, err, S(i, "errText")));
         }
-        // Si la lista no trae el juego pero el avance general sí dice cuál está bajando, se usa ese.
-        if (cur > 0 && !live.Any(x => x.AppId == cur) && !done.Contains(cur) && (og.t > 0 || og.pct > 0))
+        // La lista aún no trae el juego pero el avance general sí dice cuál está bajando.
+        if (cur > 0 && !live.Any(x => x.AppId == cur) && !done.Contains(cur) && F(2).total > 0)
         {
-            var m = Mix(og, 0, 0);
-            live.Add(new Dl(cur, m.p, "Descargando", allPaused ? "paused" : "active", m.b, m.t, m.eta, rate, phase, lan));
+            var dl = F(2);
+            live.Add(new Dl(cur, pct > 0 ? pct / 100 : Math.Clamp(dl.done / dl.total, 0, 1), B(ov, "install") ? "Descargando" : "Actualizando",
+                allPaused ? "paused" : "active", Math.Min(dl.done, dl.total), dl.total, oEta, rate, extraNow ? "extra" : phase, lan, B(ov, "install")));
         }
-        // Cada minuto, en el log, lo que Steam manda de la descarga en curso (para afinar con datos reales).
-        if (cur > 0 && DateTime.Now - lastDlLog > TimeSpan.FromSeconds(60))
-        {
-            lastDlLog = DateTime.Now;
-            Log.Write($"Steam: avance de {cur}: estado {ovState}, {og.pct} %, fases " + string.Join(" ", ph.Select(x => x.total > 0 ? $"{x.done / 1e9:0.##}/{x.total / 1e9:0.##}" : "-")) + (lan.Length > 0 ? $", desde {lan}" : ""));
-        }
-        return (live, done, true);
+        // Para el log (cada cambio de paso y, mientras baja, cada minuto): estado, %, GB por fase, tipo y de dónde.
+        string line = cur > 0 || upload
+            ? $"Steam: avance de {(long)N(ov, "cur")} ({ovState}), {pct} %, fases " + string.Join(" ", ph.Select(x => x.total > 0 ? $"{x.done / 1e9:0.##}/{x.total / 1e9:0.##}" : "-"))
+                + $", resta {oEta} s" + (B(ov, "install") ? ", instalación" : "") + (B(ov, "shader") ? ", sombreadores" : "") + (B(ov, "workshop") ? ", workshop" : "")
+                + (upload ? ", SUBIDA (se ignora)" : "") + (lan.Length > 0 ? $", desde {lan}" : "") + $", otros dispositivos {N(v, "others")}"
+            : null;
+        return (live, done, line);
     }
 
-    // ───── pausar, reanudar y cancelar descargas ─────
+    // ───── pausar, reanudar, cancelar, actualizar ya y desinstalar ─────
+    // Como los botones de Steam: todas sus funciones llevan el dispositivo ("0" = esta consola). Sin él, la de desinstalar
+    // tomaba el "true" como dispositivo y no hacía nada (por eso Cancelar instalación no borraba en el log-9).
 
     /// <summary>Pausa las descargas de Steam (como su botón de pausa).</summary>
     public static async Task<bool> PauseAsync(long appid)
@@ -564,8 +601,8 @@ return { og, lan: String(pick(ov, 'lan_peer_hostname') || ''), paused: !!pick(ov
         try
         {
             var r = await EvalAsync($@"(() => {{ const D = SteamClient.Downloads; let how = '';
-try {{ D.EnableAllDownloads(false); how += 'todas '; }} catch (e) {{}}
-if (!how) {{ try {{ D.PauseAppUpdate({appid}); how += 'app '; }} catch (e) {{}} }}
+try {{ D.EnableAllDownloads(false, '0'); how += 'todas '; }} catch (e) {{}}
+if (!how) {{ try {{ D.PauseAppUpdate({appid}, '0'); how += 'app '; }} catch (e) {{}} }}
 return how.trim(); }})()", 4000);
             PausedAll = true;
             Log.Write($"Steam: descarga de {appid} en pausa ({(r.ValueKind == JsonValueKind.String ? r.GetString() : "?")})");
@@ -579,8 +616,8 @@ return how.trim(); }})()", 4000);
         try
         {
             await EvalAsync($@"(() => {{ const D = SteamClient.Downloads;
-try {{ D.EnableAllDownloads(true); }} catch (e) {{}}
-try {{ D.ResumeAppUpdate({appid}); }} catch (e) {{}}
+try {{ D.EnableAllDownloads(true, '0'); }} catch (e) {{}}
+try {{ D.ResumeAppUpdate({appid}, '0'); }} catch (e) {{}}
 return true; }})()", 4000);
             PausedAll = false;
             Log.Write($"Steam: descarga de {appid} reanudada");
@@ -589,21 +626,56 @@ return true; }})()", 4000);
         catch (Exception ex) { Log.Write("Steam: reanudar descarga: " + ex.Message); return false; }
     }
 
-    /// <summary>
-    /// Cancelar instalación = desinstalar en Steam: se quita de sus descargas (eso detiene la descarga al instante) y se pide
-    /// desinstalar. En la versión de escritorio esa petición a veces no hace nada (log-9) o tarda; Scarlet revisa después.
-    /// </summary>
-    public static async Task<string> CancelDownloadAsync(long appid)
+    /// <summary>Actualizar ya: la pone primera en la cola y la arranca (como "Actualizar" en Steam).</summary>
+    public static async Task<bool> UpdateNowAsync(long appid)
     {
         try
         {
-            var r = await EvalAsync($@"(async () => {{ const D = SteamClient.Downloads, I = SteamClient.Installs; let how = '';
-try {{ D.RemoveFromDownloadList({appid}); how += 'lista '; }} catch (e) {{}}
-await new Promise(r => setTimeout(r, 400));
-try {{ I.OpenUninstallWizard([{appid}], true); how += 'desinstalar '; }} catch (e) {{ how += 'error '; }}
+            var r = await EvalAsync($@"(() => {{ const D = SteamClient.Downloads; let how = '';
+try {{ D.QueueAppUpdate({appid}, '0'); how += 'cola '; }} catch (e) {{}}
+try {{ D.SetQueueIndex({appid}, 0, '0'); how += 'primera '; }} catch (e) {{}}
+try {{ D.ResumeAppUpdate({appid}, '0'); how += 'arranca '; }} catch (e) {{}}
+try {{ D.EnableAllDownloads(true, '0'); }} catch (e) {{}}
+return how.trim(); }})()", 4000);
+            PausedAll = false;
+            Log.Write($"Steam: actualizar {appid} ya ({(r.ValueKind == JsonValueKind.String ? r.GetString() : "?")})");
+            return true;
+        }
+        catch (Exception ex) { Log.Write("Steam: actualizar ya: " + ex.Message); return false; }
+    }
+
+    /// <summary>
+    /// Quita una descarga de la lista de Steam (la detiene al instante; si era la primera y todo estaba en pausa, la
+    /// siguiente sigue, como en Steam). Con uninstall, además pide desinstalar sin preguntar: solo para una instalación
+    /// nueva que cancelas. Una actualización cancelada NUNCA desinstala el juego.
+    /// </summary>
+    public static async Task<string> CancelDownloadAsync(long appid, bool uninstall)
+    {
+        try
+        {
+            var r = await EvalAsync($@"(async () => {{ {DlNorm} const D = SteamClient.Downloads, I = SteamClient.Installs; let how = '';
+const L = dlLocal(), it = L.items.map(dlItem).find(i => i.a == {appid});
+try {{ D.RemoveFromDownloadList({appid}, '0'); how += 'lista '; }} catch (e) {{}}
+if (it && it.q === 0 && L.ov.paused) {{ try {{ D.EnableAllDownloads(true, '0'); }} catch (e) {{}} }}
+if ({(uninstall ? "true" : "false")}) {{
+  await new Promise(r => setTimeout(r, 400));
+  try {{ I.OpenUninstallWizard([{appid}], '0', true); how += 'desinstalar '; }} catch (e) {{ how += 'error '; }}
+}}
 return how.trim(); }})()", 6000);
             return r.ValueKind == JsonValueKind.String ? r.GetString() : "";
         }
-        catch (Exception ex) { Log.Write("Steam: cancelar instalación: " + ex.Message); return null; }
+        catch (Exception ex) { Log.Write("Steam: cancelar descarga: " + ex.Message); return null; }
+    }
+
+    /// <summary>Desinstalar sin la ventanita de Steam (Scarlet ya preguntó): la misma función que llama su botón "Desinstalar".</summary>
+    public static async Task<bool> UninstallAsync(long appid)
+    {
+        try
+        {
+            await EvalAsync($@"(() => {{ SteamClient.Installs.OpenUninstallWizard([{appid}], '0', true); return true; }})()", 4000);
+            Log.Write($"Steam: desinstalar {appid} (sin preguntar)");
+            return true;
+        }
+        catch (Exception ex) { Log.Write("Steam: desinstalar: " + ex.Message); return false; }
     }
 }
