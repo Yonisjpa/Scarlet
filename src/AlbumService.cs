@@ -13,6 +13,8 @@ sealed class AlbumService
     static readonly string[] Exts = { ".png", ".jpg", ".jpeg", ".mp4", ".webm" };
 
     public event Action<Dictionary<string, object>> NewCapture;
+    /// <summary>Un video que la Game Bar apenas empezó a escribir ("Guardando video…").</summary>
+    public event Action<Dictionary<string, object>> Saving;
 
     public AlbumService(SteamService steam) { this.steam = steam; }
 
@@ -81,7 +83,12 @@ sealed class AlbumService
             {
                 if (!Directory.Exists(r)) continue;
                 var w = new FileSystemWatcher(r) { IncludeSubdirectories = true, NotifyFilter = NotifyFilters.FileName };
-                w.Created += (_, e) => { if (IsMedia(e.FullPath)) _ = WhenReady(e.FullPath); };
+                w.Created += (_, e) =>
+                {
+                    if (!IsMedia(e.FullPath)) return;
+                    if (IsVideo(e.FullPath)) try { Saving?.Invoke(Item(e.FullPath)); } catch (Exception ex) { Log.Error("guardando video", ex); }
+                    _ = WhenReady(e.FullPath);
+                };
                 w.EnableRaisingEvents = true;
                 watchers.Add(w);
             }
@@ -98,12 +105,37 @@ sealed class AlbumService
             try
             {
                 using (File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read)) { }
-                NewCapture?.Invoke(Item(path));
+                var d = Item(path);
+                if (IsVideo(path)) { var en = EnrichVideo(d, path); await Task.WhenAny(en, Task.Delay(4000)); }
+                NewCapture?.Invoke(d);
                 return;
             }
             catch (IOException) { }
             catch (Exception ex) { Log.Error("captura nueva", ex); return; }
         }
+    }
+
+    static bool IsVideo(string p) => Path.GetExtension(p).ToLowerInvariant() is ".mp4" or ".webm";
+
+    /// <summary>Para el aviso de un video nuevo: cuánto dura y un cuadro como miniatura (la Game Bar no guarda una).</summary>
+    static async Task EnrichVideo(Dictionary<string, object> d, string path)
+    {
+        try
+        {
+            var f = await StorageFile.GetFileFromPathAsync(path);
+            var props = await f.Properties.GetVideoPropertiesAsync();
+            if (props.Duration.TotalSeconds > 0) d["duration"] = Math.Round(props.Duration.TotalSeconds, 1);
+            using var th = await f.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.VideosView, 320);
+            if (th == null || th.Size == 0) return;
+            string dir = Directory.CreateDirectory(Path.Combine(Paths.Cache, "capturas")).FullName;
+            string outp = Path.Combine(dir, Path.GetFileNameWithoutExtension(path) + ".png");
+            using (var s = th.AsStreamForRead())
+            using (var img = Image.FromStream(s))
+                img.Save(outp, System.Drawing.Imaging.ImageFormat.Png);
+            d["thumb"] = ArtCache.LocalUrl(outp);
+            d["thumbPath"] = outp;
+        }
+        catch (Exception ex) { Log.Error("miniatura del video", ex); }
     }
 
     public bool IsAlbumFile(string path) => !string.IsNullOrEmpty(path) && File.Exists(path) && Roots().Any(r => Paths.Under(path, r));

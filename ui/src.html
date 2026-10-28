@@ -794,6 +794,145 @@ body{font-weight:400}
 .dlo button{--r:.7rem;min-width:28rem;padding:1.3rem 2.4rem;border:.15rem solid var(--accent);border-radius:.7rem;color:var(--accent);font-size:1.7rem;position:relative}
 .dlo button.focused{background:var(--bg3)}
 .dbtns.one{grid-template-columns:1fr}
+/* ===================== beta 1.0: Ajustes como en la Switch 2 ===================== */
+.nsb{flex:1;display:flex;min-height:0;margin:0 var(--pad)}
+.nsl{width:31rem;flex:0 0 auto;padding:1.6rem 0;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:.2rem;overflow:auto;scrollbar-width:none}
+.nsl::-webkit-scrollbar,.nsr::-webkit-scrollbar{display:none}
+.nscat{--r:1rem;position:relative;text-align:left;font-size:1.9rem;padding:1.05rem 2.4rem 1.05rem 3.4rem;margin:.1rem 2rem .1rem .7rem;border-radius:1rem;flex:0 0 auto}
+.nscat.sel{color:var(--accent)}
+.nscat.sel::before{content:"";position:absolute;left:1.5rem;top:.95rem;bottom:.95rem;width:.32rem;border-radius:.2rem;background:var(--accent)}
+.nscat.focused{background:var(--bg3)}
+.nscat.focused::after,.nsrow.focused::after{--ringgap:0rem}
+.nsl hr{border:0;border-top:1px solid var(--line);margin:.7rem 2rem .7rem 1rem;flex:0 0 auto}
+.nsr{flex:1;min-width:0;padding:1.2rem .8rem 3rem 4rem;overflow:auto;scrollbar-width:none}
+.nssec{display:flex;align-items:center;gap:1rem;font-size:1.6rem;color:var(--fg2);margin:2.4rem 0 .9rem}
+.nssec:first-child{margin-top:.8rem}
+.nssec::before{content:"";width:.3rem;height:1.9rem;background:currentColor;border-radius:.1rem}
+.nssec.blank{margin:.4rem 0}.nssec.blank::before{display:none}
+.nsrow{--r:1rem;position:relative;display:flex;align-items:center;gap:1.8rem;width:100%;text-align:left;font-size:2rem;padding:1.65rem 2.2rem;border-bottom:1px solid var(--line)}
+.nssec + .nsrow{border-top:1px solid var(--line)}
+.nsrow.focused{background:var(--bg3);border-radius:1rem;border-color:transparent}
+.nsrow.focused + .nshelp + .nsrow,.nsrow.focused + .nsrow{border-top-color:transparent}
+.nsrow .nl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nsrow .nv{color:var(--accent);white-space:nowrap;max-width:50%;overflow:hidden;text-overflow:ellipsis}
+.nsrow .nv.go{color:var(--fg2);font-size:2.4rem;line-height:1}
+.nsrow.on .nl{color:var(--accent)}
+.nsw{width:4.8rem;height:2.6rem;border-radius:1.3rem;background:color-mix(in srgb,var(--fg2) 55%,transparent);position:relative;flex:0 0 auto;transition:background .15s}
+.nsw::after{content:"";position:absolute;left:.35rem;top:.35rem;width:1.9rem;height:1.9rem;border-radius:50%;background:#fff;transition:transform .15s}
+.nsw.on{background:var(--accent)}.nsw.on::after{transform:translateX(2.2rem)}
+.nrad{width:2.6rem;height:2.6rem;border-radius:50%;border:.2rem solid var(--fg2);flex:0 0 auto;box-sizing:border-box}
+.nrad.on{border:0;background:radial-gradient(circle,#fff 0 .5rem,var(--accent) .55rem)}
+.nswatch{width:5.4rem;height:3.4rem;border-radius:.3rem;border:1px solid var(--line);flex:0 0 auto}
+.nshelp{font-size:1.5rem;color:var(--fg2);padding:1rem 2.2rem 1.4rem;line-height:1.45;border-bottom:1px solid var(--line)}
+/* ===================== beta 1.0: menú rápido como en la Switch 2 ===================== */
+:root{--nqbg:#2c2c2e}
+:root[data-theme="light"]{--nqbg:#f4f4f6}
+#quick.ns{width:44rem;padding:2.2rem 2.6rem 0}
+#quick.ns:not(.tinted){background:var(--nqbg)}
+.nqst{display:flex;justify-content:flex-end;align-items:center;gap:1.6rem;padding:.4rem .4rem 1.6rem;border-bottom:1px solid var(--line);margin-bottom:.6rem;font-size:2.4rem}
+.nqst .qclock{font-size:2.4rem;font-weight:400;font-variant-numeric:tabular-nums}
+.nqwifi svg{height:2.3rem;width:auto}
+.nqbatt{display:flex;align-items:center;gap:.7rem;font-size:1.9rem;font-variant-numeric:tabular-nums}
+.nqbatt svg{height:2rem;width:auto}
+#quick.ns .qdolby{margin:.6rem 0 .4rem}
+.nqwrap{flex:1;min-height:0;position:relative}
+#quick.ns .nqlist{display:block;height:100%;overflow-y:auto;padding:.5rem .5rem 1rem;margin:0 -.5rem}
+.nqscroll{position:absolute;right:-1.5rem;top:0;width:.35rem;border-radius:.2rem;background:var(--fg2);opacity:.55;pointer-events:none}
+#quick.ns .qrow{background:transparent;border-radius:1rem;border-bottom:1px solid var(--line);font-size:2rem;font-weight:400;padding:1.55rem 1.8rem;gap:1.4rem}
+#quick.ns .qrow.focused{background:var(--bg3);border-bottom-color:transparent}
+#quick.ns .qrow.focused::after{--ringgap:0rem}
+#quick.ns .qrow svg.qi{color:var(--fg);width:2.6rem;height:2.6rem}
+#quick.ns .qrow svg.qi.mute{color:var(--fg2)}
+.nqit .qlab{flex:1}
+.nqv{margin-left:auto;font-size:1.9rem;color:var(--fg);opacity:.8;white-space:nowrap;max-width:60%;overflow:hidden;text-overflow:ellipsis}
+.nqv.on{color:var(--accent);opacity:1}
+.nqit.busy .nqv{opacity:.5}
+.nqhelp{font-size:1.5rem;color:var(--fg2);padding:1rem 1.8rem 1.3rem;line-height:1.4;border-bottom:1px solid var(--line)}
+#quick.ns .nqsl{padding:2.15rem 1.8rem}
+#quick.ns .qrow.qoff .nqbar u{opacity:.4}
+.nqbar{flex:1;height:.6rem;border-radius:.3rem;background:color-mix(in srgb,var(--fg2) 45%,transparent);position:relative;overflow:visible!important;cursor:pointer}
+.nqbar::after{content:"";position:absolute;inset:-1.6rem 0}
+.nqbar i{position:absolute!important;left:0;top:0;bottom:0;height:auto!important;border-radius:.3rem;background:var(--accent)}
+.nqbar u{position:absolute;top:50%;width:3rem;height:3rem;border-radius:50%;background:#a3a3a8;transform:translate(-50%,-50%);box-shadow:0 .2rem .6rem rgba(0,0,0,.4);transition:left .12s}
+.nqbar em{display:none;z-index:3;position:absolute;left:50%;bottom:calc(100% + .25rem);transform:translateX(-50%);background:#111;color:#fff;border-radius:.5rem;padding:.25rem .7rem;font-style:normal;font-size:1.4rem;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums}
+.qrow.focused .nqbar em{display:block}
+.qrow.focused .nqbar u{background:#fff}
+#quick.ns .nqmix .mico{width:2.6rem;height:2.6rem}
+#quick.ns .nqmix .qlab{flex:0 0 11rem;font-size:1.65rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#quick.ns .qrow.nqmu{display:grid;grid-template-columns:5.2rem minmax(0,1fr) auto;align-items:center;column-gap:1.3rem;padding:1.3rem 1.8rem 1.9rem}
+.nqart{width:5.2rem;height:5.2rem;border-radius:.6rem;background:linear-gradient(135deg,#ff5a6e,#7a2cff) center/cover no-repeat;display:grid;place-items:center;color:#fff;box-shadow:none}
+.nqart[style*="background-image"]{background-color:var(--line)}
+.nqart svg{width:2.4rem;height:2.4rem}
+.nqmtx{min-width:0}
+.nqmtx b{display:block;font-size:1.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nqmtx>span{display:block;font-size:1.4rem;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.nqctl{display:flex;gap:.5rem}
+#quick.ns .qmb{width:3.9rem;height:3.9rem}
+#quick.ns .qmb svg{width:2rem;height:2rem}
+#quick.ns .qrow.focused .qmb.sel{background:color-mix(in srgb,var(--fg) 12%,transparent);box-shadow:0 0 0 .25rem var(--accent)}
+#quick.ns .nqline{position:absolute;left:1.8rem;right:1.8rem;bottom:.7rem;display:block}
+#quick.ns .nqline .qbar{display:block;height:.3rem;background:color-mix(in srgb,var(--fg) 16%,transparent)}
+#quick.ns .nqline .qbar i{background:var(--fg)}
+#quick.ns .nqfoot{display:flex;align-items:center;justify-content:flex-start;gap:2.2rem;border-top:1px solid var(--line);margin-top:0;padding:1.5rem .6rem 2rem;font-size:1.9rem;font-weight:400}
+.nqdev{margin-right:auto;display:flex;align-items:center;gap:1.1rem;color:var(--fg2)}
+.nqdev .padicon{height:3.4rem}
+#quick.ns .nqfoot .hint{margin-left:0}
+html.overlay #quick.ns{width:100%}
+/* el ícono del mando que estás usando */
+.padicon.xbox{aspect-ratio:600/424;-webkit-mask-image:var(--xpad);mask-image:var(--xpad)}
+.padicon.ps{aspect-ratio:600/401;-webkit-mask-image:var(--pspad);mask-image:var(--pspad)}
+/* Dolby: dorado y blanco que corre por las letras, con un brillo suave */
+.dgw{display:flex;align-items:center;gap:1rem;filter:drop-shadow(0 0 .45rem rgba(255,210,110,.38))}
+.dgt,.glg{background:linear-gradient(90deg,#c9962e,#fff6dc,#e8b84a,#ffffff,#c9962e);background-size:200% 100%;animation:dgold 2.4s linear infinite}
+.dgt{-webkit-background-clip:text;background-clip:text;color:transparent}
+.glg{display:block;height:1.7rem;aspect-ratio:674/96;-webkit-mask:var(--dlogo) center/contain no-repeat;mask:var(--dlogo) center/contain no-repeat}
+#launch .ldolby .glg{height:2.4rem}
+@keyframes dgold{from{background-position:0% 0}to{background-position:-200% 0}}
+[data-theme="light"] #quick:not(.tinted) .dgt,[data-theme="light"] #quick:not(.tinted) .glg{background-image:linear-gradient(90deg,#8a6216,#c08a22,#5e420c,#b07f1e,#8a6216)}
+[data-theme="light"] #quick:not(.tinted) .dgw{filter:none}
+@media (prefers-reduced-motion:reduce){.dgt,.glg{animation:none}}
+/* tocar la batería */
+#battpop{position:fixed;z-index:92;background:rgba(8,8,10,.95);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:1rem;padding:1.2rem 1.6rem;display:flex;flex-direction:column;gap:.3rem;box-shadow:0 .8rem 2.4rem rgba(0,0,0,.5);opacity:0;transform:translateY(-.6rem);pointer-events:none;transition:opacity .18s,transform .18s}
+#battpop.show{opacity:1;transform:none}
+#battpop b{font-size:2rem;font-weight:600}
+#battpop span{font-size:1.5rem;opacity:.85}
+.status .batt{cursor:pointer}
+/* opciones de energía */
+.pwbox{width:min(62rem,92vw);padding:2.6rem 2.8rem 2.4rem;display:flex;flex-direction:column;gap:.9rem}
+.pwbox h3{font-size:2.3rem;font-weight:500;margin-bottom:.8rem}
+.pwrow{--r:1rem;position:relative;display:flex;align-items:center;gap:1.8rem;text-align:left;padding:1.5rem 2rem;border-radius:1rem;background:var(--bg3);font-size:2rem}
+.pwrow svg{width:2.8rem;height:2.8rem;flex:0 0 auto}
+.pwrow b{display:block;font-weight:400}
+.pwrow span span{display:block;font-size:1.45rem;color:var(--fg2);margin-top:.2rem}
+.pwrow.focused::after{--ringgap:0rem}
+.pwcount{display:flex;align-items:center;gap:1.4rem;font-size:1.45rem;color:var(--fg2);margin-top:.8rem}
+.pwcount i{flex:1;height:.4rem;border-radius:.2rem;background:var(--line);overflow:hidden}
+.pwcount u{display:block;height:100%;background:var(--accent);transition:width 1s linear}
+/* amigos */
+.nstar{font-style:normal;color:#f2c230;margin-left:.5rem;font-size:.85em}
+.fsec{font-size:1.4rem;letter-spacing:.06em;text-transform:uppercase;color:var(--fg2);margin:1rem 1.2rem .4rem}
+.fsec:not(:first-child){margin-top:2.2rem}
+/* ===================== beta 1.0: notificaciones ===================== */
+.notif{position:relative;overflow:hidden;padding:1rem 2rem 1.3rem 1rem;min-width:36rem;max-width:52rem}
+.notif .ntx{min-width:0}
+.notif .ntx b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notif .ntx>span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notif .ntx ul{list-style:none;margin:.4rem 0 0;font-size:1.35rem;opacity:.85;display:flex;flex-direction:column;gap:.25rem}
+.notif .ntx li::before{content:"•";color:var(--accent);margin-right:.7rem}
+.notif.sum{align-items:flex-start}
+.notif .nact{margin-left:auto;display:flex;align-items:center;gap:.7rem;padding-left:1.8rem;font-size:1.4rem;white-space:nowrap;align-self:center}
+.xbtn{width:2.4rem;height:2.7rem;background:#fff;-webkit-mask:var(--xbtn) center/contain no-repeat;mask:var(--xbtn) center/contain no-repeat;flex:0 0 auto}
+.notif .nlife{position:absolute;left:0;right:0;bottom:0;height:.25rem;background:var(--accent);transform-origin:left center;border-radius:0 .2rem .2rem 0}
+.notif .ic.thumb{width:8.6rem;height:4.84rem;border-radius:.6rem;background:#000;position:relative}
+.notif .ic.thumb img{width:100%;height:100%;object-fit:cover}
+.notif .ic.thumb .pl{position:absolute;inset:0;display:grid;place-items:center}
+.notif .ic.thumb .pl b{width:2.2rem;height:2.2rem;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center}
+.notif .ic.thumb .pl b::after{content:"";border-left:.8rem solid #fff;border-top:.5rem solid transparent;border-bottom:.5rem solid transparent;margin-left:.2rem}
+.notif .ic.thumb .du{position:absolute;right:.35rem;bottom:.3rem;font-size:1rem;font-weight:700;background:rgba(0,0,0,.6);padding:0 .35rem;border-radius:.3rem;opacity:1;color:#fff}
+.notif .ic.thumb.saving img{filter:brightness(.55)}
+.notif .ic.thumb .rec{position:absolute;inset:auto .5rem .5rem .5rem;height:.35rem;border-radius:.2rem;background:rgba(255,255,255,.3);overflow:hidden;opacity:1}
+.notif .ic.thumb .rec i{position:absolute;top:0;bottom:0;width:40%;background:var(--accent);animation:recbar 1.2s ease-in-out infinite}
+@keyframes recbar{from{left:-40%}to{left:100%}}
 </style>
 </head>
 <body>
@@ -841,7 +980,7 @@ body{font-weight:400}
   <div class="lcenter"><div class="lclock clock">--:--</div><div class="licon" id="licon"></div><div class="ldots"><i></i><i></i><i></i></div><p>Presiona el mismo botón tres veces</p></div>
 </div>
 
-<img id="padsrc" src="__PAD__" alt="" hidden><img id="xpadsrc" src="__XPAD__" alt="" hidden><img id="pspadsrc" src="__PSPAD__" alt="" hidden>
+<img id="padsrc" src="__PAD__" alt="" hidden><img id="xpadsrc" src="__XPAD__" alt="" hidden><img id="pspadsrc" src="__PSPAD__" alt="" hidden><img id="xbtnsrc" src="__XBTN__" alt="" hidden>
 <div id="sleep"></div>
 <div id="dim"></div><div id="flash"></div><div id="recdot"><i></i>Grabando</div>
 <div id="qshade"></div><aside id="quick" aria-label="Menú rápido"></aside>
@@ -886,7 +1025,11 @@ const store = {
 };
 const settings = Object.assign({ theme: "dark", sound: true, rumble: true, sgdbKey: "" }, store.get("settings", {}));
 const saveSettings = () => store.set("settings", settings);
-const applyTheme = () => { document.documentElement.dataset.theme = settings.theme; };
+let activePad = "ally", activeLayout = "";   // el mando que estás usando (ver «el mando que estás usando»)
+/* "auto": el mismo tema que Windows (claro u oscuro), y cambia en cuanto Windows cambia. */
+const darkMQ = matchMedia("(prefers-color-scheme: dark)");
+const applyTheme = () => { document.documentElement.dataset.theme = settings.theme === "auto" ? (darkMQ.matches ? "dark" : "light") : settings.theme === "light" ? "light" : "dark"; };
+darkMQ.addEventListener("change", () => { if (settings.theme === "auto") applyTheme(); });
 document.documentElement.classList.toggle("showcursor", settings.hideCursor === false);
 applyTheme();
 
@@ -1522,24 +1665,6 @@ function closeAllViews() { while (views.length) views.pop().el.remove(); updateF
 const head = (icon, title, sub = "") => `<div class="vhead">${icon}<span>${esc(title)}</span><span class="sub">${esc(sub)}</span></div>`;
 const fis = el => [...el.querySelectorAll(".fi")];
 
-/* botón de apagado: hibernar o apagar el equipo (como el aviso de la consola, con su caja y botones) */
-function powerMenu() {
-  if (mode !== "ui" || (topView() && topView().isPower)) return;
-  const opts = [["Cancelar", null], ["Hibernar", "hibernate"], ["Apagar", "shutdown"]];
-  openView({
-    cls: "dialog", cols: 3, isPower: true, i: 1, hints: [["B", "Cancelar"], ["A", "Aceptar"]],
-    render(el) {
-      el.innerHTML = `<div class="dbox"><p>¿Qué quieres hacer?\n<span class="dsub">Hibernar guarda todo lo que tienes abierto y apaga la pantalla; al prender, sigues donde te quedaste.</span></p><div class="dbtns three">${opts.map(([l], i) => `<button class="fi" data-i="${i}">${l}</button>`).join("")}</div></div>`;
-      fis(el).forEach(b => b.onclick = () => {
-        const a = opts[+b.dataset.i][1]; closeView();
-        if (!a) return;
-        if (a === "hibernate") return setTimeout(() => sleepConsole("hibernate"), 300);
-        if (Host.has) Host.call("system.shutdown").catch(() => {}); else toast("Prototipo: aquí se apagaría el equipo");
-      });
-    },
-    items() { return fis(this.el); }
-  });
-}
 /* Diálogo con varias opciones; devuelve el valor elegido (null si se cancela). */
 function choiceDialog(text, options, focus = 0) {
   return new Promise(res => {
@@ -1696,14 +1821,14 @@ const DOLBY_HTML = '<span>Powered by</span><img class="dlogo" alt="Dolby Atmos" 
 /* Solo cuando Dolby Atmos está de verdad en uso: la salida de audio lo tiene activo y algo está sonando. */
 let ATMOS = false;
 const dolbyOn = () => settings.dolbyTag !== false && ATMOS;
-function paintDolby() { const l = $("#launch .ldolby"); if (l) { l.innerHTML = DOLBY_HTML; l.classList.toggle("on", dolbyOn()); } }
+function paintDolby() { const l = $("#launch .ldolby"); if (l) { l.innerHTML = dolbyHTML(); l.classList.toggle("gold", dolbyGold()); l.classList.toggle("on", dolbyOn()); } if (QM.open) renderQuick(); }
 function checkAtmos() { if (!Host.has) return; Host.call("audio.atmos").then(a => { ATMOS = !!a; paintDolby(); }).catch(() => {}); }
 
 /* --- diagnóstico: para mandar una foto cuando algo no cuadra --- */
 function diagView() {
   return {
     hints: [["B", "Atrás"], ["▲▼", "Desplazar"], ["A", "Actualizar"]],
-    render(el) { el.innerHTML = head(I.gear, "Diagnóstico", "alpha " + APP_VERSION) + `<div class="vbody"><dl class="kv diag"><dt>Revisando…</dt></dl></div>`; this.load(); },
+    render(el) { el.innerHTML = head(I.gear, "Diagnóstico", verName(APP_VERSION)) + `<div class="vbody"><dl class="kv diag"><dt>Revisando…</dt></dl></div>`; this.load(); },
     load() {
       Host.call("diag").then(d => {
         const dl = $(".diag", this.el); if (!dl || !d) return;
@@ -1721,7 +1846,8 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.29";
+let APP_VERSION = "1.0";
+const verName = v => (/^0\./.test(String(v)) ? "alpha " : "beta ") + v;
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -1734,7 +1860,7 @@ function updateView() {
     paint() {
       const r = this.info, box = $(".upd", this.el); if (!box) return;
       if (r.available) { updState.available = true; updState.latest = r.latest; }
-      box.innerHTML = `<dl class="kv"><dt>Tienes</dt><dd>alpha ${esc(r.current || APP_VERSION)}</dd>${r.latest ? `<dt>Publicada</dt><dd>alpha ${esc(r.latest)}${r.sizeMb ? ` · ${r.sizeMb} MB` : ""}</dd>` : ""}</dl>
+      box.innerHTML = `<dl class="kv"><dt>Tienes</dt><dd>${esc(verName(r.current || APP_VERSION))}</dd>${r.latest ? `<dt>Publicada</dt><dd>${esc(verName(r.latest))}${r.sizeMb ? ` · ${r.sizeMb} MB` : ""}</dd>` : ""}</dl>
         ${r.error ? `<p class="note">${esc(r.error)}</p>` : r.available ? `<h2 style="margin-top:2rem">${esc(r.name || "Versión nueva")}</h2><p class="note" style="white-space:pre-wrap">${esc((r.notes || "").replace(/[#*`]/g, "").trim())}</p>
         <p class="note">Presiona A para descargarla. Scarlet se cerrará unos segundos y volverá a abrir ya actualizada. Tu configuración y portadas se quedan igual. Si la versión nueva fallara al abrir, se regresa sola a la que tienes ahora.</p>
         <div class="prog" style="display:none"><div class="bar"><i style="width:0"></i></div><span>0 %</span></div>` : `<p class="note">Ya tienes la versión más nueva.</p>`}`;
@@ -2011,15 +2137,27 @@ const hueOf = s => [...s].reduce((a, ch) => a + ch.charCodeAt(0), 0) * 29 % 360;
 function friendsView() {
   const order = { playing: 0, online: 1, away: 2, offline: 3 };
   return {
-    hints: [["B", "Atrás"], ["A", "Ver perfil"]],
     render(el) {
-      const list = [...friends].sort((a, b) => order[a.status] - order[b.status]);
-      const on = list.filter(f => f.status !== "offline").length;
-      el.innerHTML = head(I.friends, "Amigos", `${on} en línea · ${list.length} en total`) + `<div class="vbody">${list.map(f => {
+      // Mejores amigos (★, se marcan con Y) primero; luego por estado.
+      const list = [...friends].sort((a, b) => (isBest(b.name) - isBest(a.name)) || order[a.status] - order[b.status]);
+      const on = list.filter(f => f.status !== "offline").length, nb = list.filter(f => isBest(f.name)).length;
+      const row = f => {
         const [c, txt] = STATUS[f.status] || STATUS.offline;
-        return `<button class="lrow fi" data-n="${esc(f.name)}"><span class="fav" style="background:hsl(${hueOf(f.name)},55%,48%)">${f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase())}</span><span class="meta"><b>${esc(f.name)}</b><span>${esc(txt(f.game || ""))}</span></span><span class="dot" style="background:${c}"></span></button>`;
-      }).join("")}</div>`;
+        return `<button class="lrow fi" data-n="${esc(f.name)}"><span class="fav" style="background:hsl(${hueOf(f.name)},55%,48%)">${f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase())}</span><span class="meta"><b>${esc(f.name)}${isBest(f.name) ? '<i class="nstar">★</i>' : ""}</b><span>${esc(txt(f.game || ""))}</span></span><span class="dot" style="background:${c}"></span></button>`;
+      };
+      el.innerHTML = head(I.friends, "Amigos", `${on} en línea · ${list.length} en total`) + `<div class="vbody">${nb ? `<div class="fsec">Mejores amigos</div>${list.slice(0, nb).map(row).join("")}<div class="fsec">Amigos</div>` : ""}${list.slice(nb).map(row).join("")}</div>`;
       fis(el).forEach(b => b.onclick = () => openView(friendProfileView(friends.find(f => f.name === b.dataset.n))));
+    },
+    hints() { const f = this.el && this.items()[this.i]; return [["B", "Atrás"], ["Y", f && isBest(f.dataset.n) ? "Quitar ★" : "Mejor amigo ★"], ["A", "Ver perfil"]]; },
+    onKey(k) {
+      if (k !== "y") return false;
+      const b = this.items()[this.i]; if (!b) return true;
+      const name = b.dataset.n, s = new Set(settings.bestFriends || []);
+      if (s.has(name)) s.delete(name); else s.add(name);
+      settings.bestFriends = [...s]; saveSettings(); play(s.has(name) ? "on" : "off");
+      toast(s.has(name) ? `${name} es de tus mejores amigos` : `${name} ya no está en mejores amigos`);
+      this.render(this.el); this.i = Math.max(0, this.items().findIndex(x => x.dataset.n === name)); updateFocus();
+      return true;
     },
     items() { return fis(this.el); }
   };
@@ -2298,59 +2436,182 @@ function profileView() {
   };
 }
 
-function settingsView() {
-  const rows = [
-    { label: "Formato del reloj", desc: "Cómo se muestra la hora en la consola", val: () => settings.clock24 !== false ? "24 horas" : "12 horas (a.m./p.m.)", toggle() { settings.clock24 = settings.clock24 === false; tick(); } },
-    { label: "Tema", desc: "Apariencia del menú", val: () => settings.theme === "dark" ? "Oscuro" : "Claro", toggle() { settings.theme = settings.theme === "dark" ? "light" : "dark"; applyTheme(); } },
-    { label: "Sonidos del menú", desc: "Efectos al navegar", val: () => settings.sound ? "Activados" : "Desactivados", toggle() { settings.sound = !settings.sound; } },
-    ...(Host.has ? [{ label: "Paquete de sonidos", desc: "Sonidos de un paquete para Steam Deck (carpeta o .zip con pack.json) que tengas en Descargas, Escritorio o Documentos", val: () => soundPack || "Los de Scarlet", act() { soundPackMenu(this); } }] : []),
-    { label: "Vibración", desc: "Vibración sutil al moverte y seleccionar", val: () => settings.rumble ? "Activada" : "Desactivada", toggle() { settings.rumble = !settings.rumble; } },
-    { label: "Aviso de Dolby Atmos", desc: "«Powered by Dolby Atmos» solo cuando Atmos está en uso (Ajustes de Windows › Sonido › Audio espacial)", val: () => settings.dolbyTag === false ? "Nunca" : "Cuando está en uso",
-      toggle() { if (settings.dolbyTag === false) delete settings.dolbyTag; else settings.dolbyTag = false; paintDolby(); } },
-    ...(Host.has ? [{ label: "Diagnóstico", desc: "Lo que Scarlet detecta ahora: juego, apps con sonido, Dolby, música, Steam", val: () => "›", act() { openView(diagView()); } }] : []),
-    ...(Host.has ? [{ label: "Restablecer sonido", desc: "Quita el silencio a todas las apps (juegos, Scarlet, música) y sube las que quedaron en cero", val: () => "›", act() { Host.call("audio.reset").then(n => toast(n ? "Sonido restablecido" : "Todo ya tenía sonido")).catch(() => toast("No se pudo restablecer")); } }] : []),
-    { label: "Ocultar el puntero del mouse", desc: "Como en una consola: no se ve en Scarlet ni en los juegos (sí en el Explorador y Ajustes de Windows)", val: () => settings.hideCursor !== false ? "Activado" : "Desactivado", toggle() { settings.hideCursor = settings.hideCursor === false; document.documentElement.classList.toggle("showcursor", !settings.hideCursor); Host.call("cursor.hide", { on: settings.hideCursor }).catch(() => {}); } },
-    { label: "Silenciar al volver al menú", desc: "El juego o video que dejas atrás se calla; la música sigue sonando", val: () => settings.muteBehind !== false ? "Activado" : "Desactivado", toggle() { settings.muteBehind = settings.muteBehind === false; Host.call("audio.mutebehind", { on: settings.muteBehind }).catch(() => {}); } },
-    { label: "Al encender la consola", desc: "Qué se abre cuando la consola arranca", val: () => settings.bootLast ? "El último juego" : "El Inicio", toggle() { settings.bootLast = !settings.bootLast; } },
-    { label: "Atenuar pantalla", desc: "Oscurece la pantalla si no la usas", val: () => optLabel(DIM_OPTS, settings.dimAfter), act() { pickOption("Atenuar pantalla", DIM_OPTS, "dimAfter"); } },
-    { label: "Suspender automáticamente", desc: "Suspende la consola tras un tiempo sin uso en el menú", val: () => optLabel(SLEEP_OPTS, settings.sleepAfter), act() { pickOption("Suspender automáticamente", SLEEP_OPTS, "sleepAfter"); } },
-    { label: "Gestión de datos", desc: "Espacio en disco y desinstalar juegos", val: () => "›", act() { openView(storageView()); } },
-    { label: "VPN", desc: "Cloudflare WARP o WireGuard, para redes que bloquean Steam o Xbox", val: () => VPN.provider === "none" ? "Sin configurar" : vpnLabel(), act() { openView(vpnView()); } },
-    { label: "SteamGridDB", desc: "API key para portadas (steamgriddb.com › Preferencias › API)", val: () => Host.has ? "Gestionada por la app" : settings.sgdbKey ? "Configurada ✓" : "Sin configurar",
-      act() {
-        if (Host.has) return Host.call("app.setup").catch(() => {});
-        const k = prompt("Pega tu API key de SteamGridDB:", settings.sgdbKey || "");
-        if (k === null) return;
-        settings.sgdbKey = k.trim(); Art.clear(); renderHome(); toast(settings.sgdbKey ? "Buscando portadas en SteamGridDB…" : "API key eliminada");
-      } },
-    { label: "Borrar caché de portadas", desc: "Vuelve a descargar las imágenes", val: () => "", act() { Art.clear(); renderHome(); toast("Caché de portadas borrada"); } },
-    { label: "Explorador de archivos", desc: "Abre tus carpetas en pantalla completa", val: () => "›", act() { openSystemApp(SYS.explorer); } },
-    { label: "Ajustes de Windows", desc: "Red, pantalla, cuentas y más", val: () => "›", act() { openSystemApp(SYS.winsettings); } },
-    { label: "Probar: modo TV", desc: "Simula conectar la consola a una pantalla externa", val: () => document.documentElement.classList.contains("tv") ? "Activado" : "Desactivado", toggle() { setTvMode(!document.documentElement.classList.contains("tv")); } },
-    { label: "Probar: amigo conectado", desc: "Notificación de amigos", val: () => "", act() { demoFriendOnline(true); } },
-    { label: "Probar: logro desbloqueado", desc: "Notificación de logros", val: () => "", act() { const g = games.find(hasAch); notifyAchievement(g, "Explorador"); } },
-    { label: "Probar: batería baja", desc: "Aviso de batería", val: () => "", act() { notifyBattery(.15); } },
-    { label: "Probar: mando conectado", desc: "Aviso de mando", val: () => "", act() { notify({ icon: I.pad, title: "Mando conectado", text: "Mando Xbox inalámbrico" }); } },
-    { label: "Probar: actualización", desc: "Barra de descarga sobre un juego", val: () => "", act() { const g = games.find(x => x.installed && x.kind !== "app" && x.appid !== state.running && !state.downloads[x.appid]); if (g) { startDownload(g, "Actualizando"); toast("Actualizando " + g.name); } } },
-    { label: "Buscar actualizaciones", desc: "Descarga e instala la versión más nueva de Scarlet desde GitHub", val: () => updState.available ? "Nueva: alpha " + updState.latest : "›", act() { openView(updateView()); } },
-    { label: "Acerca de", desc: `Scarlet · alpha ${APP_VERSION} · proyecto personal`, val: () => "alpha " + APP_VERSION, act() {} }
+/* ================= beta 1.0: Ajustes como en la Switch 2 =================
+   Dos columnas: a la izquierda las categorías, a la derecha sus opciones en secciones. El foco empieza a la izquierda;
+   A (o ▶) entra a las opciones, B (o ◀) regresa a las categorías y B otra vez cierra Ajustes. La ayuda de cada opción
+   aparece debajo de la fila elegida. Los interruptores se cambian con A. */
+const NF_FRIENDS = [["Todos", "all"], ["Mejores amigos", "best"], ["Nadie", "none"]];
+const NF_GAME = [["Todos", "all"], ["Solo importantes", "important"], ["Ninguno", "none"]];
+function settingsCats() {
+  const H = Host.has;
+  const sw = (label, desc, get, set) => ({ label, desc, sw: true, val: get, toggle() { set(!get()); } });
+  const go = (label, desc, act, val) => ({ label, desc, go: true, val: val || (() => ""), act });
+  const opt = (label, desc, opts, key) => ({ label, desc, val: () => optLabel(opts, settings[key]), act() { pickOption(label, opts, key); } });
+  const theme = (label, value, swatch) => ({ label, radio: true, swatch, val: () => (settings.theme || "dark") === value, act() { settings.theme = value; applyTheme(); } });
+  const cats = [
+    { label: "Usuario y cuentas", secs: [
+      ["Tu cuenta", [
+        go("Perfil", "Tu nivel de Steam, horas jugadas, amigos y logros", () => openView(profileView()), () => profile.name || ""),
+        ...(H ? [go("Cuentas y arranque", "Claves de Steam y SteamGridDB, inicio con Windows, botón Xbox, app de inicio", () => openView(accountsView()))] : [])]],
+      ["Portadas", [
+        { label: "SteamGridDB", desc: "API key para portadas (steamgriddb.com › Preferencias › API)", val: () => H ? "Gestionada por la app" : settings.sgdbKey ? "Configurada ✓" : "Sin configurar",
+          act() {
+            if (H) return Host.call("app.setup").catch(() => {});
+            const k = prompt("Pega tu API key de SteamGridDB:", settings.sgdbKey || "");
+            if (k === null) return;
+            settings.sgdbKey = k.trim(); Art.clear(); renderHome(); toast(settings.sgdbKey ? "Buscando portadas en SteamGridDB…" : "API key eliminada");
+          } }]]] },
+    { label: "Mandos y vibración", secs: [
+      ["Mandos", [go("Mandos", "Mandos conectados, orden de jugadores y emparejar por Bluetooth", () => openView(controlsView()))]],
+      ["Vibración", [sw("Vibración", "Vibración sutil al moverte y seleccionar", () => !!settings.rumble, v => settings.rumble = v)]]] },
+    { label: "Audio", secs: [
+      ["Sonidos de Scarlet", [
+        sw("Sonidos del menú", "Efectos al navegar por la consola", () => !!settings.sound, v => settings.sound = v),
+        ...(H ? [{ label: "Paquete de sonidos", desc: "Sonidos de un paquete para Steam Deck (carpeta o .zip con pack.json) que tengas en Descargas, Escritorio o Documentos", val: () => soundPack || "Los de Scarlet", act() { soundPackMenu(this); } }] : [])]],
+      ["Juegos y apps", [
+        sw("Silenciar al volver al menú", "El juego o video que dejas atrás se calla; la música sigue sonando", () => settings.muteBehind !== false, v => { settings.muteBehind = v; Host.call("audio.mutebehind", { on: v }).catch(() => {}); }),
+        ...(H ? [go("Restablecer sonido", "Quita el silencio a todas las apps (juegos, Scarlet, música) y sube las que quedaron en cero", () => Host.call("audio.reset").then(n => toast(n ? "Sonido restablecido" : "Todo ya tenía sonido")).catch(() => toast("No se pudo restablecer")))] : [])]],
+      ["Dolby Atmos", [
+        { label: "Aviso de Dolby Atmos", desc: "«Powered by Dolby Atmos» solo cuando Atmos está en uso (Ajustes de Windows › Sonido › Audio espacial)", val: () => settings.dolbyTag === false ? "Nunca" : "Cuando está en uso",
+          act() { if (settings.dolbyTag === false) delete settings.dolbyTag; else settings.dolbyTag = false; paintDolby(); } },
+        sw("Letras doradas", "El aviso de Dolby Atmos en dorado y blanco, con un brillo suave", () => settings.dolbyGold !== false, v => { settings.dolbyGold = v; paintDolby(); })]]] },
+    { sep: true },
+    { label: "Pantalla", secs: [
+      ["Pantalla de la consola", [
+        opt("Atenuar pantalla", "Oscurece la pantalla si no la usas. Cualquier botón la vuelve a encender.", DIM_OPTS, "dimAfter"),
+        sw("Ocultar el puntero del mouse", "Como en una consola: no se ve en Scarlet ni en los juegos (sí en el Explorador y Ajustes de Windows)", () => settings.hideCursor !== false,
+          v => { settings.hideCursor = v; document.documentElement.classList.toggle("showcursor", !v); Host.call("cursor.hide", { on: v }).catch(() => {}); }),
+        { label: "Formato del reloj", desc: "Cómo se muestra la hora en la consola", val: () => settings.clock24 !== false ? "24 horas" : "12 horas (a.m./p.m.)", act() { settings.clock24 = settings.clock24 === false; tick(); } }]],
+      ...(H ? [] : [["Televisión", [sw("Probar: modo TV", "Simula conectar la consola a una pantalla externa", () => document.documentElement.classList.contains("tv"), v => setTvMode(v))]]])] },
+    { label: "Temas", secs: [
+      [null, [theme("Claro", "light", "#fff"), theme("Oscuro", "dark", "#000"), theme("Automático (como Windows)", "auto", "linear-gradient(90deg,#fff 50%,#000 50%)")]]] },
+    { label: "Notificaciones", secs: [
+      ["Avisos", [
+        sw("Descargas completadas", "Avisa cuando termina de descargarse o actualizarse un juego", () => settings.nDl !== false, v => settings.nDl = v),
+        sw("Logros", "Avisa cuando desbloqueas un logro", () => settings.nAch !== false, v => settings.nAch = v),
+        sw("Batería baja", "Avisa al llegar al 20 % y al 10 %", () => settings.nBatt !== false, v => settings.nBatt = v)]],
+      ["Amigos", [
+        opt("Amigos que se conectan", "Marca a tus mejores amigos con Y en la lista de Amigos", NF_FRIENDS, "nFriendOn"),
+        opt("Amigos que empiezan a jugar", "Marca a tus mejores amigos con Y en la lista de Amigos", NF_FRIENDS, "nFriendPlay")]],
+      ["Durante el juego", [
+        opt("Avisos encima del juego", "Solo importantes: batería baja, descargas y capturas. Lo que no veas te espera al volver al menú, en «Mientras jugabas».", NF_GAME, "nInGame")]],
+      ["General", [sw("Sonido de notificación", "Un sonido corto cuando llega un aviso", () => settings.nSound !== false, v => settings.nSound = v)]]] },
+    { label: "Energía", secs: [
+      ["Ahorro de energía", [opt("Suspender automáticamente", "Suspende la consola tras un tiempo sin uso en el menú", SLEEP_OPTS, "sleepAfter")]],
+      ["Arranque", [{ label: "Al encender la consola", desc: "Qué se abre cuando la consola arranca", val: () => settings.bootLast ? "El último juego" : "El Inicio", act() { settings.bootLast = !settings.bootLast; } }]]] },
+    { sep: true },
+    { label: "Red y VPN", secs: [
+      ["VPN", [go("VPN", "Cloudflare WARP o WireGuard, para redes que bloquean Steam o Xbox", () => openView(vpnView()), () => VPN.provider === "none" ? "Sin configurar" : vpnLabel())]],
+      ["Red", [go("Wi-Fi y red en Windows", "Redes, contraseñas y datos de la conexión", () => openSystemApp(SYS.winsettings))]]] },
+    { label: "Gestión de datos", secs: [
+      ["Almacenamiento", [go("Gestión de datos", "Espacio en disco y desinstalar juegos", () => openView(storageView()))]],
+      ["Caché", [{ label: "Borrar caché de portadas", desc: "Vuelve a descargar las imágenes", val: () => "", act() { Art.clear(); renderHome(); toast("Caché de portadas borrada"); } }]]] },
+    { label: "Sistema", secs: [
+      ["Menú rápido", [sw("Menú rápido clásico", "El menú rápido de antes, con cuadritos. Úsalo si el nuevo te da algún problema.", () => !!settings.quickClassic, v => settings.quickClassic = v)]],
+      ["Herramientas", [
+        ...(H ? [go("Diagnóstico", "Lo que Scarlet detecta ahora: juego, apps con sonido, Dolby, música, Steam", () => openView(diagView()))] : []),
+        go("Explorador de archivos", "Abre tus carpetas en pantalla completa", () => openSystemApp(SYS.explorer)),
+        go("Ajustes de Windows", "Red, pantalla, cuentas y más", () => openSystemApp(SYS.winsettings))]],
+      ...(H ? [] : [["Pruebas", [
+        { label: "Probar: amigo conectado", desc: "Notificación de amigos", val: () => "", act() { demoFriendOnline(true); } },
+        { label: "Probar: logro desbloqueado", desc: "Notificación de logros", val: () => "", act() { const g = games.find(hasAch); notifyAchievement(g, "Explorador"); } },
+        { label: "Probar: captura guardada", desc: "Notificación de captura con miniatura", val: () => "", act() { demoCapture(); } },
+        { label: "Probar: batería baja", desc: "Aviso de batería", val: () => "", act() { notifyBattery(.15); } },
+        { label: "Probar: mando conectado", desc: "Aviso de mando", val: () => "", act() { notify({ icon: I.pad, title: "Mando conectado", text: "Mando Xbox inalámbrico" }); } },
+        { label: "Probar: actualización", desc: "Barra de descarga sobre un juego", val: () => "", act() { const g = games.find(x => x.installed && x.kind !== "app" && x.appid !== state.running && !state.downloads[x.appid]); if (g) { startDownload(g, "Actualizando"); toast("Actualizando " + g.name); } } }]]]),
+      ["Scarlet", [
+        go("Buscar actualizaciones", "Descarga e instala la versión más nueva de Scarlet desde GitHub", () => openView(updateView()), () => updState.available ? "Nueva: " + verName(updState.latest) : ""),
+        ...(H ? [go("Salir al escritorio", "Cierra Scarlet", () => confirmDialog("¿Salir al escritorio de Windows?", "Salir").then(ok => { if (ok) Host.call("app.exit").catch(() => {}); }))] : []),
+        { label: "Acerca de", desc: `Scarlet · ${verName(APP_VERSION)} · proyecto personal`, val: () => verName(APP_VERSION), act() {} }]]] }
   ];
-  if (Host.has) {   // en la app real: sin botones de prueba y con cuentas / salir
-    for (let i = rows.length - 1; i >= 0; i--) if (rows[i].label.startsWith("Probar")) rows.splice(i, 1);
-    rows.splice(rows.length - 1, 0,
-      { label: "Cuentas y arranque", desc: "Claves de Steam y SteamGridDB, inicio con Windows, botón Xbox, app de inicio", val: () => "›", act() { openView(accountsView()); } },
-      { label: "Salir al escritorio", desc: "Cierra Scarlet", val: () => "›", act() { confirmDialog("¿Salir al escritorio de Windows?", "Salir").then(ok => { if (ok) Host.call("app.exit").catch(() => {}); }); } });
-  }
+  return cats;
+}
+function settingsView() {
+  const cats = settingsCats(), real = cats.filter(c => !c.sep);
+  const rowsOf = c => c.secs.flatMap(([, rows]) => rows);
+  const rowHTML = (r, j) => {
+    const v = r.val ? r.val() : "";
+    const end = r.sw ? `<span class="nsw${v ? " on" : ""}"></span>` : r.radio ? `<span class="nrad${v ? " on" : ""}"></span>` : `<span class="nv${r.go && !v ? " go" : ""}">${r.go && !v ? "›" : esc(v)}</span>`;
+    return `<button class="nsrow fi${r.radio && v ? " on" : ""}" data-r="${j}">${r.swatch ? `<span class="nswatch" style="background:${r.swatch}"></span>` : ""}<span class="nl">${esc(r.label)}</span>${end}</button>`;
+  };
   return {
-    isSettings: true,
-    hints() { return [["B", "Atrás"], ["A", rows[this.i || 0].toggle ? "Cambiar" : "Aceptar"]]; },
-    render(el) {
-      el.innerHTML = head(I.gear, "Ajustes") + `<div class="vbody">${rows.map((r, i) => `<button class="lrow fi" data-i="${i}"><span class="meta"><b>${esc(r.label)}</b><span>${esc(r.desc)}</span></span><span class="val">${esc(r.val())}</span></button>`).join("")}</div>`;
-      fis(el).forEach(b => b.onclick = () => { const r = rows[+b.dataset.i]; (r.toggle || r.act).call(r); saveSettings(); this.refresh(); if (r.toggle) play("select"); });
+    isSettings: true, side: "L", ci: 0, ri: 0,
+    syncFromIndex() { if (this.side === "R") this.ri = this.i; },
+    hints() {
+      if (this.side === "L") return [["B", "Atrás"], ["A", "Aceptar"]];
+      const r = this.rows()[this.ri] || {};
+      return [["B", "Atrás"], ["A", r.sw ? "Cambiar" : r.radio ? "Elegir" : "Aceptar"]];
     },
-    refresh() { fis(this.el).forEach(b => { b.querySelector(".val").textContent = rows[+b.dataset.i].val(); }); },
-    onLR(i, d) { const r = rows[i]; if (r.toggle) { r.toggle(); saveSettings(); this.refresh(); play("move"); } else bump(this.items()[i], d); },
-    items() { return fis(this.el); }
+    rows() { return rowsOf(real[this.ci]); },
+    render(el) {
+      el.innerHTML = head(I.gear, "Ajustes") + `<div class="nsb"><div class="nsl">${cats.map(c => c.sep ? "<hr>" : `<button class="nscat fi" data-c="${real.indexOf(c)}">${esc(c.label)}</button>`).join("")}</div><div class="nsr"></div></div>`;
+      $$(".nscat", el).forEach(b => b.onclick = () => {
+        const c = +b.dataset.c;
+        if (this.side === "L" && c === this.ci) return this.enter();
+        this.side = "L"; this.ci = c; this.i = c; this.paneRender(); updateFocus();
+      });
+      this.paneRender();
+    },
+    /* Pinta la columna derecha (la categoría elegida). */
+    paneRender() {
+      const pane = $(".nsr", this.el); let j = 0;
+      $$(".nscat", this.el).forEach(b => b.classList.toggle("sel", +b.dataset.c === this.ci));
+      pane.innerHTML = real[this.ci].secs.map(([t, rows]) => (t ? `<div class="nssec">${esc(t)}</div>` : `<div class="nssec blank"></div>`) + rows.map(r => rowHTML(r, j++)).join("")).join("");
+      $$(".nsrow", pane).forEach(b => b.onclick = () => {
+        const j2 = +b.dataset.r, r = this.rows()[j2];
+        if (this.side !== "R" || this.ri !== j2) { this.side = "R"; this.ri = j2; this.i = j2; }
+        this.run(r);
+      });
+      if (this.side === "L") pane.scrollTop = 0;
+    },
+    run(r) {
+      if (!r) return;
+      if (r.sw || r.radio) { r.toggle ? r.toggle() : r.act.call(r); saveSettings(); play(r.sw ? (r.val() ? "on" : "off") : "select"); this.refresh(); return; }
+      const ret = r.act.call(r); saveSettings();
+      Promise.resolve(ret).then(() => { if (this.el && this.el.isConnected) this.refresh(); });
+    },
+    enter() {
+      if (!this.rows().length) return bump(this.items()[this.i], "right");
+      this.side = "R"; this.ri = 0; this.i = 0; play("move"); updateFocus();
+    },
+    nav(dir) {
+      if (this.side === "L") {
+        if (dir === "right") return this.enter();
+        if (dir === "left") return bump(this.items()[this.i], dir);
+        const c = this.ci + (dir === "down" ? 1 : -1);
+        if (c < 0 || c >= real.length) return bump(this.items()[this.i], dir);
+        this.ci = c; this.i = c; this.paneRender(); play("move"); updateFocus(); return;
+      }
+      if (dir === "left") { this.side = "L"; this.i = this.ci; play("move"); return updateFocus(); }
+      if (dir === "right") return bump(this.items()[this.i], dir);
+      const n = this.rows().length, j = this.ri + (dir === "down" ? 1 : -1);
+      if (j < 0 || j >= n) return bump(this.items()[this.i], dir);
+      this.ri = j; this.i = j; play("move"); updateFocus();
+    },
+    onB() { if (this.side === "R") { this.side = "L"; this.i = this.ci; play("back"); updateFocus(); return true; } return false; },
+    /* La ayuda va debajo de la opción elegida (como en la consola). */
+    onFocus() {
+      $$(".nshelp", this.el).forEach(h => h.remove());
+      if (this.side !== "R") return;
+      const r = this.rows()[this.ri], el = this.items()[this.ri];
+      if (r && r.desc && el) { el.insertAdjacentHTML("afterend", `<p class="nshelp">${esc(r.desc)}</p>`); el.nextElementSibling.scrollIntoView({ block: "nearest" }); }
+    },
+    /* Vuelve a pintar los valores (después de cambiar algo aquí o desde otra pantalla). */
+    refresh() {
+      if (!this.el || !this.el.isConnected) return;
+      const top = $(".nsr", this.el).scrollTop;
+      this.paneRender(); $(".nsr", this.el).scrollTop = top;
+      if (topView() === this) updateFocus();
+    },
+    /* Ir directo a una opción por su nombre (desde otros avisos y desde las pruebas). */
+    goto(label) {
+      for (let c = 0; c < real.length; c++) {
+        const j = rowsOf(real[c]).findIndex(r => r.label === label);
+        if (j >= 0) { this.ci = c; this.side = "R"; this.ri = j; this.i = j; this.paneRender(); updateFocus(); return true; }
+      }
+      return false;
+    },
+    items() { return this.el ? $$(this.side === "L" ? ".nscat" : ".nsrow", this.el) : []; }
   };
 }
 
@@ -2400,8 +2661,8 @@ addEventListener("blur", () => keysDown.clear());
 const sortedPads = () => [...state.pads].sort((a, b) => a.player - b.player);
 function renumberPads() { sortedPads().forEach((p, i) => p.player = i + 1); }
 function updatePadName() {
-  const n = state.pads.length; $("#padName").textContent = n > 1 ? `ROG Xbox Ally X · ${n} mandos` : "ROG Xbox Ally X";
-  $$("#padsq i").forEach((i, k) => i.classList.toggle("on", k < Math.max(1, n)));   // un cuadrito por jugador, como en la consola
+  if (activePad !== "ally" && !state.pads.some(p => p.key === activePad) && !/^gp/.test(activePad)) { activePad = "ally"; activeLayout = ""; }   // se desconectó el que usabas
+  paintPadFoot();
 }
 function refreshControls() { const v = views.find(x => x.isControls); if (v) v.refresh(); }
 function identifyPad(p) {
@@ -2697,26 +2958,148 @@ function testerView(p) {
 }
 
 /* ================= notificaciones ================= */
-function notify(o) {
-  if (Host.has && mode === "game") {   // el menú está oculto: la app dibuja la notificación encima del juego
-    return Host.call("overlay.notify", { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "" }).catch(() => {});
+/* ================= beta 1.0: notificaciones =================
+   Salen de una en una (las demás esperan su turno) con una línea abajo que se va acabando. Las que tienen acción la
+   muestran con el botón Xbox: un toque mientras se ve la hace (solo en el menú; jugando, el botón Xbox abre el menú
+   rápido como siempre). Lo que llega jugando y no se muestra (según Ajustes › Notificaciones) se junta en un resumen
+   «Mientras jugabas» al volver al menú.
+   o: { icon, bg, fg, title, text, sound, image, letter, kind, act: { label, run }, thumb: { src, video, dur, saving }, star, important } */
+const NOTIF_MS = 4600, NOTIF_ACT_MS = 5600;
+const notifQ = [], missed = [];
+let notifCur = null;
+const notifKinds = { dl: "nDl", ach: "nAch", batt: "nBatt" };
+const notifImportant = o => o.important || ["batt", "dl", "cap", "err"].includes(o.kind);
+function notifAllowed(o) {
+  if (notifKinds[o.kind] && settings[notifKinds[o.kind]] === false) return false;
+  if (o.kind === "friend" || o.kind === "friendplay") {
+    const pref = settings[o.kind === "friend" ? "nFriendOn" : "nFriendPlay"] || "all";
+    if (pref === "none" || (pref === "best" && !o.star)) return false;
   }
-  const n = document.createElement("div"); n.className = "notif";
-  n.innerHTML = `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div><div><b>${esc(o.title)}</b><span>${esc(o.text)}</span></div>`;
-  const box = $("#notifs"); box.append(n);
-  while (box.children.length > 3) box.firstElementChild.remove();
-  play(o.sound || "notif");
-  setTimeout(() => { n.classList.add("out"); setTimeout(() => n.remove(), 320); }, 4600);
+  return true;
 }
-function notifyFriend(f) { notify({ sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado" }); }
-function notifyAchievement(g, name, d = {}) { notify({ icon: d.icon ? `<img alt="" src="${esc(d.icon)}">` : I.trophy, image: d.iconPath || "", letter: "★", bg: "#f2c230", fg: "#3a2c00", title: "Logro desbloqueado", text: g ? `${name} · ${g.name}` : name, sound: "achieve" }); }
-function notifyBattery(level) { notify({ icon: I.battLow, title: "Batería baja", text: `Queda ${Math.round(level * 100)} %. Conecta el cargador.` }); }
+function notify(o) {
+  if (!notifAllowed(o)) return;
+  if (mode === "game" && !OVERLAY) {
+    const pref = settings.nInGame || "all";
+    if (pref === "none" || (pref === "important" && !notifImportant(o))) { missed.push({ title: o.title, text: o.text }); return; }
+    if (Host.has) {   // el menú está oculto: la app dibuja la notificación encima del juego (igual, pero sin acción)
+      const t = o.thumb || {};
+      return Host.call("overlay.notify", { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving }).catch(() => {});
+    }
+  }
+  if (o.key && notifCur && notifCur.key === o.key) return notifReplace(o);   // la misma (p. ej. "Guardando video…" → "Video guardado")
+  const qi = o.key ? notifQ.findIndex(x => x.key === o.key) : -1;
+  if (qi >= 0) notifQ[qi] = o; else notifQ.push(o);
+  while (notifQ.length > 6) notifQ.shift();
+  if (!notifCur) notifNext();
+}
+function notifHTML(o) {
+  const t = o.thumb;
+  const ic = t ? `<div class="ic thumb${t.saving ? " saving" : ""}">${t.src ? `<img alt="" src="${esc(t.src)}">` : ""}${t.video && !t.saving ? `<span class="pl"><b></b></span>${t.dur ? `<span class="du">${esc(t.dur)}</span>` : ""}` : ""}${t.saving ? `<span class="rec"><i></i></span>` : ""}</div>`
+    : `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div>`;
+  const act = o.act && mode === "ui" ? `<div class="nact"><span class="xbtn"></span>${esc(o.act.label)}</div>` : "";
+  return `${ic}<div class="ntx"><b>${esc(o.title)}${o.star ? '<i class="nstar">★</i>' : ""}</b>${o.lines ? `<ul>${o.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span>${esc(o.text)}</span>`}</div>${act}<div class="nlife"></div>`;
+}
+function notifNext() {
+  const o = notifQ.shift(); if (!o) { notifCur = null; return; }
+  const n = document.createElement("div"); n.className = "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "");
+  n.innerHTML = notifHTML(o);
+  const box = $("#notifs"); box.innerHTML = ""; box.append(n);
+  if (settings.nSound !== false) play(o.sound || "notif");
+  notifCur = Object.assign(o, { el: n });
+  notifTime(o);
+}
+/* La línea de abajo y el tiempo que se queda; si llega otra detrás, esta se va un poco antes. */
+function notifTime(o) {
+  const ms = o.ms || (o.act ? NOTIF_ACT_MS : NOTIF_MS), life = $(".nlife", o.el);
+  clearTimeout(o.t);
+  if (o.thumb && o.thumb.saving) { if (life) life.style.display = "none"; o.t = setTimeout(() => notifDone(o), 30000); return; }
+  if (life && life.animate) life.animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: ms, easing: "linear", fill: "forwards" });
+  o.t = setTimeout(() => notifDone(o), ms);
+}
+function notifReplace(o) {
+  const cur = notifCur; o.el = cur.el; clearTimeout(cur.t);
+  cur.el.className = "notif" + (o.thumb ? " wide" : "");
+  cur.el.innerHTML = notifHTML(o);
+  if (settings.nSound !== false && o.sound) play(o.sound);
+  notifCur = o; notifTime(o);
+}
+function notifDone(o) {
+  if (notifCur !== o) return;
+  o.el.classList.add("out"); notifCur = null;
+  setTimeout(() => { o.el.remove(); notifNext(); }, 300);
+}
+/* Botón Xbox con una notificación con acción a la vista (en el menú): hace la acción. */
+function notifAction() {
+  const o = notifCur;
+  if (!o || !o.act || mode !== "ui" || QM.open || OVERLAY) return false;
+  play("select"); clearTimeout(o.t); notifDone(o);
+  try { o.act.run(); } catch (e) { console.error(e); }
+  return true;
+}
+/* Al volver al menú: lo que no se mostró mientras jugabas, en un solo aviso. */
+setInterval(() => {
+  if (mode !== "ui" || !missed.length || QM.open) return;
+  const list = missed.splice(0), more = list.length - 3;
+  const lines = list.slice(0, 3).map(x => x.text && x.title ? `${x.title} · ${x.text}` : x.title || x.text);
+  if (more > 0) lines.push(`y ${more} más`);
+  missedLog.unshift(...list.map(x => ({ ...x, at: Date.now() }))); missedLog.splice(30);
+  notify({ icon: I.home, title: "Mientras jugabas", text: `${list.length} aviso${list.length === 1 ? "" : "s"}`, lines, ms: 7000, kind: "sum", sound: "notif",
+    act: { label: "Ver todo", run: () => openView(missedView()) } });
+}, 1200);
+const missedLog = [];
+function missedView() {
+  return {
+    hints: [["B", "Atrás"]],
+    render(el) {
+      el.innerHTML = head(I.home, "Mientras jugabas", `${missedLog.length} avisos`) + `<div class="vbody">${missedLog.map(x => `<button class="lrow fi"><span class="meta"><b>${esc(x.title)}</b><span>${esc(x.text || "")}</span></span><span class="val">${esc(new Date(x.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }))}</span></button>`).join("") || '<p class="note">No hay avisos.</p>'}</div>`;
+    },
+    items() { return fis(this.el); }
+  };
+}
+const isBest = name => (settings.bestFriends || []).includes(name);
+function notifyFriend(f) {
+  const best = isBest(f.name);
+  notify({ kind: f.game ? "friendplay" : "friend", star: best, sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
+    act: { label: "Ver perfil", run: () => { const x = friends.find(y => y.name === f.name); if (x) openView(friendProfileView(x)); } } });
+}
+function notifyAchievement(g, name, d = {}) {
+  notify({ kind: "ach", icon: d.icon ? `<img alt="" src="${esc(d.icon)}">` : I.trophy, image: d.iconPath || "", letter: "★", bg: "#f2c230", fg: "#3a2c00", title: "Logro desbloqueado", text: g ? `${name} · ${g.name}` : name, sound: "achieve",
+    act: g && hasAch(g) ? { label: "Ver logros", run: () => openView(achView(g)) } : null });
+}
+function notifyBattery(level) { notify({ kind: "batt", icon: I.battLow, title: "Batería baja", text: `Queda ${Math.round(level * 100)} %. Conecta el cargador.` }); }
+/* Capturas: miniatura de verdad (la foto, o un cuadro del video), con «Ver» que abre el Álbum en esa captura. */
+function notifyCapture(item, saving) {
+  const video = item.type === "video", game = item.game && item.game !== "Sistema" ? item.game : "";
+  const src = item.thumb || (video ? "" : item.url);
+  if (saving) return notify({ key: "cap:" + item.path, kind: "cap", thumb: { src, video: true, saving: true }, title: "Guardando video…", text: "Últimos 30 segundos" + (game ? " · " + game : ""), sound: "recstop" });
+  notify({ key: "cap:" + item.path, kind: "cap", image: item.thumbPath || (video ? "" : item.path || ""), letter: "▣", sound: video ? "notif" : "capture",
+    thumb: { src, video, dur: item.duration ? mmss(item.duration) : "" },
+    title: video ? "Video guardado" : "Captura guardada", text: video ? `Últimos ${item.duration ? Math.round(item.duration) : 30} segundos${game ? " · " + game : ""}` : `${game ? game + " · " : ""}en el Álbum`,
+    act: { label: "Ver", run: () => openAlbumAt(item) } });
+}
+function openAlbumAt(item) {
+  if (mode !== "ui") return;
+  closeAllViews(); const av = albumView(); openView(av);
+  const go = (n = 0) => {   // el Álbum carga su lista; luego se abre la captura
+    if (!av.list) return n < 30 && setTimeout(() => go(n + 1), 100);
+    const i = av.list.findIndex(x => x.path === item.path);
+    if (i >= 0 && topView() === av) openView(viewerView(av, i));
+  };
+  go();
+}
+function demoCapture() {
+  const g = games.find(x => x.installed) || games[0];
+  const item = { url: shotSvg(g, 3), path: "demo_" + Date.now(), game: g.name, type: "image" };
+  notifyCapture(item);
+  setTimeout(() => { const v = { url: shotSvg(g, 9), thumb: shotSvg(g, 9), path: "demov_" + Date.now(), game: g.name, type: "video" }; notifyCapture(v, true); setTimeout(() => notifyCapture({ ...v, duration: 30 }), 2500); }, 5200);
+}
 function demoFriendOnline(force) {
   const off = friends.filter(f => f.status === "offline");
   const f = off.length ? off[Math.floor(Math.random() * off.length)] : (force ? friends[Math.floor(Math.random() * friends.length)] : null);
   if (!f) return;
   f.status = Math.random() < .5 ? "online" : "playing";
-  if (f.status === "playing") f.game = games.filter(hasAch)[Math.floor(Math.random() * 6)].name;
+  if (f.status === "playing") { const gl = games.filter(hasAch); f.game = gl.length ? gl[Math.floor(Math.random() * Math.min(6, gl.length))].name : ""; }
   notifyFriend(f);
 }
 let battWarned = false;
@@ -2770,8 +3153,8 @@ function finishDownload(appid, info = {}) {
     clearTimeout(doneBatchT);
     doneBatchT = setTimeout(() => {
       const b = doneBatch; doneBatch = [];
-      if (b.length === 1) notify({ icon: I.cloud, title: b[0].fresh ? "Descarga completada" : "Actualización completada", text: b[0].g.name });
-      else if (b.length > 1) notify({ icon: I.cloud, title: b.every(x => !x.fresh) ? `${b.length} juegos actualizados` : `${b.length} descargas completadas`, text: b.map(x => x.g.name).join(", ") });
+      if (b.length === 1) { const g1 = b[0].g; notify({ kind: "dl", icon: I.cloud, title: b[0].fresh ? "Descarga completada" : "Actualización completada", text: g1.name, act: { label: "Jugar", run: () => { if (mode === "ui" && !state.running) { closeAllViews(); launchGame(g1); } } } }); }
+      else if (b.length > 1) notify({ kind: "dl", icon: I.cloud, title: b.every(x => !x.fresh) ? `${b.length} juegos actualizados` : `${b.length} descargas completadas`, text: b.map(x => x.g.name).join(", ") });
     }, 1500);
   }, fresh ? 6000 : 1500) };
 }
@@ -2828,7 +3211,7 @@ Events.on("download.progress", d => {
   // Steam detuvo la descarga por un problema (sin espacio, sin conexión…): se avisa una vez.
   if (now.st === "error" && errShown[d.appid] !== now.err) {
     errShown[d.appid] = now.err;
-    notify({ icon: I.cloud, title: "Descarga detenida", text: `${g ? g.name : "Un juego"}: ${now.errText || "Steam no pudo seguir."}`, sound: "error" });
+    notify({ kind: "err", icon: I.cloud, title: "Descarga detenida", text: `${g ? g.name : "Un juego"}: ${now.errText || "Steam no pudo seguir."}`, sound: "error" });
   } else if (now.st !== "error") delete errShown[d.appid];
   if (!prev || prev.st !== now.st) { renderHome(); refreshLibrary(); } else paintDownloads();
   const v = topView(); if (v && v.isDownload && v.appid == d.appid) v.paint();
@@ -2845,9 +3228,9 @@ Events.on("download.removed", d => {   // la quitaste de la lista de Steam (canc
 const cleanupShown = new Set();
 Events.on("download.cleanup", d => {
   const g = byId(d.appid), name = g ? g.name : "el juego";
-  if (d.state === "restarting") { cleanupShown.add(d.appid); notify({ icon: I.cloud, title: "Borrando lo descargado", text: `Steam se reinicia unos segundos para borrar lo de ${name}.` }); }
+  if (d.state === "restarting") { cleanupShown.add(d.appid); notify({ key: "clean:" + d.appid, icon: I.cloud, title: "Borrando lo descargado", text: `Steam se reinicia unos segundos para borrar lo de ${name}.` }); }
   else if (d.state === "done" && cleanupShown.delete(d.appid)) toast(`Se borró lo descargado de ${name}`);
-  else if (d.state === "failed") { cleanupShown.delete(d.appid); notify({ icon: I.cloud, title: "No se pudo borrar todo", text: `Lo descargado de ${name} sigue en el disco. Puedes desinstalarlo desde Steam.` }); }
+  else if (d.state === "failed") { cleanupShown.delete(d.appid); notify({ key: "clean:" + d.appid, kind: "err", icon: I.cloud, title: "No se pudo borrar todo", text: `Lo descargado de ${name} sigue en el disco. Puedes desinstalarlo desde Steam.` }); }
   if (g && d.state !== "kept") { g.installed = false; refreshLibrary(); }
 });
 /* ================= menú de descarga (como en la consola) =================
@@ -2900,11 +3283,20 @@ function downloadView(g) {
 async function downloadOptions(g) {
   const d = state.downloads[g.appid]; if (!d) return;
   const paused = d.st === "paused" || d.st === "error", upd = !d.fresh && d.kind === "Actualizando";
+  const others = Object.keys(state.downloads).filter(id => state.downloads[id].st !== "canceling" && byId(id));
   const c = await choiceDialog(`Opciones de descarga\n${g.name}`, [{ label: "Atrás", value: null }, { label: upd ? "Cancelar actualización" : "Cancelar instalación", value: "cancel" },
-    { label: d.st === "error" ? "Reintentar" : paused ? "Reanudar descarga" : "Pausar descarga", value: paused ? "resume" : "pause" }], 2);
+    ...(others.length > 1 ? [{ label: `Cancelar todas (${others.length})`, value: "all" }] : []),
+    { label: d.st === "error" ? "Reintentar" : paused ? "Reanudar descarga" : "Pausar descarga", value: paused ? "resume" : "pause" }], others.length > 1 ? 3 : 2);
+  if (c === "all") return cancelAllDownloads(others);
   if (c === "resume" && d.st === "error") { const r = await steamDl("download.now", g.appid); return toast(r && r.ok ? "Steam lo vuelve a intentar" : "No se pudo reintentar"); }
   if (c === "pause" || c === "resume") return setDownloadPaused(g, c === "pause");
   if (c === "cancel") return cancelDownload(g);
+}
+/* Cancela todas las descargas: las instalaciones nuevas se borran; las actualizaciones solo se quitan de la lista. */
+async function cancelAllDownloads(ids) {
+  const ok = await confirmDialog(`¿Cancelar todas las descargas (${ids.length})?\nLas instalaciones nuevas se borran; las actualizaciones se quitan de la lista y los juegos se quedan como están.`, "Cancelar todas");
+  if (!ok) return;
+  for (const id of ids) { const g = byId(id); if (g && state.downloads[id]) await cancelDownload(g, true); }
 }
 async function setDownloadPaused(g, pause) {
   const d = state.downloads[g.appid];
@@ -2955,12 +3347,12 @@ async function uninstallGame(g, after) {
 }
 Events.on("game.uninstalled", d => {
   const u = uninstalling.get(d.appid), g = byId(d.appid); if (!g) return;
-  if (d.pending) return notify({ icon: I.cloud, title: "Desinstalando", text: `Steam se reinicia unos segundos para terminar de borrar ${g.name}.` });
+  if (d.pending) return notify({ key: "unin:" + g.appid, icon: I.cloud, title: "Desinstalando", text: `Steam se reinicia unos segundos para terminar de borrar ${g.name}.` });
   uninstalling.delete(d.appid);
   if (d.ok) {
     g.installed = false; delete state.downloads[g.appid]; delete state.updates[g.appid]; unpin(g.appid);
     const size = d.freed > 0 ? d.freed / 1073741824 : u ? u.size : 0;
-    notify({ icon: I.cloud, title: "Desinstalado", text: `${g.name}${size > 0 ? " · " + fmtSize(size) + " liberados" : ""}` });
+    notify({ key: "unin:" + g.appid, icon: I.cloud, title: "Desinstalado", text: `${g.name}${size > 0 ? " · " + fmtSize(size) + " liberados" : ""}` });
   } else alertDialog(`No se pudo desinstalar ${g.name}.\nIntenta desde Steam.`);
   renderHome(); refreshLibrary(); if (u && u.after) u.after();
 });
@@ -3529,7 +3921,7 @@ let lastGuide = 0, guideSingleT = 0;
 function guidePress() {   // (teclado / demo) 1 toque = menú rápido · 2 toques = menú / juego
   const now = performance.now();
   if (now - lastGuide < 330) { lastGuide = 0; clearTimeout(guideSingleT); onGuideDouble(); }
-  else { lastGuide = now; guideSingleT = setTimeout(() => { lastGuide = 0; QM.open ? closeQuick() : openQuick(); }, 330); }
+  else { lastGuide = now; guideSingleT = setTimeout(() => { lastGuide = 0; if (!QM.open && notifAction()) return; QM.open ? closeQuick() : openQuick(); }, 330); }
 }
 function onGuideDouble() {
   if (mode === "game") goHome();
@@ -3649,20 +4041,20 @@ Events.on("net.state", async d => {
   const was = { ...NET }; Object.assign(NET, { internet: d.internet !== false, steam: d.steam !== false });
   paintNet();
   await loadVpn();   // para sugerir lo correcto (prender la VPN o instalar una)
-  if (was.internet && !NET.internet) notify({ icon: WIFI_OFF_IC, title: "Sin conexión a internet", text: "Puedes jugar lo que tienes instalado" });
-  else if (!was.internet && NET.internet) notify({ icon: QI.wifi.replace(' class="qi"', ""), title: "Conectado a internet", text: NET.steam ? "Todo en orden" : "Pero esta red bloquea Steam" });
+  if (was.internet && !NET.internet) notify({ key: "net", icon: WIFI_OFF_IC, title: "Sin conexión a internet", text: "Puedes jugar lo que tienes instalado" });
+  else if (!was.internet && NET.internet) notify({ key: "net", icon: QI.wifi.replace(' class="qi"', ""), title: "Conectado a internet", text: NET.steam ? "Todo en orden" : "Pero esta red bloquea Steam" });
   if (NET.internet && !NET.steam && (was.steam || !was.internet))
-    notify({ icon: SHIELD_IC, title: "Esta red bloquea Steam", text: vpnOn() ? "Aun con la VPN: prueba apagarla y prenderla" : VPN.provider !== "none" ? "Prende la VPN en el menú rápido" : "Usa una VPN: Ajustes › VPN" });
+    notify({ key: "net", icon: SHIELD_IC, title: "Esta red bloquea Steam", text: vpnOn() ? "Aun con la VPN: prueba apagarla y prenderla" : VPN.provider !== "none" ? "Prende la VPN en el menú rápido" : "Usa una VPN: Ajustes › VPN" });
   paintNet();
 });
 Events.on("steam.offline", () => notify({ icon: WIFI_OFF_IC, title: "Steam sin conexión", text: "Toca «Iniciar en modo sin conexión»" }));
 /* Steam se reinicia para reconectarse (al prender la VPN o al regresar el internet). */
 Events.on("steam.reconnect", d => {
   const st = d && d.state;
-  if (st === "restarting") notify({ icon: SHIELD_IC, title: "Reconectando Steam", text: "Se reinicia para detectar la conexión (unos segundos)" });
-  else if (st === "done") notify({ icon: SHIELD_IC, title: "Steam en línea", text: "Ya puedes instalar y ver a tus amigos" });
-  else if (st === "later") notify({ icon: SHIELD_IC, title: "Steam se reconectará", text: "Cuando cierres el juego (reiniciarlo ahora lo cerraría)" });
-  else if (st === "failed") notify({ icon: WIFI_OFF_IC, title: "Steam no terminó de reiniciar", text: "Ábrelo desde la Tienda o espera un momento" });
+  if (st === "restarting") notify({ key: "steamre", icon: SHIELD_IC, title: "Reconectando Steam", text: "Se reinicia para detectar la conexión (unos segundos)" });
+  else if (st === "done") notify({ key: "steamre", icon: SHIELD_IC, title: "Steam en línea", text: "Ya puedes instalar y ver a tus amigos" });
+  else if (st === "later") notify({ key: "steamre", icon: SHIELD_IC, title: "Steam se reconectará", text: "Cuando cierres el juego (reiniciarlo ahora lo cerraría)" });
+  else if (st === "failed") notify({ key: "steamre", icon: WIFI_OFF_IC, title: "Steam no terminó de reiniciar", text: "Ábrelo desde la Tienda o espera un momento" });
 });
 if (Host.has) { Host.call("net.state").then(d => { if (d) { NET.internet = d.internet !== false; NET.steam = d.steam !== false; paintNet(); } }).catch(() => {}); loadVpn(); }
 
@@ -3711,13 +4103,13 @@ function vpnView() {
 }
 
 const POWER = [["silent", "Silencioso", "13 W"], ["perf", "Rendimiento", "17 W"], ["turbo", "Turbo", "25 W"]];
-const sys = Object.assign({ brightness: 70, volume: 55, power: "perf", wifi: true, airplane: false }, store.get("sys", {}));
+const sys = Object.assign({ brightness: 70, volume: 55, power: "perf", wifi: true, airplane: false, autoBri: false }, store.get("sys", {}));
 const saveSys = () => store.set("sys", sys);
 /* Lo que manda Windows, sin los datos que no pudo leer ("Volumen null" en el menú). */
 function mergeSys(st) { for (const k in st) if (st[k] != null && k in sys) sys[k] = st[k]; }
 for (const k of ["brightness", "volume"]) if (typeof sys[k] !== "number" || !isFinite(sys[k])) sys[k] = k === "brightness" ? 70 : 55;
 const QM = { open: false, i: 0 };
-const qmRows = () => [
+const qmRowsClassic = () => [
   ...(media ? [{ k: "media", type: "media" }] : []),
   { k: "brightness", type: "slider", icon: QI.sun, label: "Brillo" },
   { k: "volume", type: "slider", icon: QI.vol, label: "Volumen" },
@@ -3766,8 +4158,9 @@ function mixIcon(m) {
   const u = mixIcons[g.appid];
   return `<img alt="" src="${esc(u || Art.placeholder(g))}"${u && Art.icons.has(u) ? ' class="appicon"' : ""}>`;
 }
-function renderQuick() {
+function renderQuickClassic() {
   const rows = qmRows(), q = $("#quick");
+  q.classList.remove("ns");
   const row = (r, i) => {
     const f = QM.i === i ? " focused" : "";
     if (r.type === "slider") { const off = r.k === "brightness" && QM.noBri, v = sys[r.k], ic = r.k === "volume" ? volIcon(v) : sunIcon(off ? 50 : v); return `<div class="qrow${f}${off ? " qoff" : ""}">${ic}<span class="qlab">${r.label}</span><span class="qbar"><i style="width:${off ? 0 : v}%"></i></span><span class="qval">${off ? "—" : v}</span></div>`; }
@@ -3784,7 +4177,7 @@ function renderQuick() {
   q.classList.remove("dense");
   const rowAt = (r, i) => row(r, i).replace('<div class="qrow', `<div data-qi="${i}" class="qrow`);
   q.innerHTML = `<div class="qhead"><span class="qclock clock">${clockText()}</span><span class="qb"><span class="batt">${Math.round(deviceBatt * 100)} % ${battSvg(deviceBatt)}</span><span>${battEstimate()}</span></span></div>
-    ${showDolby ? `<div class="dolby qdolby">${DOLBY_HTML}</div>` : ""}
+    ${showDolby ? `<div class="dolby qdolby${dolbyGold() ? " gold" : ""}">${dolbyHTML()}</div>` : ""}
     <div class="qrows">${qmGroups(rows).map(g => g.grp === "radio" ? `<div class="qpair${g.items.length === 3 ? " three" : ""}">${g.items.map(i => rowAt(rows[i], i)).join("")}</div>`
       : g.grp === "act" ? `<div class="qbtns">${g.items.map(i => `<div data-qi="${i}" class="qrow${QM.i === i ? " focused" : ""}">${rows[i].icon || ""}<span>${rows[i].label}</span></div>`).join("")}</div>`
       : g.items.map(i => rowAt(rows[i], i)).join("")).join("")}</div>
@@ -3799,7 +4192,7 @@ function renderQuick() {
 let qmDrag = null;
 function qmBarValue(bar, x) { const b = bar.getBoundingClientRect(); return clamp(Math.round((x - b.left) / b.width * 20) * 5, 0, 100); }
 function qmSetBar(r, v) {
-  if (r.type === "slider" && r.k === "brightness" && QM.noBri) return;
+  if (r.type === "slider" && r.k === "brightness" && (QM.noBri || sys.autoBri)) return;
   if (r.type === "slider") { if (sys[r.k] === v) return; sys[r.k] = v; applySys(r.k); }
   else if (r.type === "mix") { if (r.m.volume === v) return; r.m.volume = v; QM.mixTouched = Date.now(); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {}); }
   renderQuick();
@@ -3820,14 +4213,15 @@ function qmTouchSetup() {
   addEventListener("pointerup", e => { if (qmDrag && e.pointerId === qmDrag.id) { qmDrag = null; return; } });
   q.addEventListener("click", e => {
     if (!QM.open) return;
-    if (e.target.closest(".qhint .hint")) { const t = e.target.closest(".qhint .hint").textContent; return qmInput(/Cerrar/.test(t) ? "b" : /Aceptar/.test(t) ? "a" : "right"); }
+    if (e.target.closest(".qhint .hint")) { const t = e.target.closest(".qhint .hint").textContent; return qmInput(/Cerrar|Atrás/.test(t) ? "b" : /Aceptar/.test(t) ? "a" : "right"); }
     const el = e.target.closest("[data-qi]"); if (!el) return;
     const i = +el.dataset.qi, r = qmRows()[i]; if (!r) return;
+    if (e.target.closest(".nqbatt")) return;
     if (e.target.closest(".qbar") && (r.type === "slider" || r.type === "mix" || r.type === "media" && e.target.closest(".qmprog"))) return;   // ya lo hizo pointerdown
     QM.i = i;
     if (r.type === "media") {
       const mb = e.target.closest(".qmb");
-      if (mb) { QM.m = [...el.querySelectorAll(".qmb")].indexOf(mb); return qmInput("a"); }
+      if (mb) { QM.m = mb.dataset.m != null ? +mb.dataset.m : [...el.querySelectorAll(".qmb")].indexOf(mb); return qmInput("a"); }
       play("movelist"); return renderQuick();
     }
     if (r.type === "slider" || r.type === "mix") { play("movelist"); return renderQuick(); }
@@ -3880,6 +4274,8 @@ function liveQuick(full) {
       }
       if (Array.isArray(r.outputs)) QM.outs = r.outputs;
       if (typeof r.atmos === "boolean") ATMOS = r.atmos;
+      if (r.system && typeof r.system.autoBriOk === "boolean") QM.autoBriOk = r.system.autoBriOk;
+      if ("wifiName" in r) QM.ssid = r.wifiName || "";
     });
   }).catch(() => {});
 }
@@ -3914,7 +4310,7 @@ function setRadio(k, on) {
   }).catch(() => { Object.assign(sys, prev); toast("No se pudo cambiar"); })
     .finally(() => { QM.radioBusy--; saveSys(); applySys("radio"); if (QM.open) renderQuick(); });
 }
-function qmInput(k) {
+function qmInputClassic(k) {
   const rows = qmRows(), r = rows[QM.i], n = rows.length;
   if (k === "b") return closeQuick();
   const G = qmGroups(rows), gi = G.findIndex(g => g.items.includes(QM.i)), col = gi >= 0 ? G[gi].items.indexOf(QM.i) : 0;
@@ -3976,6 +4372,243 @@ function qmInput(k) {
   }
   play("bump");
 }
+/* ================= beta 1.0: menú rápido como en la Switch 2 =================
+   Una sola lista de arriba a abajo (cruceta ▲▼), y ◀▶ ajustan las barras o eligen el botón de la canción. Lo que habla con
+   Windows es lo mismo de antes (applySys, setRadio, vpnSet, mixer.set, media.cmd, quick.live): solo cambia cómo se ve y
+   cómo se navega. El menú de antes sigue disponible en Ajustes › Sistema › Menú rápido clásico. */
+const qmClassic = () => !!settings.quickClassic;
+const qmRows = () => qmClassic() ? qmRowsClassic() : qmRowsNS();
+function renderQuick() { return qmClassic() ? renderQuickClassic() : renderQuickNS(); }
+function qmInput(k) { return qmClassic() ? qmInputClassic(k) : qmInputNS(k); }
+const NQ = {
+  moon: '<svg class="qi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>',
+  wifi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2.5 9a14 14 0 0 1 19 0M5.8 12.6a9 9 0 0 1 12.4 0M9.2 16.1a4 4 0 0 1 5.6 0"/><circle cx="12" cy="19.4" r="1.3" fill="currentColor"/></svg>',
+  note: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M9 17.5a3 3 0 1 1-2-2.83V5l11-2v12.5a3 3 0 1 1-2-2.83V7.2l-7 1.3z"/></svg>'
+};
+const qmRowsNS = () => [
+  ...(media ? [{ k: "media", type: "media" }] : []),
+  { k: "hibernate", type: "act", icon: NQ.moon, label: "Hibernar" },
+  ...(QM.autoBriOk ? [{ k: "autobri", type: "val", label: "Brillo automático", help: "Ajusta el brillo según la luz del lugar." }] : []),
+  { k: "brightness", type: "slider" },
+  { k: "volume", type: "slider" },
+  ...(QM.mix || []).map(m => ({ k: "mix:" + m.exe, type: "mix", m })),
+  { k: "airplane", type: "val", label: "Modo avión", help: "Con el modo avión no puedes usar internet, mandos inalámbricos ni Bluetooth." },
+  { k: "wifi", type: "val", label: "Wi-Fi" },
+  ...(VPN.provider !== "none" ? [{ k: "vpn", type: "val", label: "VPN" }] : []),
+  { k: "sleep", type: "act", label: "Apagar…" },
+  { k: "settings", type: "act", label: "Ajustes" }
+];
+/* Valor que se ve a la derecha de cada fila (en color cuando está prendido). */
+function nqVal(r) {
+  if (r.k === "autobri") return [sys.autoBri ? "Sí" : "No", !!sys.autoBri];
+  if (r.k === "airplane") return [sys.airplane ? "Sí" : "No", !!sys.airplane];
+  if (r.k === "wifi") { if (!sys.wifi) return ["Apagado", false]; return [netOn() ? (QM.ssid || "Conectado") : navigator.onLine ? "Sin internet" : "Encendido", netOn()]; }
+  if (r.k === "vpn") return [VPN.busy ? "…" : vpnLabel(), vpnOn() && !VPN.busy];
+  return ["", false];
+}
+/* Barra con su bolita; la burbuja con el número solo se ve en la barra elegida. */
+const nqBar = (v, off) => `<span class="qbar nqbar"><i style="width:${off ? 0 : v}%"></i><u style="left:${off ? 0 : v}%"><em>${off ? "—" : v}</em></u></span>`;
+function nqMedia(f) {
+  const m = media, p = mediaPos(), pct = m.duration ? p / m.duration * 100 : 0;
+  const sub = [m.artist || m.album || "", m.app || ""].filter(Boolean).join(" · ");
+  const btns = mediaButtons().map((b, j) => j === 0 ? "" : `<span data-m="${j}" class="qmb${b.ok ? "" : " off"}${QM.m === j ? " sel" : ""}">${b.icon}</span>`).join("");
+  return `<div class="qrow nqmu${f}"><span class="qmart nqart" style="${m.art ? `background-image:url('${esc(m.art)}')` : ""}">${m.art ? "" : NQ.note}</span>
+    <span class="nqmtx"><b>${esc(m.title)}</b><span>${f && m.duration ? `<span class="mcur">${mmss(p)}</span> / ${mmss(m.duration)} · ` : ""}${esc(sub)}</span></span>
+    <span class="nqctl">${btns}</span>${m.duration ? `<span class="qmprog nqline"><span class="qbar"><i style="width:${pct}%"></i></span></span>` : ""}</div>`;
+}
+function renderQuickNS() {
+  const rows = qmRows(), q = $("#quick");
+  q.classList.add("ns"); q.classList.remove("dense", "dense2");
+  const list = $(".nqlist", q), keep = list ? list.scrollTop : 0;
+  const row = (r, i) => {
+    const f = QM.i === i ? " focused" : "", at = `data-qi="${i}"`;
+    if (r.type === "media") return nqMedia(f).replace('<div class="qrow', `<div ${at} class="qrow`);
+    if (r.type === "slider") {
+      const off = r.k === "brightness" && QM.noBri, auto = r.k === "brightness" && sys.autoBri, v = sys[r.k], ic = r.k === "volume" ? volIcon(v) : sunIcon(off ? 50 : v);
+      return `<div ${at} class="qrow nqsl${f}${off || auto ? " qoff" : ""}" aria-label="${r.k === "volume" ? "Volumen" : "Brillo"}">${ic}${nqBar(v, off)}</div>`;
+    }
+    if (r.type === "mix") { const m = r.m; return `<div ${at} class="qrow nqsl qmix nqmix${f}${m.volume <= 0 ? " muted" : ""}"><span class="mico">${mixIcon(m)}</span><span class="qlab">${esc(m.name)}</span>${nqBar(m.volume)}</div>`; }
+    if (r.type === "val") { const [t, on] = nqVal(r); return `<div ${at} class="qrow nqit${f}${VPN.busy && r.k === "vpn" ? " busy" : ""}"><span class="qlab">${r.label}</span><span class="nqv${on ? " on" : ""}">${esc(t)}</span></div>` + (f && r.help ? `<p class="nqhelp">${r.help}</p>` : ""); }
+    return `<div ${at} class="qrow nqit${f}">${r.icon || ""}<span class="qlab">${r.label}</span></div>`;
+  };
+  const b = Math.round(deviceBatt * 100), gold = settings.dolbyGold !== false;
+  q.innerHTML = `<div class="nqst"><span class="qclock clock">${clockText()}</span><span class="nqwifi"${sys.wifi && !sys.airplane && netOn() ? "" : ' style="opacity:.3"'}>${NQ.wifi}</span><button class="nqbatt" aria-label="Batería">${b} % ${battSvg(deviceBatt)}</button></div>
+    ${dolbyOn() ? `<div class="dolby qdolby${gold ? " gold" : ""}">${dolbyHTML()}</div>` : ""}
+    <div class="nqwrap"><div class="qrows nqlist">${rows.map(row).join("")}</div><i class="nqscroll"></i></div>
+    <div class="qhint nqfoot"><span class="nqdev"><span class="padsq">${$("#padsq").innerHTML}</span><span class="padicon ${padIconCls()}"></span></span><span class="hint"><span class="glyph">B</span>Atrás</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
+  const nl = $(".nqlist", q); nl.scrollTop = keep;
+  const fr = $(".nqlist .focused", q);
+  if (fr) { const h = fr.nextElementSibling && fr.nextElementSibling.classList.contains("nqhelp") ? fr.nextElementSibling : fr; fr.scrollIntoView({ block: "nearest" }); if (h !== fr) h.scrollIntoView({ block: "nearest" }); }
+  nqScrollbar();
+  $(".nqbatt", q).onclick = e => { e.stopPropagation(); battPop($(".nqbatt", q)); };
+}
+/* Rayita a la derecha que dice cuánto falta de la lista (solo si no cabe). */
+function nqScrollbar() {
+  const q = $("#quick"), l = $(".nqlist", q), s = $(".nqscroll", q); if (!l || !s) return;
+  const max = l.scrollHeight - l.clientHeight;
+  if (max <= 2) { s.style.display = "none"; return; }
+  const h = Math.max(30, l.clientHeight * l.clientHeight / l.scrollHeight);
+  s.style.display = ""; s.style.height = h + "px"; s.style.top = (l.scrollTop / max) * (l.clientHeight - h) + "px";
+}
+function qmInputNS(k) {
+  const rows = qmRows(), r = rows[QM.i], n = rows.length;
+  if (k === "b") return closeQuick();
+  if (!r) { QM.i = 0; return renderQuick(); }
+  if (k === "up" || k === "down") {
+    const j = QM.i + (k === "down" ? 1 : -1);
+    if (j < 0 || j >= n) return play("bump");
+    QM.i = j; play("move"); return renderQuick();
+  }
+  if (r.type === "media") {
+    if (k === "lb" || k === "rb") return mediaSeek((media ? mediaPos() : 0) + (k === "rb" ? 10 : -10));
+    if (k === "left" || k === "right") {
+      const opts = [1, 2, 3].filter(j => mediaButtons()[j].ok), at = opts.indexOf(QM.m), n2 = opts[(at < 0 ? opts.indexOf(2) : at) + (k === "right" ? 1 : -1)];
+      if (n2 == null) return play("bump");
+      QM.m = n2; play("move"); return renderQuick();
+    }
+    if (k === "a") { const b = mediaButtons()[QM.m]; if (!b || !b.ok) return play("bump"); play("select"); return b.run(); }
+    if (k === "y") { const b = mediaButtons()[0]; if (b.ok) { play("select"); b.run(); } return; }
+    return play("bump");
+  }
+  if (k === "left" || k === "right") {
+    const d = k === "right" ? 1 : -1;
+    if (r.type === "mix") {
+      const v = clamp(r.m.volume + d * 5, 0, 100); if (v === r.m.volume) return play("bump");
+      r.m.volume = v; QM.mixTouched = Date.now(); play("volume", v / 50); Host.call("mixer.set", { exe: r.m.exe, value: v }).catch(() => {});
+      return renderQuick();
+    }
+    if (r.type === "slider") {
+      if (r.k === "brightness" && QM.noBri) { play("bump"); return toast("Esta pantalla no deja cambiar el brillo desde Windows"); }
+      if (r.k === "brightness" && sys.autoBri) { play("bump"); return toast("Quita el brillo automático para moverlo a mano"); }
+      const v = clamp(sys[r.k] + d * 5, 0, 100); if (v === sys[r.k]) return play("bump");
+      sys[r.k] = v; play(r.k === "volume" ? "volume" : d > 0 ? "up" : "down", v / 50); applySys(r.k); return renderQuick();
+    }
+    return play("bump");
+  }
+  if (k !== "a") return play("bump");
+  if (r.type === "slider" || r.type === "mix") return play("bump");
+  if (r.k === "vpn") return vpnSet(!vpnOn());
+  if (r.k === "wifi" || r.k === "airplane") return setRadio(r.k, !sys[r.k]);
+  if (r.k === "autobri") return setAutoBright(!sys.autoBri);
+  if (OVERLAY && (r.k === "sleep" || r.k === "settings" || r.k === "hibernate")) {   // lo hace la pantalla principal
+    closeQuick(true); return setTimeout(() => Host.call("quick.action", { action: r.k }).catch(() => {}), 240);
+  }
+  if (r.k === "hibernate") { play("select"); closeQuick(true); return setTimeout(() => sleepConsole("hibernate"), 250); }
+  if (r.k === "sleep") { closeQuick(true); return setTimeout(powerMenu, 250); }
+  if (r.k === "settings") {
+    closeQuick(true);
+    if (mode === "game") goHome();
+    return setTimeout(() => { if (mode === "ui" && !(topView() && topView().isSettings)) openView(settingsView()); }, 380);
+  }
+  play("bump");
+}
+/* Brillo automático (solo aparece si la consola tiene sensor de luz). Windows decide el brillo mientras está prendido. */
+function setAutoBright(on) {
+  const prev = !!sys.autoBri;
+  sys.autoBri = on; saveSys(); play(on ? "on" : "off");
+  QM.sysTouched = Object.assign(QM.sysTouched || {}, { autoBri: Date.now() });
+  if (QM.open) renderQuick();
+  Host.call("system.autobright", { on }).then(r => { if (r && r.error) { sys.autoBri = prev; toast(r.error); } else if (r && typeof r.on === "boolean") sys.autoBri = r.on; })
+    .catch(() => { sys.autoBri = prev; toast("No se pudo cambiar"); })
+    .finally(() => { saveSys(); if (QM.open) renderQuick(); });
+}
+
+/* ================= beta 1.0: el mando que estás usando (abajo a la izquierda) =================
+   El ícono cambia al último mando con el que se presionó algo (la Ally, uno de Xbox o un DualSense) y los cuadritos
+   marcan su número de jugador. En la app lo avisa Scarlet ("pad.active"); en el navegador se mira qué mando se movió. */
+document.documentElement.style.setProperty("--xpad", `url("${XPADSRC}")`);
+document.documentElement.style.setProperty("--xbtn", `url("${document.getElementById("xbtnsrc").src}")`);
+document.documentElement.style.setProperty("--pspad", `url("${PSPADSRC}")`);
+function padIconCls() {
+  const p = state.pads.find(x => x.key === activePad);
+  const k = p ? padKind(p) : activeLayout || "ally";
+  return k === "xbox" ? "xbox" : k === "ps" ? "ps" : "";
+}
+function paintPadFoot() {
+  const cls = padIconCls(), p = state.pads.find(x => x.key === activePad), n = state.pads.length;
+  const player = p && p.player ? p.player : 1;
+  $$(".hints .padicon, #quick .padicon").forEach(e => { e.classList.toggle("xbox", cls === "xbox"); e.classList.toggle("ps", cls === "ps"); });
+  $$("#padsq i, #quick .padsq i").forEach((i, k) => i.classList.toggle("on", k === player - 1));
+  $("#padName").textContent = p ? p.name + (n > 1 ? ` · ${n} mandos` : "") : "ROG Xbox Ally X";
+}
+function setActivePad(key, layout) {
+  if (!key || (key === activePad && (layout || "") === activeLayout)) return;
+  activePad = key; activeLayout = layout || "";
+  paintPadFoot();
+}
+Events.on("pad.active", d => d && setActivePad(d.key, d.layout));
+/* Navegador: el mando cuyo estado cambió es el que se está usando (el 0 se toma como el de la consola). */
+const gpSig = {};
+function watchActiveGamepad(list) {
+  if (Host.has) return;
+  for (const g of list) {
+    const s = g.buttons.map(b => b.pressed ? 1 : 0).join("") + g.axes.map(a => Math.round(a * 3)).join(",");
+    if (gpSig[g.index] !== undefined && gpSig[g.index] !== s) {
+      const ps = /054c|dualsense|dualshock|playstation|wireless controller/i.test(g.id);
+      setActivePad(g.index === 0 ? "ally" : "gp" + g.index, g.index === 0 ? "" : ps ? "ps" : "xbox");
+    }
+    gpSig[g.index] = s;
+  }
+}
+
+/* ================= beta 1.0: tocar la batería ================= */
+function battPop(anchor) {
+  let p = $("#battpop");
+  if (p && p.classList.contains("show")) { p.classList.remove("show"); return; }
+  if (!p) { p = document.createElement("div"); p.id = "battpop"; document.body.append(p); }
+  const b = battInfo, plugged = deviceCharging || (b && (b.charging || b.plugged));
+  p.innerHTML = `<b>${Math.round(deviceBatt * 100)} %</b><span>${esc(battEstimate())}${plugged && deviceBatt < .995 ? "" : plugged ? " · conectada al cargador" : ""}</span>`;
+  const r = anchor.getBoundingClientRect();
+  p.style.top = r.bottom + rem() * .9 + "px"; p.style.right = Math.max(rem(), innerWidth - r.right - rem() * .4) + "px";
+  p.classList.add("show"); play("popup");
+  clearTimeout(battPop.t); battPop.t = setTimeout(() => p.classList.remove("show"), 4000);
+}
+const closeBattPop = () => { const p = $("#battpop"); if (p) p.classList.remove("show"); };
+$(".status .batt").addEventListener("click", e => { if (mode === "ui" && !QM.open) battPop(e.currentTarget); });
+
+/* ================= beta 1.0: opciones de energía =================
+   Hibernar, Reiniciar o Apagar. Si no eliges nada en 10 s, se hiberna sola (cualquier botón detiene la cuenta). */
+function powerMenu() {
+  if (mode !== "ui" || (topView() && topView().isPower)) return;
+  const opts = [
+    { k: "hibernate", icon: NQ.moon.replace(' class="qi"', ""), label: "Hibernar", sub: "Guarda todo lo abierto; al prender sigues donde te quedaste" },
+    { k: "restart", icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v5h-5"/></svg>', label: "Reiniciar", sub: "Cierra todo y vuelve a arrancar la consola" },
+    { k: "shutdown", icon: QI.power.replace(' class="qi"', ""), label: "Apagar", sub: "" }];
+  const SECS = 10;
+  const v = {
+    cls: "dialog", isPower: true, i: 0, left: SECS, hints: [["B", "Cancelar"], ["A", "Aceptar"]],
+    render(el) {
+      el.innerHTML = `<div class="dbox pwbox"><h3>Opciones de energía</h3>${opts.map((o, i) => `<button class="pwrow fi" data-i="${i}">${o.icon}<span><b>${o.label}</b>${o.sub ? `<span>${o.sub}</span>` : ""}</span></button>`).join("")}
+        <div class="pwcount"><span></span><i><u></u></i></div></div>`;
+      fis(el).forEach(b => b.onclick = () => this.pick(opts[+b.dataset.i].k));
+      this.paint(); this.t = setInterval(() => { if (!el.isConnected) return clearInterval(this.t); this.left--; this.paint(); if (this.left <= 0) { clearInterval(this.t); this.pick("hibernate"); } }, 1000);
+    },
+    paint() {
+      const c = $(".pwcount", this.el); if (!c) return;
+      if (this.left == null) { c.style.visibility = "hidden"; return; }
+      $("span", c).textContent = `Se hibernará sola en ${this.left} s si no eliges nada`;
+      $("u", c).style.width = (this.left / SECS * 100) + "%";
+    },
+    stop() { if (this.left != null) { clearInterval(this.t); this.left = null; this.paint(); } },
+    onKey(k) { this.stop(); return false; },
+    onB() { clearInterval(this.t); closeView(); return true; },
+    pick(k) {
+      clearInterval(this.t); if (topView() === this) closeView();
+      if (k === "hibernate") return setTimeout(() => sleepConsole("hibernate"), 300);
+      if (k === "restart") { if (Host.has) Host.call("system.restart").catch(() => {}); else toast("Prototipo: aquí se reiniciaría el equipo"); return; }
+      if (Host.has) Host.call("system.shutdown").catch(() => {}); else toast("Prototipo: aquí se apagaría el equipo");
+    },
+    items() { return fis(this.el); }
+  };
+  openView(v);
+}
+Events.on("ui.hibernate", () => { setTimeout(() => sleepConsole("hibernate"), 200); });
+
+/* ================= beta 1.0: Dolby dorado ================= */
+document.documentElement.style.setProperty("--dlogo", `url("${DOLBY_HTML.match(/src="([^"]+)"/)[1]}")`);
+const dolbyGold = () => settings.dolbyGold !== false;
+const dolbyHTML = () => dolbyGold() ? '<span class="dgw"><span class="dgt">Powered by</span><i class="glg" role="img" aria-label="Dolby Atmos"></i></span>' : DOLBY_HTML;
+
 /* ================= alpha 0.4: reproduciendo ahora (Apple Music y cualquier app que lo reporte a Windows) ================= */
 const MI = {
   shuffle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h4v4M4 20 20 4M20 16v4h-4M14.5 14.5 20 20M4 4l5 5"/></svg>',
@@ -4012,7 +4645,7 @@ function mediaPos() {
 const mmss = s => !isFinite(s) || s < 0 ? "0:00" : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 function mediaCard(f) {
   const m = media, p = mediaPos(), pct = m.duration ? p / m.duration * 100 : 0;
-  const btns = mediaButtons().map((b, j) => `<span class="qmb ${b.cls}${b.ok ? "" : " off"}${QM.m === j ? " sel" : ""}">${b.icon}</span>`).join("");
+  const btns = mediaButtons().map((b, j) => `<span data-m="${j}" class="qmb ${b.cls}${b.ok ? "" : " off"}${QM.m === j ? " sel" : ""}">${b.icon}</span>`).join("");
   return `<div class="qrow qmedia${f}"><div class="qmtop"><span class="qmart" style="${m.art ? `background-image:url('${esc(m.art)}')` : ""}"></span>
     <span class="qmtxt"><b>${esc(m.title)}</b><span>${esc(m.artist || m.album || "")}</span><em>${esc(m.app || "")}</em></span></div>
     ${m.duration ? `<div class="qmprog"><span class="mcur">${mmss(p)}</span><span class="qbar"><i style="width:${pct}%"></i></span><span>${mmss(m.duration)}</span></div>` : ""}
@@ -4119,7 +4752,7 @@ function guideUp() {
 }
 Events.on("guide.hold", d => { if (QM.open) { if (!(d && d.hidden)) closeQuick(); } else openQuick(); });
 /* botón Xbox (app): 1 toque = menú rápido */
-Events.on("quick.toggle", () => QM.open ? closeQuick() : openQuick());
+Events.on("quick.toggle", () => { if (!QM.open && notifAction()) return; QM.open ? closeQuick() : openQuick(); });
 Events.on("quick.open", () => { lastActivity = performance.now(); dimmed = false; mode = "ui"; QM.open = false; openQuick(); });
 Events.on("quick.close", () => { if (QM.open) closeQuick(false, "botón Xbox"); else Host.call("quick.close", { why: "botón Xbox" }).catch(() => {}); });
 /* Botones que manda la app cuando el juego se quedó con el foco: así el menú siempre se puede usar y cerrar. */
@@ -4178,9 +4811,10 @@ function saveCapture(type, hostItem) {
   const item = hostItem || { url: shotSvg(g || { appid: 7, name: "Captura" }, Math.floor(Math.random() * 50)), path: `captura_${Date.now()}.png`, game: g ? g.name : "Sistema", date: `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} · ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`, type };
   if (!albumData) albumData = Host.has ? [] : mockAlbum();
   albumData.unshift(item);
-  notify({ icon: item.type === "video" && !item.thumb ? I.album : `<img alt="" src="${esc(item.thumb || item.url)}">`, image: item.type === "video" ? "" : (item.path || ""), letter: "▣", sound: type === "video" ? "recstop" : "capture", title: type === "video" ? "Video guardado" : "Captura guardada", text: type === "video" ? "Últimos 30 segundos · en el Álbum" : "Guardada en el Álbum" });
+  notifyCapture(item);
   if (!hostItem) Host.call("capture.take", { type }).catch(() => {});
 }
+Events.on("capture.saving", d => { if (d && d.path) notifyCapture(d, true); });
 Events.on("capture.saved", d => {
   if (/ \(recorte\)/.test(d.path || "")) return;            // los recortes los agrega el editor, sin aviso de "últimos 30 s"
   if (albumData && albumData.some(x => x.path === d.path)) return;
@@ -4192,6 +4826,7 @@ const DIM_OPTS = [["Nunca", 0], ["15 s (prueba)", 15e3], ["1 min", 6e4], ["3 min
 const SLEEP_OPTS = [["Nunca", 0], ["30 s (prueba)", 3e4], ["5 min", 3e5], ["10 min", 6e5], ["30 min", 18e5]];
 if (settings.dimAfter == null) settings.dimAfter = 18e4;
 if (settings.sleepAfter == null) settings.sleepAfter = 6e5;
+for (const [k, d] of [["nFriendOn", "all"], ["nFriendPlay", "all"], ["nInGame", "all"]]) if (settings[k] == null) settings[k] = d;
 let lastActivity = performance.now(), dimmed = false;
 function activity() {
   lastActivity = performance.now();
@@ -4363,7 +4998,7 @@ Events.on("display.changed", d => setTvMode(!!d.tv));
 
 /* ================= entrada: teclado, mando, táctil ================= */
 function input(k) {
-  Snd.ensure();
+  Snd.ensure(); closeBattPop();
   if (activity()) return;                 // la primera pulsación solo quita la atenuación
   if (QM.open) return k === "guide" ? closeQuick() : qmInput(k);
   if (k === "guide") return guidePress();
@@ -4414,7 +5049,7 @@ function pollPads(t) {
   const list = navigator.getGamepads && !(OVERLAY && Host.has && QM.src === "host") ? [...navigator.getGamepads()].filter(Boolean) : [];
   const p = list[0];
   if (p) {
-    lastPad = p;
+    lastPad = p; watchActiveGamepad(list);
     const B = i => list.some(g => g.buttons[i] && (g.buttons[i].pressed || g.buttons[i].value > .5));
     const ax = [0, 1].map(i => list.reduce((m, g) => Math.abs(g.axes[i] || 0) > Math.abs(m) ? g.axes[i] : m, 0));
     const dirs = { up: B(12) || ax[1] < -.55, down: B(13) || ax[1] > .55, left: B(14) || ax[0] < -.55, right: B(15) || ax[0] > .55 };
@@ -4539,11 +5174,11 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
   const info = Host.has ? await Host.call("app.info").catch(() => null) : null;
   DOLBY = !!(info && info.dolby); paintDolby();
   if (info && info.version) APP_VERSION = String(info.version).replace(/\.0$/, "");
-  if (info && info.updated) setTimeout(() => notify({ icon: I.gear, title: "Scarlet se actualizó", text: `Ya tienes la alpha ${APP_VERSION}` }), 3000);
-  if (info && info.rolledBack) setTimeout(() => notify({ icon: I.gear, title: "Se regresó a la versión anterior", text: `La alpha ${info.rolledBack} no abrió bien; sigues con la alpha ${APP_VERSION}` }), 3000);
+  if (info && info.updated) setTimeout(() => notify({ icon: I.gear, title: "Scarlet se actualizó", text: `Ya tienes la ${verName(APP_VERSION)}` }), 3000);
+  if (info && info.rolledBack) setTimeout(() => notify({ icon: I.gear, title: "Se regresó a la versión anterior", text: `La ${verName(info.rolledBack)} no abrió bien; sigues con la ${verName(APP_VERSION)}` }), 3000);
   if (Host.has && Date.now() - (settings.updChecked || 0) > 864e5) setTimeout(() => Host.call("update.check").then(r => {
     settings.updChecked = Date.now(); saveSettings();
-    if (r && r.available) { updState.available = true; updState.latest = r.latest; notify({ icon: I.gear, title: "Hay una actualización", text: `alpha ${r.latest} · Ajustes › Buscar actualizaciones` }); }
+    if (r && r.available) { updState.available = true; updState.latest = r.latest; notify({ icon: I.gear, title: "Hay una actualización", text: `${verName(r.latest)} · Ajustes › Sistema` }); }
   }).catch(() => {}), 15000);
   if (Host.has && settings.bootLast) {   // al encender: directo al último juego (solo si la consola acaba de arrancar)
     const last = info && info.startup && !state.running && games.find(g => g.kind !== "app" && g.installed && !isHidden(g));

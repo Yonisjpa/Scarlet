@@ -87,7 +87,8 @@ sealed class ShareServer
         return null;
     }
 
-    static string WifiName()
+    /// <summary>Nombre de la red Wi-Fi a la que está conectada (null si no hay).</summary>
+    internal static string WifiName()
     {
         try
         {

@@ -206,6 +206,57 @@ sealed class SystemService
         return others.Count > 0 ? others.All(r => r.State != RadioState.On) : radios.All(r => r.State != RadioState.On);
     }
 
+    // ───── Brillo automático (beta 1.0) ─────
+    // Solo si la consola tiene sensor de luz. Es la opción de energía «Habilitar brillo adaptable» de Windows
+    // (powercfg SUB_VIDEO ADAPTBRIGHT), con valor aparte para cargador (AC) y batería (DC): se cambian las dos.
+
+    static bool? lightSensor;
+    public static bool HasLightSensor()
+    {
+        if (lightSensor is bool b) return b;
+        try { lightSensor = Windows.Devices.Sensors.LightSensor.GetDefault() != null; }
+        catch (Exception ex) { Log.Error("sensor de luz", ex); lightSensor = false; }
+        Log.Write("sensor de luz: " + (lightSensor == true ? "sí hay" : "no hay"));
+        return lightSensor == true;
+    }
+
+    static string PowerCfg(string args)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo("powercfg.exe", args) { RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+            using var p = Process.Start(psi);
+            string o = p.StandardOutput.ReadToEnd();
+            p.WaitForExit(5000);
+            return p.ExitCode == 0 ? o : null;
+        }
+        catch (Exception ex) { Log.Error("powercfg " + args, ex); return null; }
+    }
+
+    /// <summary>¿Está prendido el brillo automático? (el valor de la fuente actual: cargador o batería). null si no se sabe.</summary>
+    public static bool? GetAutoBright()
+    {
+        string o = PowerCfg("/q SCHEME_CURRENT SUB_VIDEO ADAPTBRIGHT");
+        if (o == null) return null;
+        var m = Regex.Matches(o, @"0x([0-9a-fA-F]{8})");
+        if (m.Count < 2) return null;
+        bool ac = Convert.ToInt32(m[m.Count - 2].Groups[1].Value, 16) != 0, dc = Convert.ToInt32(m[m.Count - 1].Groups[1].Value, 16) != 0;
+        return SystemInformation.PowerStatus.PowerLineStatus == PowerLineStatus.Online ? ac : dc;
+    }
+
+    public static object SetAutoBright(bool on)
+    {
+        if (!HasLightSensor()) return new { error = "Esta consola no tiene sensor de luz" };
+        string v = on ? "1" : "0";
+        bool ok = PowerCfg($"/setacvalueindex SCHEME_CURRENT SUB_VIDEO ADAPTBRIGHT {v}") != null
+               & PowerCfg($"/setdcvalueindex SCHEME_CURRENT SUB_VIDEO ADAPTBRIGHT {v}") != null;
+        PowerCfg("/setactive SCHEME_CURRENT");
+        var now = GetAutoBright();
+        Log.Write($"brillo automático → {(on ? "sí" : "no")} (Windows dice: {(now == null ? "?" : now == true ? "sí" : "no")})");
+        if (!ok || now == null) return new { error = "Windows no dejó cambiar el brillo automático" };
+        return new { on = now.Value };
+    }
+
     // ───── Estado para el menú rápido ─────
 
     public async Task<Dictionary<string, object>> StateAsync()
@@ -217,6 +268,12 @@ sealed class SystemService
             ["brightnessOk"] = bri != null,   // false = esta pantalla no deja cambiarlo (TV, monitor externo)
             ["volume"] = AudioMixer.GetMaster() ?? GetVolume(),   // el real: 0 si está silenciado
             ["power"] = GetPower()
+        });
+        await Task.Run(() =>
+        {
+            bool sensor = HasLightSensor();
+            st["autoBriOk"] = sensor;
+            if (sensor && GetAutoBright() is bool ab) st["autoBri"] = ab;
         });
         var radios = await Radios();
         if (radios != null && radios.Count > 0)

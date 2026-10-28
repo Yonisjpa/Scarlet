@@ -100,6 +100,24 @@ sealed class PadService
         return n.Length == 0 || n.Contains("hid") || n.Contains("dispositivo de juego") || n.Contains("game controller") || n.Contains("controlador de juego") || n.Contains("gamepad");
     }
 
+    /// <summary>
+    /// Clave (la misma de List) y dibujo del mando que se está usando. null si es la "otra cara" HID de un mando Xbox
+    /// (el mismo mando visto dos veces): así el ícono no parpadea.
+    /// </summary>
+    public static Dictionary<string, object> ActiveOf(WGI.RawGameController c)
+    {
+        try
+        {
+            var raws = WGI.RawGameController.RawGameControllers.ToList();
+            var integ = raws.FirstOrDefault(IsAsus) ?? raws.FirstOrDefault(r => !r.IsWireless);
+            if (c == integ || IsAsus(c)) return new Dictionary<string, object> { ["key"] = "ally", ["layout"] = "" };
+            string layout = Layout(c);
+            if (layout == "generic" && GenericHid(c) && raws.Any(r => r != integ && r != c && Layout(r) == "xbox")) return null;
+            return new Dictionary<string, object> { ["key"] = Key(c), ["layout"] = layout };
+        }
+        catch (Exception ex) { Log.Error("mando activo", ex); return null; }
+    }
+
     public List<Dictionary<string, object>> List(bool remember = true)
     {
         var list = new List<Dictionary<string, object>>();

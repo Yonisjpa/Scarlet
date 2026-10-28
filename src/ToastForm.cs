@@ -5,23 +5,29 @@ namespace XboxScarlet;
 
 /// <summary>
 /// Notificación arriba a la izquierda (fondo negro, borde blanco, letras blancas) que se dibuja encima del juego.
-/// No roba el foco ni recibe clics.
+/// Igual que las del menú (beta 1.0): salen de una en una, con una línea abajo que se va acabando; las capturas llevan
+/// su miniatura ancha (con ▶ y duración si es video). No roba el foco ni recibe clics.
 /// </summary>
 sealed class ToastForm : Form
 {
     static readonly List<ToastForm> live = new();
+    static readonly Queue<ToastForm> waiting = new();
+    const double LIFE_MS = 4600;
     static float K => Math.Max(0.75f, (Screen.PrimaryScreen?.Bounds.Height ?? 1080) / 1080f) * 1.1f;
 
-    readonly string title, text, letter;
+    readonly string title, text, letter, dur;
     readonly Color badge;
     readonly Image image;
+    readonly bool wide, video, saving;
     readonly System.Windows.Forms.Timer anim = new() { Interval = 16 };
-    readonly DateTime born = DateTime.Now;
+    DateTime born = DateTime.Now;
     bool closing;
+    double life = 1;
 
-    ToastForm(string title, string text, string letter, Color badge, Image image)
+    ToastForm(string title, string text, string letter, Color badge, Image image, bool wide, bool video, string dur, bool saving)
     {
         this.title = title ?? ""; this.text = text ?? ""; this.letter = letter ?? ""; this.badge = badge; this.image = image;
+        this.wide = wide; this.video = video; this.dur = dur ?? ""; this.saving = saving;
         FormBorderStyle = FormBorderStyle.None;
         ShowInTaskbar = false;
         TopMost = true;
@@ -29,7 +35,7 @@ sealed class ToastForm : Form
         BackColor = Color.FromArgb(10, 10, 12);
         DoubleBuffered = true;
         Opacity = 0;
-        Size = new Size((int)(440 * K), (int)(84 * K));
+        Size = new Size((int)((wide ? 480 : 440) * K), (int)(84 * K));
         anim.Tick += (_, _) => Step();
     }
 
@@ -77,14 +83,40 @@ sealed class ToastForm : Form
             g.DrawPath(pen, border);
 
         int pad = (int)(12 * k), size = Height - pad * 2;
-        var icon = new Rectangle(pad, pad, size, size);
+        var icon = wide ? new Rectangle(pad, pad, (int)(size * 16 / 9.0), size) : new Rectangle(pad, pad, size, size);
         using (var ip = Round(icon, (int)(9 * k)))
         {
-            if (image != null)
+            if (image != null || wide)
             {
                 g.SetClip(ip);
-                g.DrawImage(image, Cover(image.Size, icon));
+                if (image != null) g.DrawImage(image, Cover(image.Size, icon)); else g.FillRectangle(Brushes.Black, icon);
+                if (saving) using (var dim = new SolidBrush(Color.FromArgb(110, 0, 0, 0))) g.FillRectangle(dim, icon);
                 g.ResetClip();
+                if (video && !saving)
+                {
+                    // ▶ al centro y la duración abajo a la derecha
+                    float r = 11 * k, cx = icon.X + icon.Width / 2f, cy = icon.Y + icon.Height / 2f;
+                    using (var c = new SolidBrush(Color.FromArgb(150, 0, 0, 0))) g.FillEllipse(c, cx - r, cy - r, r * 2, r * 2);
+                    g.FillPolygon(Brushes.White, new[] { new PointF(cx - 3.5f * k, cy - 5.5f * k), new PointF(cx - 3.5f * k, cy + 5.5f * k), new PointF(cx + 6 * k, cy) });
+                    if (dur.Length > 0)
+                    {
+                        using var df = new Font("Segoe UI", 10.5f * k, FontStyle.Bold, GraphicsUnit.Pixel);
+                        var ds = g.MeasureString(dur, df);
+                        var dr = new RectangleF(icon.Right - ds.Width - 5 * k, icon.Bottom - ds.Height - 3 * k, ds.Width + 2 * k, ds.Height);
+                        using (var db = new SolidBrush(Color.FromArgb(160, 0, 0, 0))) g.FillRectangle(db, dr);
+                        g.DrawString(dur, df, Brushes.White, dr.X + 1 * k, dr.Y);
+                    }
+                }
+                if (saving)
+                {
+                    // barrita que va y viene: todavía se está guardando
+                    float bx = icon.X + 6 * k, bw = icon.Width - 12 * k, by = icon.Bottom - 8 * k, bh = 4 * k;
+                    using (var bb = new SolidBrush(Color.FromArgb(80, 255, 255, 255))) g.FillRectangle(bb, bx, by, bw, bh);
+                    double ph = ((DateTime.Now - born).TotalMilliseconds % 1200) / 1200.0;
+                    float sx = bx + (float)(ph * 1.4 - 0.4) * bw, sw = bw * 0.4f;
+                    var seg = RectangleF.Intersect(new RectangleF(sx, by, sw, bh), new RectangleF(bx, by, bw, bh));
+                    using (var ab = new SolidBrush(Color.FromArgb(34, 214, 227))) if (seg.Width > 0) g.FillRectangle(ab, seg);
+                }
             }
             else
             {
@@ -105,6 +137,9 @@ sealed class ToastForm : Form
         using var sub = new SolidBrush(Color.FromArgb(205, 255, 255, 255));
         g.DrawString(title, tf, Brushes.White, new RectangleF(x, pad + 3 * k, w, 26 * k), one);
         g.DrawString(text, sf, sub, new RectangleF(x, pad + 31 * k, w, 24 * k), one);
+        if (!saving)
+            using (var lb = new SolidBrush(Color.FromArgb(34, 214, 227)))
+                g.FillRectangle(lb, 0, Height - 3 * k, (float)(Width * life), 3 * k);   // la línea que se va acabando
     }
 
     static Rectangle Cover(Size img, Rectangle box)
@@ -120,7 +155,9 @@ sealed class ToastForm : Form
         if (!closing)
         {
             Opacity = Math.Min(1, age / 220);
-            if (age > 4600) closing = true;
+            life = Math.Max(0, 1 - age / LIFE_MS);
+            Invalidate();
+            if (age > (saving ? 30000 : LIFE_MS)) closing = true;
         }
         else
         {
@@ -136,7 +173,19 @@ sealed class ToastForm : Form
         Close();
         image?.Dispose();
         Dispose();
+        ShowNext();
+    }
+
+    /// <summary>Una a la vez: cuando se va la de ahora, sale la siguiente.</summary>
+    static void ShowNext()
+    {
+        if (live.Count > 0 || waiting.Count == 0) return;
+        var t = waiting.Dequeue();
+        t.born = DateTime.Now;
+        live.Add(t);
         Arrange();
+        t.Show();
+        t.anim.Start();
     }
 
     static void Arrange()
@@ -151,7 +200,8 @@ sealed class ToastForm : Form
     }
 
     /// <summary>Muestra una notificación. Debe llamarse en el hilo de la ventana principal.</summary>
-    public static void Pop(string title, string text, string letter, string color, string imagePath)
+    public static void Pop(string title, string text, string letter, string color, string imagePath,
+        bool wide = false, bool video = false, string dur = null, bool saving = false)
     {
         Image img = null;
         try
@@ -160,18 +210,18 @@ sealed class ToastForm : Form
             {
                 using var fs = File.OpenRead(imagePath);
                 using var src = Image.FromStream(fs);
-                int w = 160, h = Math.Max(1, (int)(160.0 * src.Height / src.Width));
+                int w = wide ? 320 : 160, h = Math.Max(1, (int)((double)w * src.Height / src.Width));
                 img = new Bitmap(src, new Size(w, h));
             }
         }
         catch (Exception ex) { Log.Error("miniatura", ex); img = null; }
 
-        var t = new ToastForm(title, text, string.IsNullOrEmpty(letter) ? "•" : letter, ParseColor(color), img);
-        live.Add(t);
-        while (live.Count > 3) live[0].Kill();
-        Arrange();
-        t.Show();
-        t.anim.Start();
+        // "Guardando video…" → "Video guardado": la nueva reemplaza a la que sigue en pantalla.
+        if (!saving && video) foreach (var s in live.Where(x => x.saving).ToList()) s.closing = true;
+        var t = new ToastForm(title, text, string.IsNullOrEmpty(letter) ? "•" : letter, ParseColor(color), img, wide, video, dur, saving);
+        waiting.Enqueue(t);
+        while (waiting.Count > 5) waiting.Dequeue().Dispose();
+        ShowNext();
     }
 
     /// <summary>Acepta "#rrggbb" y "hsl(h, s%, l%)" (los que usa la interfaz).</summary>

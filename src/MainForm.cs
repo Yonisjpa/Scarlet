@@ -186,6 +186,7 @@ sealed class MainForm : Form
             pads.Disconnected += d => Emit("pad.disconnected", d);
             pads.Found += (id, name) => Emit("bt.found", new { id, name });
             album.NewCapture += d => Emit("capture.saved", d);
+            album.Saving += d => Ui(() => Emit("capture.saving", d));
             album.Watch();
 
             xin.GuideSingle += () => Ui(OnGuideSingle);
@@ -194,6 +195,7 @@ sealed class MainForm : Form
             xin.GuideDown += () => Ui(OnGuideDown);
             // Con el menú rápido abierto, los botones del mando le llegan aunque el juego se quede con el foco.
             xin.PadKey += k => Ui(() => quick?.SendKey(k));
+            xin.PadActive += c => { var a = PadService.ActiveOf(c); if (a != null) Ui(() => EmitAll("pad.active", a)); };
             if (quick != null) quick.Hidden += () => xin.ForwardKeys = false;
             xin.Start();
 
@@ -536,10 +538,12 @@ sealed class MainForm : Form
                 string action = P.S(p, "action");
                 if (action == "settings") { BringUiToFront(); Emit("ui.settings", null); }
                 else if (action == "sleep") { BringUiToFront(); Emit("ui.sleep", null); }
+                else if (action == "hibernate") { BringUiToFront(); Emit("ui.hibernate", null); }
                 return true;
             }
             case "overlay.notify":
-                ToastForm.Pop(P.S(p, "title"), P.S(p, "text"), P.S(p, "letter"), P.S(p, "color"), P.S(p, "image"));
+                ToastForm.Pop(P.S(p, "title"), P.S(p, "text"), P.S(p, "letter"), P.S(p, "color"), P.S(p, "image"),
+                    wide: P.B(p, "wide"), video: P.B(p, "video"), dur: P.S(p, "dur"), saving: P.B(p, "saving"));
                 return true;
             case "rumble": xin.Rumble(P.D(p, "strong"), P.D(p, "weak"), (int)P.L(p, "ms")); return true;
 
@@ -558,6 +562,11 @@ sealed class MainForm : Form
                     }
                 });
                 return true;
+            case "system.restart":
+                Log.Write("reiniciando el equipo");
+                Process.Start(new ProcessStartInfo("shutdown.exe", "/r /t 0") { CreateNoWindow = true, UseShellExecute = false });
+                return true;
+            case "system.autobright": return await Task.Run(() => SystemService.SetAutoBright(P.B(p, "on")));
             case "system.shutdown":
                 Log.Write("apagando el equipo");
                 Process.Start(new ProcessStartInfo("shutdown.exe", "/s /t 0") { CreateNoWindow = true, UseShellExecute = false });
@@ -583,6 +592,7 @@ sealed class MainForm : Form
                 var bat = full ? Timed("batería", BatteryInfo, 2500) : null;
                 var med = full ? Timed("música", () => media.State, 800) : null;
                 var stt = full ? sys.StateAsync() : null;
+                var ssid = full ? Timed("wifi", ShareServer.WifiName, 1500) : null;
                 // Siempre (cada 2 s): volumen y brillo reales, por si los cambias con los botones de la consola con el menú abierto.
                 var vol = !full ? Timed("volumen", AudioMixer.GetMaster, 800) : null;
                 var bri = !full ? Timed("brillo", SystemService.GetBrightness, 1200) : null;
@@ -590,6 +600,7 @@ sealed class MainForm : Form
                 if (await atm is (true, var av)) r["atmos"] = av;
                 if (bat != null && await bat is (true, var bv)) r["battery"] = bv;
                 if (med != null && await med is (true, var mdv)) r["media"] = mdv;
+                if (ssid != null && await ssid is (true, var sn)) r["wifiName"] = sn;
                 if (stt != null) try { if (await Task.WhenAny(stt, Task.Delay(1500)) == stt) r["system"] = await stt; } catch (Exception ex) { Log.Error("menú (sistema)", ex); }
                 if (vol != null)
                 {
@@ -1262,7 +1273,7 @@ sealed class MainForm : Form
         var outs = AudioMixer.Outputs();
         var diag = new Dictionary<string, object>
         {
-            ["Versión"] = "alpha " + Application.ProductVersion,
+            ["Versión"] = "beta " + Application.ProductVersion,
             ["Juego en curso"] = tracker != null && tracker.Active ? $"{NameOfApp(tracker.AppId)} · {(tracker.IsReady ? "listo" : "abriendo")} · {gameExe ?? "proceso sin detectar"}" : "ninguno",
             ["Apps con sonido"] = AudioMixer.Describe() is string d && d.Length > 0 ? d : "ninguna",
             ["Audio espacial"] = spatial,

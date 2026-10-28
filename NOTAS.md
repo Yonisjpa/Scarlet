@@ -1,3 +1,32 @@
+Novedades de la beta 1.0
+
+Menú rápido (botón Xbox), ahora como el de la Switch 2:
+- Una sola lista de arriba a abajo: la canción (si suena algo), Hibernar, Brillo automático (solo si la consola tiene sensor de luz), brillo, volumen, volumen de cada app, Modo avión, Wi-Fi (con el nombre de tu red), VPN, Apagar… y Ajustes.
+- ◀▶ mueven las barras; el número sale en una burbujita solo en la barra que eliges. En la canción, ◀▶ eligen anterior / pausa / siguiente.
+- Arriba: hora, Wi-Fi, batería y «Powered by Dolby Atmos» (cuando está en uso). Abajo: el mando que estás usando, B Atrás y A Aceptar.
+- Sigue tiñéndose con los colores de la carátula. Lo que habla con Windows (brillo, volumen, Wi-Fi, avión, VPN, música, encima del juego, táctil) es lo mismo de antes.
+- ¿Algo raro? Ajustes › Sistema › Menú rápido clásico regresa el de antes.
+
+Ajustes, como los de la Switch 2:
+- Categorías a la izquierda (Usuario y cuentas, Mandos y vibración, Audio, Pantalla, Temas, Notificaciones, Energía, Red y VPN, Gestión de datos, Sistema) y sus opciones a la derecha, con interruptores y la ayuda debajo de la opción elegida.
+- Temas: Claro, Oscuro o Automático (el mismo que Windows).
+
+Notificaciones:
+- Salen de una en una, con una línea abajo que se va acabando.
+- Las que tienen algo que hacer lo muestran con el botón Xbox: un toque mientras se ve (en el menú) abre el perfil del amigo, los logros, el juego descargado o la captura.
+- Capturas con su miniatura de verdad; los videos con ▶ y su duración, y «Guardando video…» mientras la Game Bar lo termina.
+- Encima del juego se ven igual (sin la acción).
+- Lo que no se mostró mientras jugabas llega en un solo aviso, «Mientras jugabas», al volver al menú.
+- Ajustes › Notificaciones: descargas, logros, batería, amigos (Todos / Mejores amigos / Nadie), qué se ve encima del juego (Todos / Solo importantes / Ninguno) y el sonido.
+- Mejores amigos: en Amigos, Y les pone ★ y quedan primero.
+
+Además:
+- «Powered by Dolby Atmos» en dorado y blanco, con un brillo suave (menú rápido y pantalla de carga). Se puede volver al blanco en Ajustes › Audio.
+- El ícono de abajo a la izquierda cambia al mando que estás usando (la Ally, uno de Xbox o un DualSense) y los cuadritos marcan su número de jugador.
+- Tocar la batería muestra el porcentaje y cuánto le queda.
+- Opciones de energía: Hibernar, Reiniciar o Apagar; si no eliges nada en 10 s, se hiberna sola.
+- Opciones de descarga: «Cancelar todas (N)» cuando hay varias.
+
 Novedades de la alpha 0.4.29
 
 Descargas, ahora leídas como lo hace Steam (de su propio código):

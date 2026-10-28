@@ -16,7 +16,7 @@ static class Program
         }
         if (!first) { show.Set(); return; }   // ya está abierta: que se ponga al frente
 
-        Log.Write($"--- Scarlet alpha {Application.ProductVersion} {string.Join(" ", args)}");
+        Log.Write($"--- Scarlet beta {Application.ProductVersion} {string.Join(" ", args)}");
         // Modo seguro: si la versión nueva ya falló dos veces al abrir, se regresa a la anterior y esta copia no sigue.
         if (UpdateService.StartupCheck()) return;
         CursorHider.Restore();   // por si la vez anterior se cerró de golpe con el puntero escondido

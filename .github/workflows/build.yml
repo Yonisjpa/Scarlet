@@ -38,6 +38,9 @@ jobs:
           "version=$v" >> $env:GITHUB_OUTPUT
           if (-not $info -or $info -like '*$(*') { $info = $v }
           "info=$info" >> $env:GITHUB_OUTPUT
+          $disp = $info -replace '\.0$',''
+          $stage = if ($disp -like '0.*') { 'alpha' } else { 'beta' }
+          "title=Scarlet $stage $disp" >> $env:GITHUB_OUTPUT
 
       - name: Empaquetar
         shell: pwsh
@@ -58,4 +61,4 @@ jobs:
           $tag = "v${{ steps.ver.outputs.version }}"
           gh release view $tag 2>$null
           if ($LASTEXITCODE -eq 0) { Write-Host "La versión $tag ya existe; no se publica."; exit 0 }
-          gh release create $tag Scarlet-win-x64.zip --title "Scarlet alpha ${{ steps.ver.outputs.info }}" --notes-file NOTAS.md --target $env:GITHUB_SHA
+          gh release create $tag Scarlet-win-x64.zip --title "${{ steps.ver.outputs.title }}" --notes-file NOTAS.md --target $env:GITHUB_SHA

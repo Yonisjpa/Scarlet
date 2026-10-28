@@ -33,6 +33,8 @@ sealed class XInputService : IDisposable
     public volatile bool ForwardKeys;
     bool wgiNoted;
     public event Action<string> PadKey;
+    /// <summary>El mando con el que se acaba de presionar algo (para el ícono de abajo a la izquierda).</summary>
+    public event Action<WGI.RawGameController> PadActive;
     static readonly (ushort bit, string key)[] KeyMap =
     {
         (0x0001, "up"), (0x0002, "down"), (0x0004, "left"), (0x0008, "right"),
@@ -52,7 +54,7 @@ sealed class XInputService : IDisposable
 
     // Respaldo del botón Xbox: en Windows.Gaming.Input el botón Xbox no tiene etiqueta propia; se busca el que Windows
     // marque como "Mode" (el botón de inicio en mandos genéricos). Además sirve para anotar en el log qué mandos hay.
-    sealed class WgiPad { public WGI.RawGameController C; public int Guide; public bool[] B; public WGI.GameControllerSwitchPosition[] S; public double[] A; public string L; }
+    sealed class WgiPad { public WGI.RawGameController C; public int Guide; public bool[] B; public WGI.GameControllerSwitchPosition[] S; public double[] A; public string L; public string Sig; }
     List<WgiPad> wgi = new();
 
     void RefreshWgi()
@@ -68,7 +70,8 @@ sealed class XInputService : IDisposable
                 labels.Add(l.ToString());
                 if ((int)l == 23 /* Mode */ && guide < 0) guide = i;
             }
-            list.Add(new WgiPad { C = c, Guide = guide, B = new bool[c.ButtonCount], S = new WGI.GameControllerSwitchPosition[c.SwitchCount], A = new double[c.AxisCount], L = string.Join("/", labels) });
+            var old = wgi.FirstOrDefault(p => p.C == c);
+            list.Add(new WgiPad { Sig = old?.Sig, C = c, Guide = guide, B = new bool[c.ButtonCount], S = new WGI.GameControllerSwitchPosition[c.SwitchCount], A = new double[c.AxisCount], L = string.Join("/", labels) });
         }
         string desc = string.Join(", ", list.Select(p => $"{p.C.DisplayName} ({p.C.HardwareVendorId:x4}:{p.C.HardwareProductId:x4}, {p.B.Length} botones [{p.L}], inicio={(p.Guide >= 0 ? p.Guide.ToString() : "no")})"));
         if (desc != wgiDesc) { wgiDesc = desc; Log.Write("wgi: " + (desc.Length > 0 ? desc : "sin mandos")); }
@@ -115,6 +118,31 @@ sealed class XInputService : IDisposable
         }
         catch { }
         return b;
+    }
+
+    /// <summary>
+    /// Cuál mando se está usando: el que cambió desde la última lectura (botones, cruceta o un stick que se movió de
+    /// verdad). Se revisa ~15 veces por segundo; solo avisa cuando cambia de mando.
+    /// </summary>
+    WGI.RawGameController lastActive;
+    void CheckActive()
+    {
+        foreach (var p in wgi)
+        {
+            try
+            {
+                p.C.GetCurrentReading(p.B, p.S, p.A);
+                var sb = new StringBuilder(p.B.Length + p.S.Length + p.A.Length * 2);
+                foreach (var x in p.B) sb.Append(x ? '1' : '0');
+                foreach (var x in p.S) sb.Append((int)x);
+                foreach (var x in p.A) sb.Append((int)Math.Round(x * 4)).Append(',');   // ruido del stick no cuenta
+                string sig = sb.ToString();
+                bool changed = p.Sig != null && sig != p.Sig;
+                p.Sig = sig;
+                if (changed && p.C != lastActive) { lastActive = p.C; try { PadActive?.Invoke(p.C); } catch (Exception ex) { Log.Error("mando activo", ex); } }
+            }
+            catch { }
+        }
     }
 
     const ushort START = 0x0010, BACK = 0x0020;
@@ -164,6 +192,7 @@ sealed class XInputService : IDisposable
             {
                 if (tick % 120 == 0) RefreshWgi();   // cada 2 s
                 if (!guide && WgiGuide()) { guide = true; if (!down) Log.Write("wgi: botón Xbox presionado"); }
+                if (tick % 4 == 0 && PadActive != null) CheckActive();
             }
             catch (Exception ex) { if (tick % 600 == 0) Log.Error("wgi", ex); }
             tick++;
