@@ -247,11 +247,12 @@ const dlItem = i => ({ a: Number(pick(i, 'appid', 'appID', 'nAppID', 'unAppID', 
   p: !!pick(i, 'paused', 'bPaused'), q: Number(pick(i, 'queue_index', 'nQueueIndex', 'queueIndex') ?? -1), b: Number(pick(i, 'downloaded_bytes', 'nBytesDownloaded', 'bytes_downloaded')) || 0,
   t: Number(pick(i, 'total_bytes', 'nBytesTotal', 'bytes_total')) || 0, inst: (Number(pick(i, 'buildid', 'nBuildID', 'build_id')) || 0) > 0,
   g: sumProg(((pick(i, 'update_type_info') || []).find(u => u && u.has_update) || (pick(i, 'update_type_info') || [])[0] || i)) });
-// log-9: el avance llega en fases (progress: 7 entradas) + overall_percent_complete (0–100) y su tiempo restante.
-// Los bytes que se están moviendo pueden estar en cualquier fase (al copiar desde otra PC de la casa no es la primera).
+// El avance llega en 7 fases fijas (EAppUpdateProgress de Steam): 0 verificar instalados, 1 reservar espacio, 2 descargar,
+// 3 desempacar, 4 verificar, 5 copiar, 6 acomodar; y overall_percent_complete (0–100), que es lo que Steam muestra.
+// "X de Y" sale de la fase 2: la de reservar espacio llega al 100 % casi al instante (foto de Jhon con la 0.4.27).
 const sumProg = u => {
   const ph = (Array.isArray(u && u.progress) ? u.progress : []).map(x => ({ d: Number(pick(x, 'bytes_in_progress', 'bytes_done')) || 0, t: Number(pick(x, 'bytes_total')) || 0, e: Number(pick(x, 'estimated_time_remaining_sec')) }));
-  const best = ph.filter(x => x.t > 0).sort((a, b) => b.d - a.d || b.t - a.t)[0] || { d: 0, t: 0, e: -1 };
+  const best = (ph.length > 2 ? ph[2] : ph.filter(x => x.t > 0 && x.d < x.t)[0] || ph.find(x => x.t > 0)) || { d: 0, t: 0, e: -1 };
   const pct = Number(pick(u, 'overall_percent_complete')), eta = Number(pick(u, 'overall_estimated_time_remaining_sec'));
   return { pct: isFinite(pct) ? pct : -1, eta: isFinite(eta) && eta >= 0 ? eta : (isFinite(best.e) ? best.e : -1), d: best.d, t: best.t || Math.max(0, ...ph.map(x => x.t)) };
 };
@@ -458,6 +459,7 @@ return { og, lan: String(pick(ov, 'lan_peer_hostname') || ''), paused: !!pick(ov
     /// <summary>Una descarga de Steam: avance (0–1), bytes, tiempo restante (s, -1 si no se sabe), velocidad (B/s) y fase.</summary>
     public sealed record Dl(long AppId, double Progress, string Kind, string State, double Bytes, double Total, double Eta, double Rate, string Phase, string Peer = "");
     static bool itemLogged, ovLogged;
+    static DateTime lastDlLog;
     /// <summary>Scarlet pausó todas las descargas (para jugar o desde el menú de descarga).</summary>
     public static volatile bool PausedAll;
 
@@ -479,8 +481,7 @@ return { og, lan: String(pick(ov, 'lan_peer_hostname') || ''), paused: !!pick(ov
         long cur = (long)N(v, "cur");
         double rate = N(v, "rate");
         string ovState = S(v, "state"), lan = S(v, "lan");
-        // log-9: el avance real es overall_percent_complete (0–100) con su tiempo restante; los bytes que se mueven
-        // pueden estar en cualquier fase (copiando desde otra PC de la casa no es la primera). Ver sumProg en DlNorm.
+        // El avance real es overall_percent_complete (0–100) con su tiempo restante; los bytes, los de cada fase (ver DlNorm).
         static (double pct, double eta, double d, double t) G(JsonElement o, string k)
         {
             if (!o.TryGetProperty(k, out var g) || g.ValueKind != JsonValueKind.Object) return (-1, -1, 0, 0);
@@ -491,16 +492,27 @@ return { og, lan: String(pick(ov, 'lan_peer_hostname') || ''), paused: !!pick(ov
         if (v.TryGetProperty("ph", out var pa) && pa.ValueKind == JsonValueKind.Array)
             foreach (var x in pa.EnumerateArray()) ph.Add((N(x, "done"), N(x, "total"), N(x, "eta", -1)));
         var live = new List<Dl>(); var done = new List<long>();
-        // Avance, bytes y tiempo con lo que haya: porcentaje de Steam primero, luego bytes.
+        // Avance, bytes y tiempo con lo que haya: porcentaje de Steam primero, luego los bytes de la descarga.
         static (double p, double b, double t, double eta) Mix((double pct, double eta, double d, double t) g, double b, double t)
         {
             if (g.t > 0) t = g.t;
             if (g.d > 0) b = g.d;
             double p = g.pct > 0 ? g.pct / 100 : t > 0 ? b / t : 0;
-            if (b <= 0 && t > 0 && p > 0) b = p * t;   // copiando por la red de la casa los bytes no vienen en las fases
+            if (b <= 0 && t > 0 && p > 0) b = p * t;   // copiando por la red de la casa a veces no vienen los bytes
             return (Math.Clamp(p, 0, 1), b, t, g.eta);
         }
-        bool installing = System.Text.RegularExpressions.Regex.IsMatch(ovState, "commit|stag|verif|install", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // Qué está haciendo Steam (update_state) y en cuál de sus 7 fases van los bytes de ese paso.
+        var (phase, idx) = ovState switch
+        {
+            "Preallocating" => ("prealloc", 1),
+            "Validating" or "VerifyingFiles" => ("verify", 0),
+            "Verifying" => ("verify", 4),
+            "Unpacking" or "Patching" or "Installing" => ("install", 3),
+            "Finalizing" or "Committing" => ("install", 6),
+            "Transferring" => ("lan", 2),
+            _ => (lan.Length > 0 ? "lan" : "download", 2)
+        };
+        (double done, double total, double eta) step = idx < ph.Count ? ph[idx] : (0d, 0d, -1d);
         if (v.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
         foreach (var i in items.EnumerateArray())
         {
@@ -511,7 +523,7 @@ return { og, lan: String(pick(ov, 'lan_peer_hostname') || ''), paused: !!pick(ov
             int q = (int)N(i, "q", -1);
             if (!on && q < 0 && a != cur) continue;   // actualizaciones programadas para después: no se muestran
             var (p, b, t, eta) = Mix(G(i, "g"), N(i, "b"), N(i, "t"));
-            string phase = "download";
+            string itPhase = "download";
             if (a == cur)
             {
                 on = true;
@@ -521,23 +533,25 @@ return { og, lan: String(pick(ov, 'lan_peer_hostname') || ''), paused: !!pick(ov
                 if (m.b > 0) b = m.b;
                 if (m.t > 0) t = m.t;
                 if (og.eta >= 0) eta = og.eta;
-                if (installing || (t > 0 && b >= t))   // ya bajó todo: está instalando / acomodando archivos
-                {
-                    phase = "install";
-                    var inst = ph.Skip(1).FirstOrDefault(x => x.total > 0 && x.done < x.total);
-                    if (eta < 0 && inst.total > 0) eta = inst.eta;
-                }
-                else if (lan.Length > 0) phase = "lan";
-                if (eta < 0) eta = ph.Where(x => x.eta >= 0).Select(x => x.eta).DefaultIfEmpty(-1).Max();
+                itPhase = phase;
+                // Reservando espacio, desempacando o verificando: "X de Y" es de ese paso (como lo muestra Steam).
+                if (phase is "prealloc" or "install" or "verify" && step.total > 0) { b = step.done; t = step.total; }
+                if (eta < 0 && step.eta >= 0) eta = step.eta;
             }
             string state = B(i, "p") || allPaused ? "paused" : on ? "active" : "queued";
-            live.Add(new Dl(a, Math.Clamp(p, 0, 1), B(i, "inst") ? "Actualizando" : "Descargando", state, b, t, eta, a == cur ? rate : 0, phase, a == cur ? lan : ""));
+            live.Add(new Dl(a, Math.Clamp(p, 0, 1), B(i, "inst") ? "Actualizando" : "Descargando", state, b, t, eta, a == cur ? rate : 0, itPhase, a == cur ? lan : ""));
         }
         // Si la lista no trae el juego pero el avance general sí dice cuál está bajando, se usa ese.
         if (cur > 0 && !live.Any(x => x.AppId == cur) && !done.Contains(cur) && (og.t > 0 || og.pct > 0))
         {
             var m = Mix(og, 0, 0);
-            live.Add(new Dl(cur, m.p, "Descargando", allPaused ? "paused" : "active", m.b, m.t, m.eta, rate, installing ? "install" : lan.Length > 0 ? "lan" : "download", lan));
+            live.Add(new Dl(cur, m.p, "Descargando", allPaused ? "paused" : "active", m.b, m.t, m.eta, rate, phase, lan));
+        }
+        // Cada minuto, en el log, lo que Steam manda de la descarga en curso (para afinar con datos reales).
+        if (cur > 0 && DateTime.Now - lastDlLog > TimeSpan.FromSeconds(60))
+        {
+            lastDlLog = DateTime.Now;
+            Log.Write($"Steam: avance de {cur}: estado {ovState}, {og.pct} %, fases " + string.Join(" ", ph.Select(x => x.total > 0 ? $"{x.done / 1e9:0.##}/{x.total / 1e9:0.##}" : "-")) + (lan.Length > 0 ? $", desde {lan}" : ""));
         }
         return (live, done, true);
     }

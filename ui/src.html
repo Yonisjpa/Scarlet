@@ -1721,7 +1721,7 @@ function diagView() {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "0.4.27";
+let APP_VERSION = "0.4.28";
 const updState = { available: false, latest: null };
 function updateView() {
   return {
@@ -2811,6 +2811,8 @@ function dlTitle(d) {
   if (d.st === "canceling") return "Cancelando la instalación…";
   if (d.st === "paused") return "Descarga en pausa";
   if (d.st === "queued") return "En la cola de descargas";
+  if (d.phase === "prealloc") return "Reservando espacio en disco…";
+  if (d.phase === "verify") return "Verificando archivos…";
   if (d.phase === "install") return "Instalando archivos…";
   if (d.phase === "lan") return d.peer ? `Transfiriendo desde ${d.peer}…` : "Transfiriendo por la red de la casa…";
   return d.kind === "Actualizando" ? "Descargando actualización…" : "Descargando datos…";
