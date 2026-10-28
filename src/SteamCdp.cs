@@ -249,7 +249,7 @@ const dlItem = i => ({ a: Number(pick(i, 'appid', 'appID', 'nAppID', 'unAppID', 
   g: sumProg(((pick(i, 'update_type_info') || []).find(u => u && u.has_update) || (pick(i, 'update_type_info') || [])[0] || i)) });
 // El avance llega en 7 fases fijas (EAppUpdateProgress de Steam): 0 verificar instalados, 1 reservar espacio, 2 descargar,
 // 3 desempacar, 4 verificar, 5 copiar, 6 acomodar; y overall_percent_complete (0–100), que es lo que Steam muestra.
-// "X de Y" sale de la fase 2: la de reservar espacio llega al 100 % casi al instante (foto de Jhon con la 0.4.27).
+// «X de Y» sale de la fase 2: la de reservar espacio llega al 100 % casi al instante (foto de Jhon con la 0.4.27).
 const sumProg = u => {
   const ph = (Array.isArray(u && u.progress) ? u.progress : []).map(x => ({ d: Number(pick(x, 'bytes_in_progress', 'bytes_done')) || 0, t: Number(pick(x, 'bytes_total')) || 0, e: Number(pick(x, 'estimated_time_remaining_sec')) }));
   const best = (ph.length > 2 ? ph[2] : ph.filter(x => x.t > 0 && x.d < x.t)[0] || ph.find(x => x.t > 0)) || { d: 0, t: 0, e: -1 };
