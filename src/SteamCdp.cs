@@ -501,6 +501,67 @@ return { ov: dlOv(L.ov), items: L.items.map(dlItem).filter(i => i.a > 0), others
         return (live, done, true);
     }
 
+    // ───── Nube de Steam (beta 1.1) ─────
+    // Al cerrar un juego Steam sube la partida a la nube; mientras, no deja abrir otro (la ventanita «Iniciando...» que
+    // Scarlet escondía). Se lee igual que la biblioteca de Steam: el estado de cada juego (display_status) y su porcentaje
+    // (status_percentage). Además se escuchan los pasos de "abrir juego" de Steam: si alguno habla de la nube o Steam
+    // pide que elijas algo (conflicto de partidas), Scarlet lo muestra en vez de esconderlo.
+    const string CloudJs = @"(() => {
+const w = window;
+if (!w.__scarletCloud) {
+  const c = w.__scarletCloud = { act: {}, ask: {}, ev: [] };
+  const hook = name => { try { SteamClient.Apps[name]((...a) => {
+    let s = ''; try { s = JSON.stringify(a).slice(0, 300); } catch (e) {}
+    c.ev.push(name.replace('RegisterForGameAction', '') + ' ' + s); if (c.ev.length > 12) c.ev.shift();
+    const id = String(a.find(x => (typeof x === 'string' || typeof x === 'number') && /^\d{3,}$/.test(String(x)) && String(x).length < 11) ?? '');
+    if (!id) return;
+    if (name === 'RegisterForGameActionUserRequest') c.ask[id] = { at: Date.now(), s };
+    else c.act[id] = { at: Date.now(), s, cloud: /cloud|sync/i.test(s), end: name === 'RegisterForGameActionEnd' };
+  }); } catch (e) {} };
+  ['RegisterForGameActionStart', 'RegisterForGameActionTaskChange', 'RegisterForGameActionUserRequest', 'RegisterForGameActionEnd', 'RegisterForGameActionShowError'].forEach(hook);
+}
+const c = w.__scarletCloud, out = [];
+for (const id of __IDS__) {
+  let st = -1, pct = -1;
+  try { const o = appStore.GetAppOverviewByAppID(Number(id)); const pc = o && (o.per_client_data || [])[0];
+        if (pc) { st = Number(pc.display_status); pct = Number(pc.status_percentage); } } catch (e) {}
+  const a = c.act[id] || {}, q = c.ask[id];
+  out.push({ id: Number(id), st, pct, act: !!a.cloud && !a.end && Date.now() - a.at < 120000, ask: !!q && Date.now() - q.at < 60000 });
+}
+return { apps: out, ev: c.ev.splice(0) };
+})()";
+
+    /// <summary>Estado de la nube de esos juegos. Syncing: Steam sube o baja su partida; Pct: 0–100 o -1 si no lo dice.</summary>
+    static readonly Dictionary<long, int> lastSt = new();
+    public sealed record Cloud(long AppId, bool Syncing, double Pct, bool Error, bool Ask);
+    const int DisplaySynchronizing = 8, DisplayCloudError = 34, DisplayCloudOutOfDate = 35;
+
+    public static async Task<List<Cloud>> CloudAsync(IEnumerable<long> ids)
+    {
+        var list = ids.Distinct().ToList();
+        if (list.Count == 0) return new();
+        JsonElement v;
+        try { v = await EvalAsync(CloudJs.Replace("__IDS__", "[" + string.Join(",", list.Select(i => "'" + i + "'")) + "]"), 3000); }
+        catch { return null; }
+        if (v.ValueKind != JsonValueKind.Object) return null;
+        // Para afinar con el log: lo que Steam cuenta al abrir / cerrar juegos (una línea por aviso).
+        if (v.TryGetProperty("ev", out var ev) && ev.ValueKind == JsonValueKind.Array)
+            foreach (var e in ev.EnumerateArray()) Log.Write("Steam (abrir juego): " + e.GetString());
+        var r = new List<Cloud>();
+        if (v.TryGetProperty("apps", out var apps) && apps.ValueKind == JsonValueKind.Array)
+            foreach (var a in apps.EnumerateArray())
+            {
+                int st = (int)N(a, "st", -1);
+                double pct = N(a, "pct", -1);
+                long aid = (long)N(a, "id");
+                // Para afinar: cada cambio de estado de ese juego en la biblioteca de Steam (8 = sincronizando la nube).
+                if (!lastSt.TryGetValue(aid, out int was) || was != st) { lastSt[aid] = st; Log.Write($"Steam: {aid} en la biblioteca: estado {st}{(pct >= 0 ? $" ({pct:0} %)" : "")}"); }
+                bool sync = st == DisplaySynchronizing || B(a, "act");
+                r.Add(new Cloud((long)N(a, "id"), sync, sync && pct >= 0 && pct <= 100 ? pct : -1, st == DisplayCloudError || st == DisplayCloudOutOfDate, B(a, "ask")));
+            }
+        return r;
+    }
+
     static double N(JsonElement o, string k, double def = 0) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.Number ? x.GetDouble() : def;
     static bool B(JsonElement o, string k) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.True;
     static string S(JsonElement o, string k) => o.TryGetProperty(k, out var x) && x.ValueKind == JsonValueKind.String ? x.GetString() : "";

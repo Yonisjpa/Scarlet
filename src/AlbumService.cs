@@ -18,11 +18,24 @@ sealed class AlbumService
 
     public AlbumService(SteamService steam) { this.steam = steam; }
 
+    /// <summary>
+    /// Dónde buscar: siempre Videos › Capturas (en Windows en español la carpeta se llama "Captures" y se ve como "Capturas";
+    /// se revisan las dos rutas por si Videos está en OneDrive) y las capturas de Steam de todas las cuentas de esta consola.
+    /// </summary>
     public List<string> Roots()
     {
-        var l = new List<string> { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), "Captures") };
-        if (steam.SteamPath != null && steam.AccountId > 0)
-            l.Add(Path.Combine(steam.SteamPath, "userdata", steam.AccountId.ToString(), "760", "remote"));
+        var l = new List<string>();
+        void Add(string p) { if (!string.IsNullOrEmpty(p) && !l.Any(x => string.Equals(x.TrimEnd('\\'), p.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))) l.Add(p); }
+        string vids = Environment.GetFolderPath(Environment.SpecialFolder.MyVideos);
+        string home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Videos");
+        foreach (var v in new[] { vids, home })
+            if (!string.IsNullOrEmpty(v)) { Add(Path.Combine(v, "Captures")); Add(Path.Combine(v, "Capturas")); }
+        if (steam.SteamPath != null)
+        {
+            string ud = Path.Combine(steam.SteamPath, "userdata");
+            if (steam.AccountId > 0) Add(Path.Combine(ud, steam.AccountId.ToString(), "760", "remote"));
+            try { if (Directory.Exists(ud)) foreach (var d in Directory.GetDirectories(ud)) Add(Path.Combine(d, "760", "remote")); } catch { }
+        }
         return l;
     }
 
@@ -43,7 +56,7 @@ sealed class AlbumService
             }
             catch (Exception ex) { Log.Error("álbum " + r, ex); }
         }
-        return files.OrderByDescending(f => f.LastWriteTime).Take(400).Select(f => Item(f.FullName)).ToList();
+        return files.GroupBy(f => f.FullName, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).OrderByDescending(f => f.LastWriteTime).Take(600).Select(f => Item(f.FullName)).ToList();
     }
 
     public Dictionary<string, object> Item(string path)
@@ -75,13 +88,16 @@ sealed class AlbumService
         return d;
     }
 
+    readonly HashSet<string> watching = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Vigila las carpetas (se puede llamar varias veces: solo agrega las nuevas, p. ej. Steam ya dio tu cuenta).</summary>
     public void Watch()
     {
         foreach (var r in Roots())
         {
             try
             {
-                if (!Directory.Exists(r)) continue;
+                if (!Directory.Exists(r) || !watching.Add(r)) continue;
                 var w = new FileSystemWatcher(r) { IncludeSubdirectories = true, NotifyFilter = NotifyFilters.FileName };
                 w.Created += (_, e) =>
                 {

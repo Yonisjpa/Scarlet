@@ -57,9 +57,14 @@ sealed class GameTracker
     HashSet<IntPtr> before = new();
     readonly HashSet<IntPtr> pushed = new();
 
-    public void Begin(long appid, bool steamGame, string dir, bool slowStart = false)
+    // Apps y juegos de la Xbox Store: solo cuentan ventanas de SU paquete (antes cualquier ventana nueva servía y se tomaban
+    // SteamGridDB for Xbox, Command Center o SCSKiller como si fueran el juego). Los juegos de Xbox pueden correr desde XboxGames.
+    string ownDir; bool xboxGames;
+    bool Owns(string path) => ownDir == null || Paths.Under(path, ownDir) || (xboxGames && path.Contains(@"\XboxGames", StringComparison.OrdinalIgnoreCase));
+
+    public void Begin(long appid, bool steamGame, string dir, bool slowStart = false, string owner = null, bool xboxGame = false)
     {
-        AppId = appid; isSteam = steamGame; installDir = dir; slow = slowStart;
+        AppId = appid; isSteam = steamGame; installDir = dir; slow = slowStart; ownDir = string.IsNullOrEmpty(owner) ? null : owner; xboxGames = xboxGame;
         start = DateTime.Now; steamDialogSince = DateTime.MinValue;
         cand = hwnd = IntPtr.Zero; pid = 0; deadTicks = 0; IsReady = false; releasedTopMost = false; seen = false;
         pushed.Clear();
@@ -82,6 +87,9 @@ sealed class GameTracker
         timer.Start();
         Log.Write($"juego ya abierto al iniciar: {appid} hwnd={hwnd}");
     }
+
+    /// <summary>Steam está subiendo / bajando una partida de la nube: el juego todavía no puede abrir; se sigue esperando.</summary>
+    public void KeepWaiting() { if (Active && !IsReady && (DateTime.Now - start).TotalSeconds > 30) start = DateTime.Now.AddSeconds(-30); }
 
     public void Stop()
     {
@@ -156,6 +164,7 @@ sealed class GameTracker
             string exe = Path.GetFileName(path);
             if (exe.Length == 0 || Excluded.Contains(exe) || exe.Equals("Scarlet.exe", StringComparison.OrdinalIgnoreCase)) continue;
             if (!string.IsNullOrEmpty(installDir) && !Paths.Under(path, installDir)) continue;
+            if (!Owns(path)) continue;
             pushed.Add(h);
             Log.Write($"la ventana de {exe} «{Native.Title(h)}» quedó detrás; se trae al frente");
             Native.ForceForeground(h);
@@ -167,9 +176,22 @@ sealed class GameTracker
     {
         if (!Native.IsWindowVisible(h) || Native.IsIconic(h) || Native.IsToolWindow(h)) return false;
         if (exe.Length > 0 && Excluded.Contains(exe)) return false;
-        if (!isSteam) return string.IsNullOrEmpty(installDir) || (exe.Length > 0 && Paths.Under(path, installDir));   // apps / juegos de Xbox
+        if (!isSteam) return (string.IsNullOrEmpty(installDir) || (exe.Length > 0 && Paths.Under(path, installDir))) && Owns(path);   // apps / juegos de Xbox
         if (exe.Length > 0 && !string.IsNullOrEmpty(installDir) && Paths.Under(path, installDir)) return true;
-        return steam.RunningAppId() == AppId;   // juegos con launcher propio o protegidos por anticheat
+        // Juegos con launcher propio o protegidos por anticheat: una ventana fuera de su carpeta cuenta solo si su proceso
+        // nació después de lanzar (SCSKiller, que ya estaba abierto, se tomó una vez como Stellar Blade).
+        return steam.RunningAppId() == AppId && StartedAfterLaunch(h);
+    }
+
+    bool StartedAfterLaunch(IntPtr h)
+    {
+        try
+        {
+            Native.GetWindowThreadProcessId(h, out uint p);
+            using var pr = Process.GetProcessById((int)p);
+            return pr.StartTime >= start.AddSeconds(-2);
+        }
+        catch { return true; }   // sin permiso para verlo: como antes
     }
 
     static bool Covers(IntPtr h)
@@ -211,6 +233,8 @@ sealed class GameTracker
                 // Sin ventana por un momento pero con su proceso vivo: sigue abierto (se está recreando la ventana o está
                 // congelado). Solo cuentan como cerradas las apps de la Store que quedan dormidas sin ninguna ventana.
                 else if (pid != 0 && ProcessAlive(pid) && !SharedHost(pid) && !DormantStoreApp(pid)) alive = true;
+                // Apple Music / Spotify esconden su ventana al ir al menú y siguen sonando: no se dan por cerradas.
+                else if (pid != 0 && ProcessAlive(pid) && AudioFocus.IsMusic(Path.GetFileNameWithoutExtension(Native.ProcessPath(pid) ?? ""))) alive = true;
             }
         }
         else if (pid != 0) alive = ProcessAlive(pid) && !SharedHost(pid);
@@ -255,6 +279,7 @@ sealed class GameTracker
         timer.Interval = 1000;
         timer.Start();
         Log.Write($"el juego {appid} ya estaba abierto: se reanuda en vez de lanzarlo otra vez ({Native.Describe(window)})");
+        if (!Native.IsWindowVisible(window) || Native.IsIconic(window)) Native.ShowWindowAsync(window, 9 /* SW_RESTORE */);
         return true;
     }
 
@@ -267,6 +292,18 @@ sealed class GameTracker
         {
             string path = Native.WindowProcessPath(h, out _);
             if (!Paths.Under(path ?? "", dir) || IsHelper(path) || !Native.WindowOpen(h)) continue;
+            long a = Native.Area(h);
+            if (a > bestArea) { bestArea = a; best = h; }
+        }
+        if (best != IntPtr.Zero) return best;
+        // Escondida o minimizada (al despertar de hibernar, algunos juegos en pantalla completa quedan así): igual es el
+        // juego; si no se toma, Scarlet lo lanzaba otra vez encima del que seguía abierto.
+        var all = new List<IntPtr>();
+        Native.EnumWindows((h, _) => { all.Add(h); return true; }, IntPtr.Zero);
+        foreach (var h in all)
+        {
+            string path = Native.WindowProcessPath(h, out _);
+            if (!Paths.Under(path ?? "", dir) || IsHelper(path) || !Native.IsWindow(h) || Native.IsToolWindow(h) || Native.Title(h).Length == 0 || (Native.Area(h) < 200_000 && !Native.IsIconic(h))) continue;
             long a = Native.Area(h);
             if (a > bestArea) { bestArea = a; best = h; }
         }

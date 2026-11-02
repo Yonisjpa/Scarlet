@@ -442,8 +442,11 @@ static class AudioMixer
             if (ok > 0 && ok == vols.Count) return;
             // Alguna sesión ya no existe (la app se cerró o abrió otra): se vuelven a buscar una vez.
         }
-        Log.Write($"mezclador: {exe} no tiene sonido en ninguna salida; la barra no tiene qué mover");
+        if (exe != lastSilentExe || DateTime.Now - lastSilentAt > TimeSpan.FromMinutes(1))   // una vez, no en cada paso de la barra
+            Log.Write($"mezclador: {exe} no tiene sonido en ninguna salida; la barra no tiene qué mover");
+        lastSilentExe = exe; lastSilentAt = DateTime.Now;
     }
+    static string lastSilentExe; static DateTime lastSilentAt;
 
     public static int ResetAll() => AudioThread.Run(ResetAllCore, 0);
 

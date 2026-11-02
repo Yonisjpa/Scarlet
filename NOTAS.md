@@ -1,3 +1,31 @@
+Novedades de la beta 1.1
+
+Juegos externos (Ajustes › Juegos externos):
+- Agrega cualquier juego o programa de tu PC: un .exe, un acceso directo (.lnk) o un .url (emuladores, otras tiendas). Se elige con un explorador de archivos hecho para el mando.
+- Se abre como cualquier juego: pantalla de carga, «Jugando», menú rápido encima y horas jugadas (las cuenta Scarlet).
+- En sus opciones: cambiar nombre (el teclado ya tiene mayúsculas), ícono y portada (SteamGridDB, el ícono del programa o una imagen tuya), parámetros de arranque, cambiar el archivo y quitarlo de Scarlet (no se borra nada de tu PC).
+
+Nube de Steam:
+- Cuando Steam sube o baja la partida de un juego, se ve en su mosaico como una descarga con la barra NARANJA (con su porcentaje si Steam lo da) y al terminar avisa «Partida guardada en la nube».
+- Mientras se sincroniza, Scarlet espera a que el juego abra (antes se rendía al minuto).
+- Si Steam te pregunta algo al abrir un juego (por ejemplo, qué partida conservar), ahora se ve en vez de quedar escondido.
+
+Menú rápido:
+- Fondo al 50 % para ver el juego detrás (también con los colores de la carátula). Textos, íconos y barras siguen sólidos. Se puede apagar en Ajustes › Sistema › Fondo transparente.
+
+Álbum:
+- Busca siempre en Videos › Capturas (y en las capturas de Steam de todas tus cuentas), se vuelve a leer cada vez que lo abres y con RB lo actualizas.
+
+Arreglos:
+- La carátula de la música ya no se queda pidiéndose sin parar (pasaba con canciones del mismo álbum) y siempre es la de la canción que suena.
+- Apple Music ya no se silencia al volver al menú ni se da por cerrada cuando esconde su ventana; al reanudarla se vuelve a mostrar.
+- Modo avión: ahora dice lo que dice Windows (antes salía activo con solo tener el Bluetooth apagado).
+- «El juego no responde»: ya no avisa si el juego sigue trabajando (Stellar Blade daba avisos falsos).
+- El botón Xbox con Steam o el escritorio al frente (Big Picture que se abre solo) abre el menú de Scarlet y cierra Big Picture.
+- Después de hibernar, el juego se reanuda en vez de abrirse otra vez.
+- Ya no se toman ventanas de otros programas como si fueran el juego (SteamGridDB for Xbox, Command Center, SCSKiller).
+- El log ya no se llena con errores de red ni líneas repetidas.
+
 Novedades de la beta 1.0
 
 Menú rápido (botón Xbox), ahora como el de la Switch 2:

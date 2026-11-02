@@ -163,6 +163,7 @@ sealed class MainForm : Form
             {
                 quick = new QuickOverlay(OnMessage);
                 await quick.InitAsync(env, Paths.Web, cfg.DevTools, UiStamp(), ServeFile);
+                try { quick.SetGlass(cfg.QuickGlass); } catch (Exception ex) { Log.Error("menú rápido (transparente)", ex); }
             }
             catch (Exception ex) { Log.Error("menú rápido", ex); quick = null; }
 
@@ -361,6 +362,7 @@ sealed class MainForm : Form
                     if (a != null) e["hours"] = Hours(a.Id ?? a.Name ?? "");
                 }
                 lastGames = await WithXboxGamesAsync(lastGames);
+                lastGames = WithExternalGames(lastGames);
                 foreach (var e in lastGames) { e["pause"] = !cfg.NoPauseOnHome.Contains((long)e["appid"]); e["keepFocus"] = cfg.MenuKeepsFocus.Contains((long)e["appid"]); e["borderless"] = cfg.Borderless.Contains((long)e["appid"]); e["fullMenu"] = cfg.FullMenu.Contains((long)e["appid"]); }
                 if (!achKicked)
                 {
@@ -399,7 +401,7 @@ sealed class MainForm : Form
             case "cache.image": return await art.CacheAsync(P.S(p, "url"));
 
             // ── Álbum
-            case "album.list": return await Task.Run(() => album.List());
+            case "album.list": album.Watch(); return await Task.Run(() => album.List());   // por si apareció una carpeta nueva (Steam ya dio tu cuenta)
             case "album.delete": return album.Delete(P.S(p, "path"));
             case "album.trim": return await album.TrimAsync(P.S(p, "path"), P.D(p, "start"), P.D(p, "end"));
             case "album.share":
@@ -468,6 +470,60 @@ sealed class MainForm : Form
                 cfg.HideCursor = P.B(p, "on"); cfg.Save();
                 if (cfg.HideCursor) CursorHider.Hide(); else CursorHider.Restore();
                 return true;
+            // ── Juegos externos (beta 1.1)
+            case "fs.list": return await Task.Run(() => ExternalGames.List(P.S(p, "path"), P.B(p, "images")));
+            case "ext.add":
+            {
+                var (g, err) = await Task.Run(() => ExternalGames.Add(cfg, P.S(p, "path")));
+                return err != null ? new { ok = false, error = err } : new { ok = true, appid = g.Id, name = g.Name };
+            }
+            case "ext.update":
+            {
+                var g = cfg.ExternalGames.FirstOrDefault(x => x.Id == P.L(p, "appid"));
+                if (g == null) return new { ok = false, error = "Ya no está ese juego" };
+                if (p.TryGetProperty("name", out var nm) && nm.ValueKind == JsonValueKind.String && nm.GetString().Trim().Length > 0) g.Name = nm.GetString().Trim();
+                if (p.TryGetProperty("args", out var ar) && ar.ValueKind == JsonValueKind.String) g.Args = ar.GetString().Trim();
+                if (p.TryGetProperty("path", out var pa) && pa.ValueKind == JsonValueKind.String && File.Exists(pa.GetString()))
+                { g.Path = pa.GetString(); g.Target = g.Path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) ? ExternalGames.ShortcutTarget(g.Path) : g.Path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? g.Path : null; }
+                cfg.Save();
+                Log.Write($"juego externo {g.Id}: «{g.Name}» {g.Path} {g.Args}");
+                return new { ok = true };
+            }
+            case "ext.remove":
+            {
+                long id = P.L(p, "appid");
+                int n = cfg.ExternalGames.RemoveAll(x => x.Id == id);
+                cfg.Save();
+                if (n > 0) Log.Write($"juego externo {id} quitado de Scarlet (no se borró nada del disco)");
+                return n > 0;
+            }
+            case "ext.art":
+            {
+                // mode: "icon" (el ícono del programa), "file" (una imagen tuya: path) o "clear" (de vuelta a SteamGridDB)
+                var g = cfg.ExternalGames.FirstOrDefault(x => x.Id == P.L(p, "appid"));
+                if (g == null) return new { ok = false, error = "Ya no está ese juego" };
+                string mode = P.S(p, "mode"), file = null;
+                try
+                {
+                    if (mode == "icon") file = await Task.Run(() => ExternalGames.ExtractIcon(g));
+                    else if (mode == "file") file = await Task.Run(() => ExternalGames.CopyImage(g, P.S(p, "path")));
+                }
+                catch (Exception ex) { Log.Error("portada externa", ex); }
+                if (mode != "clear" && file == null) return new { ok = false, error = mode == "icon" ? "Ese programa no trae ícono" : "No se pudo usar esa imagen" };
+                g.Image = file; g.IconStyle = mode == "icon";
+                cfg.Save();
+                return new { ok = true, url = file != null ? ArtCache.LocalUrl(file) : null, icon = g.IconStyle };
+            }
+            case "quick.glass":
+                cfg.QuickGlass = P.B(p, "on"); cfg.Save();
+                quick?.SetGlass(cfg.QuickGlass);
+                return true;
+            case "quick.tint":
+            {
+                string[] cols = p.TryGetProperty("colors", out var ca) && ca.ValueKind == JsonValueKind.Array ? ca.EnumerateArray().Select(x => x.GetString()).ToArray() : null;
+                quick?.SetTint(cols, P.B(p, "light"));
+                return true;
+            }
             case "audio.mutebehind":
                 cfg.MuteBehind = P.B(p, "on"); cfg.Save();
                 if (!cfg.MuteBehind) AudioFocus.RestoreAll();
@@ -694,6 +750,25 @@ sealed class MainForm : Form
         catch (Exception ex) { Log.Error("xbox: biblioteca", ex); return list; }
     }
 
+    /// <summary>Los juegos que agregaste tú, como un juego más de la biblioteca.</summary>
+    List<Dictionary<string, object>> WithExternalGames(List<Dictionary<string, object>> list)
+    {
+        foreach (var g in cfg.ExternalGames)
+        {
+            string key = ExternalGames.Key(g);
+            long last = cfg.AppLastUsed.TryGetValue(key, out var ts) ? ts : 0;
+            list.Add(new Dictionary<string, object>
+            {
+                ["appid"] = g.Id, ["name"] = g.Name, ["source"] = "ext", ["kind"] = "game", ["installed"] = File.Exists(g.Path),
+                ["hours"] = Hours(key), ["lastTs"] = last, ["last"] = last > 0 ? SteamService.Rel(last) : "nunca", ["ach"] = new[] { 0, 0 },
+                ["cols"] = new List<string> { "Externos" }, ["size"] = 0.0,
+                ["art"] = g.Image != null && File.Exists(g.Image) ? ArtCache.LocalUrl(g.Image) : null, ["iconArt"] = g.IconStyle,
+                ["path"] = g.Path, ["args"] = g.Args ?? ""
+            });
+        }
+        return list.OrderByDescending(e => (long)e["lastTs"]).ToList();
+    }
+
     async Task<object> Profile()
     {
         var cached = SteamService.CachedProfile();
@@ -772,6 +847,7 @@ sealed class MainForm : Form
     /// Sonidos propios (nombre sin extensión → dirección local): los de la carpeta "sounds" junto a la app y, encima,
     /// los del paquete importado (en tus datos de Scarlet, así las actualizaciones no lo borran).
     /// </summary>
+    static string lastSounds;
     static Dictionary<string, string> SoundsList()
     {
         var map = new Dictionary<string, string>();
@@ -782,7 +858,8 @@ sealed class MainForm : Form
                     foreach (var f in Directory.EnumerateFiles(dir))
                         if (Regex.IsMatch(Path.GetExtension(f), @"^\.(wav|mp3|ogg|m4a)$", RegexOptions.IgnoreCase))
                             map[Path.GetFileNameWithoutExtension(f).ToLowerInvariant()] = ArtCache.LocalUrl(f);
-            if (map.Count > 0) Log.Write("sonidos propios: " + string.Join(", ", map.Keys));
+            string list = string.Join(", ", map.Keys);   // se anota solo si cambió (antes salía en cada pantalla que pedía sonidos)
+            if (map.Count > 0 && list != lastSounds) { lastSounds = list; Log.Write("sonidos propios: " + list); }
         }
         catch (Exception ex) { Log.Error("sonidos", ex); }
         return map;
@@ -849,6 +926,16 @@ sealed class MainForm : Form
             a.Start();
             BeginGame(appid, false);
         }
+        else if (source == "ext")
+        {
+            var g = cfg.ExternalGames.FirstOrDefault(x => x.Id == appid) ?? throw new InvalidOperationException("No encontré ese juego externo");
+            cfg.AppLastUsed[ExternalGames.Key(g)] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            cfg.Save();
+            playKey = ExternalGames.Key(g);
+            Native.AllowAnyForeground();
+            ExternalGames.Launch(g);
+            tracker.Begin(appid, false, ExternalGames.DirOf(g), slowStart: true);
+        }
         else if (source == "xbox")
         {
             var g = xbox.Find(appid) ?? throw new InvalidOperationException("No encontré ese juego de Xbox");
@@ -858,7 +945,7 @@ sealed class MainForm : Form
             Native.AllowAnyForeground();
             xbox.Launch(g);
             // ZZZ y otros juegos de la Xbox Store corren desde XboxGames, no desde la carpeta del paquete: se detecta por su ventana.
-            tracker.Begin(appid, false, null, slowStart: true);
+            tracker.Begin(appid, false, null, slowStart: true, owner: g.Dir, xboxGame: !g.IsApp);
         }
         else
         {
@@ -873,12 +960,14 @@ sealed class MainForm : Form
     {
         try
         {
-            string dir = source == "xbox" ? xbox.Find(appid)?.Dir : source == "app" ? null : steam.InstallDirOf(appid);
+            string dir = source == "xbox" ? xbox.Find(appid)?.Dir : source == "app" ? null
+                : source == "ext" ? (cfg.ExternalGames.FirstOrDefault(x => x.Id == appid) is ExtGame eg ? ExternalGames.DirOf(eg) : null) : steam.InstallDirOf(appid);
             IntPtr w = GameTracker.RunningWindowIn(dir);
             if (w == IntPtr.Zero && source != "xbox" && source != "app" && steam.RunningAppId() == appid && cfg.GameExes.TryGetValue(appid.ToString(), out var exe))
                 w = GameTracker.RunningWindowIn(Path.GetDirectoryName(exe));   // juegos que corren desde otra carpeta
-            if (w == IntPtr.Zero || !tracker.AdoptRunning(appid, source != "xbox" && source != "app", dir, w)) return false;
-            if (source != "xbox" && source != "app") steam.SetRunning(appid);
+            bool st = source != "xbox" && source != "app" && source != "ext";
+            if (w == IntPtr.Zero || !tracker.AdoptRunning(appid, st, dir, w)) return false;
+            if (st) steam.SetRunning(appid);
             return true;
         }
         catch (Exception ex) { Log.Error("juego ya abierto", ex); return false; }
@@ -930,7 +1019,65 @@ sealed class MainForm : Form
         TopMost = false;
         ShowUi();
         Emit("game.exited", new { appid });
+        if (steam.InstallDirOf(appid) != null) cloudWatch[appid] = DateTime.Now.AddMinutes(15);   // ahora sube su partida a la nube
         if (reconnectPending) _ = Task.Delay(3000).ContinueWith(_ => ReconnectSteamAsync("ya se cerró el juego", true));
+    }
+
+    // ───── Nube de Steam: la subida de partidas se ve como una descarga (naranja) ─────
+    readonly Dictionary<long, DateTime> cloudWatch = new();      // juegos a revisar y hasta cuándo
+    readonly Dictionary<long, double> cloudLive = new();          // los que están sincronizando ahora (y su %)
+    readonly HashSet<long> cloudAsked = new();
+
+    async Task CloudTick()
+    {
+        try
+        {
+            var now = DateTime.Now;
+            foreach (var k in cloudWatch.Where(kv => kv.Value < now && !cloudLive.ContainsKey(kv.Key)).Select(kv => kv.Key).ToList()) cloudWatch.Remove(k);
+            var ids = cloudWatch.Keys.ToList();
+            if (tracker != null && tracker.Active && !tracker.IsReady && tracker.AppId > 0) ids.Add(tracker.AppId);   // se está abriendo: baja su partida
+            if (ids.Count == 0) return;
+            var r = await SteamCdp.CloudAsync(ids);
+            if (r == null) return;
+            if (r.Any(c => c.Syncing) && tracker != null && tracker.Active && !tracker.IsReady) tracker.KeepWaiting();
+            foreach (var c in r)
+            {
+                if (c.Ask && cloudAsked.Add(c.AppId))
+                {
+                    // Steam pregunta algo (por ejemplo, qué partida conservar): se enseña su ventanita en vez de esconderla.
+                    Log.Write($"Steam pregunta algo al abrir {c.AppId}: se enseña su ventana");
+                    Ui(() =>
+                    {
+                        foreach (var h in hiddenSteam.ToList())
+                            if (Native.IsWindow(h) && Native.Title(h) != "Chrome Legacy Window") { Native.ShowWindowAsync(h, 5 /* SW_SHOW */); Native.ForceForeground(h); }
+                        TopMost = false;
+                    });
+                    Emit("cloud.ask", new { appid = c.AppId });
+                }
+                if (!c.Ask) cloudAsked.Remove(c.AppId);
+                if (c.Syncing)
+                {
+                    bool first = !cloudLive.ContainsKey(c.AppId);
+                    if (first) Log.Write($"nube: {c.AppId} sincronizando su partida{(c.Pct >= 0 ? $" ({c.Pct:0} %)" : "")}");
+                    cloudLive[c.AppId] = c.Pct;
+                    cloudWatch[c.AppId] = now.AddMinutes(15);
+                    Emit("cloud.progress", new { appid = c.AppId, pct = c.Pct });
+                }
+                else if (cloudLive.Remove(c.AppId))
+                {
+                    Log.Write($"nube: {c.AppId} terminó{(c.Error ? " con error" : "")}");
+                    cloudWatch.Remove(c.AppId);
+                    Emit("cloud.done", new { appid = c.AppId, ok = !c.Error });
+                }
+                else if (c.Error && cloudWatch.ContainsKey(c.AppId))
+                {
+                    Log.Write($"nube: {c.AppId} con error de sincronización");
+                    cloudWatch.Remove(c.AppId);
+                    Emit("cloud.done", new { appid = c.AppId, ok = false });
+                }
+            }
+        }
+        catch (Exception ex) { Log.Error("nube", ex); }
     }
 
     long detachedApp;   // la última app que dejaste abierta en segundo plano (para ponerle nombre e ícono en el mezclador)
@@ -1145,7 +1292,7 @@ sealed class MainForm : Form
     {
         if (tracker == null || !tracker.Active) { hungTicks = 0; hungAsked = false; return; }
         IntPtr h = tracker.Window != IntPtr.Zero ? tracker.Window : tracker.Candidate;
-        bool hung = h != IntPtr.Zero && Native.IsWindow(h) && Native.IsHungAppWindow(h);
+        bool hung = h != IntPtr.Zero && Native.IsWindow(h) && Native.IsHungAppWindow(h) && !GameBusy(h);
         if (!hung) { if (hungTicks >= 2) Log.Write($"el juego volvió a responder (estuvo ~{hungTicks * 3} s sin responder)"); hungTicks = 0; hungAsked = false; return; }
         if (++hungTicks == 2) Log.Write($"el juego no responde: {Native.Describe(h)} · {MemoryReport(h)}");
         bool inScarlet = front == Handle && web.Visible;
@@ -1155,6 +1302,25 @@ sealed class MainForm : Form
         hungAsked = true;
         Log.Write("el juego lleva 20 s sin responder: aviso encima (sin quitarle la pantalla)");
         ToastForm.Pop(NameOfApp(tracker.AppId) + " no responde", "Espera un momento. Si quieres cerrarlo, presiona el botón Xbox", "!", "#f2c230", null);
+    }
+
+    // Windows marca "no responde" cuando la ventana deja de atender mensajes 5 s, pero Stellar Blade hace eso a ratos
+    // mientras sigue jugándose perfecto (su ventana está ocupada y el juego corre en otros hilos). Si el proceso sigue
+    // usando el procesador, está vivo: solo cuenta como congelado si además casi no trabaja.
+    TimeSpan busyCpu; uint busyPid; DateTime busyAt;
+    bool GameBusy(IntPtr h)
+    {
+        try
+        {
+            Native.GetWindowThreadProcessId(h, out uint p);
+            using var pr = Process.GetProcessById((int)p);
+            var cpu = pr.TotalProcessorTime; var now = DateTime.UtcNow;
+            bool same = p == busyPid && busyAt != default;
+            double used = same ? (cpu - busyCpu).TotalMilliseconds / Math.Max(1, (now - busyAt).TotalMilliseconds) : 1;
+            busyPid = p; busyCpu = cpu; busyAt = now;
+            return used > 0.15;   // más de 15 % de un núcleo: está trabajando
+        }
+        catch { return false; }
     }
 
     /// <summary>¿El juego está congelado ahora mismo (para que el botón Xbox ofrezca cerrarlo)?</summary>
@@ -1581,6 +1747,16 @@ sealed class MainForm : Form
         if (GameFreezer.Resume()) playStart = DateTime.UtcNow;
         AudioFocus.RestoreAll();
         if (tracker.Active && tracker.Focus()) { HideSoon(); return; }
+        // Apple Music y otras apps de la Store que escondieron su ventana (siguen sonando): se vuelven a abrir y Windows
+        // trae la ventana de la que ya corre (no se abre otra).
+        if (tracker.Active && xbox.Find(tracker.AppId) is XboxGame xg)
+        {
+            Log.Write($"{xg.Name} no tiene ventana a la vista: se le pide a Windows que la muestre");
+            Native.AllowAnyForeground();
+            try { xbox.Launch(xg); } catch (Exception ex) { Log.Error("mostrar app", ex); }
+            _ = Task.Delay(1500).ContinueWith(_ => Ui(() => { if (tracker.Active && tracker.Focus()) HideSoon(); }));
+            return;
+        }
         if (lastForeign != IntPtr.Zero && Native.IsWindow(lastForeign)) { Native.ForceForeground(lastForeign); return; }
         Native.SendToBottom(Handle);
     }
@@ -2155,6 +2331,7 @@ sealed class MainForm : Form
                 var (live, done, ok) = await SteamCdp.DownloadsAsync();
                 if (!ok) { await Task.Delay(4000); continue; }
                 cdpLiveAt = DateTime.UtcNow;
+                if (tick % 2 == 0) await CloudTick();
                 // Respaldo: lo que dicen los archivos de Steam (cada 3 s), por si su lista en vivo no trae algún juego.
                 // Solo las que Steam marca como descargándose (256 en curso, 512 en pausa, 1024 empezada, 1048576 bajando).
                 if (tick++ % 3 == 0) acf = steam.LocalApps().Where(a => a.BytesToDownload > 0 && a.BytesDownloaded < a.BytesToDownload && (a.StateFlags & (256 | 512 | 1024 | 1048576)) != 0).ToList();
@@ -2314,7 +2491,7 @@ sealed class MainForm : Form
     /// </summary>
     void CloseStrayBigPicture()
     {
-        if (steamUiAllowed || DateTime.Now - lastBpClose < TimeSpan.FromSeconds(15)) return;
+        if (steamUiAllowed || DateTime.Now - lastBpClose < TimeSpan.FromSeconds(4)) return;
         if (tracker != null && tracker.LaunchSeconds > 0 && tracker.LaunchSeconds < 25) return;   // Steam está arrancando un juego
         bool found = false;
         try
@@ -2402,6 +2579,14 @@ sealed class MainForm : Form
             BringUiToFront(); Emit("quick.toggle", null); return;
         }
         if (IsGameBar(fg)) fg = beforeGuide;
+        // Sin juego abierto y con Steam (Big Picture que se abrió solo con el botón Xbox) o el escritorio al frente: el menú es
+        // el de Scarlet, no el panel encima (antes se abría sobre "explorer.exe «»" y el menú quedaba raro).
+        if ((tracker == null || !tracker.Active) && StrayShell(fg))
+        {
+            Log.Write($"toque: {Native.Describe(fg)} al frente sin juego; menú rápido de la interfaz");
+            if (BigPictureWindow() != IntPtr.Zero) { lastBpClose = DateTime.Now; Shell.Open("steam://close/bigpicture"); }
+            BringUiToFront(mute: false); Emit("quick.toggle", null); return;
+        }
         bool keepFocus = tracker != null && tracker.Active && cfg.MenuKeepsFocus.Contains(tracker.AppId);
         if (quick != null && quick.ShowOver(fg, keepFocus)) { xin.ForwardKeys = true; if (!keepFocus) WarnExclusive(); return; }
         Log.Write("toque: menú rápido en la interfaz (el panel no está listo)");
@@ -2409,6 +2594,15 @@ sealed class MainForm : Form
     }
 
     bool quickPending;
+
+    /// <summary>Ventanas que no son algo que tú abriste: Steam / Big Picture, el escritorio o la barra de tareas.</summary>
+    static bool StrayShell(IntPtr h)
+    {
+        if (h == IntPtr.Zero) return true;
+        string exe = Path.GetFileName(Native.WindowProcessPath(h, out _) ?? "").ToLowerInvariant();
+        if (exe is "steam.exe" or "steamwebhelper.exe" or "shellhost.exe" or "shellexperiencehost.exe" or "searchhost.exe" or "startmenuexperiencehost.exe") return true;
+        return exe == "explorer.exe" && string.IsNullOrWhiteSpace(Native.Title(h));   // escritorio / barra de tareas (no una carpeta)
+    }
 
     void OnGuideDouble()
     {

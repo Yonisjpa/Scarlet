@@ -41,32 +41,40 @@ sealed class MediaService
     }
 
     /// <summary>Apple Music si está abierta; si no, lo que esté sonando; si nada suena, lo que Windows marque como actual.</summary>
+    // Windows avisa "cambió la sesión" dos veces seguidas (SessionsChanged y CurrentSessionChanged): si las dos corrían a la vez,
+    // una dejaba la sesión en null mientras la otra le quitaba los avisos (el error de la línea 55 del log). Ahora, una a la vez.
+    readonly SemaphoreSlim picking = new(1, 1);
     async Task PickAsync()
     {
+        await picking.WaitAsync();
         try
         {
             var all = mgr?.GetSessions()?.ToList() ?? new();
             var pick = all.FirstOrDefault(IsApple) ?? all.FirstOrDefault(IsPlaying) ?? mgr?.GetCurrentSession();
-            if (!ReferenceEquals(pick, session))
+            var old = session;
+            if (!ReferenceEquals(pick, old))
             {
-                if (session != null)
-                {
-                    session.MediaPropertiesChanged -= OnProps;
-                    session.PlaybackInfoChanged -= OnInfo;
-                    session.TimelinePropertiesChanged -= OnInfo;
-                }
+                if (old != null)
+                    try
+                    {
+                        old.MediaPropertiesChanged -= OnProps;
+                        old.PlaybackInfoChanged -= OnInfo;
+                        old.TimelinePropertiesChanged -= OnInfo;
+                    }
+                    catch { }   // la sesión vieja ya no existe (la app se cerró)
                 session = pick;
-                if (session != null)
+                if (pick != null)
                 {
-                    session.MediaPropertiesChanged += OnProps;
-                    session.PlaybackInfoChanged += OnInfo;
-                    session.TimelinePropertiesChanged += OnInfo;
-                    Log.Write("música: " + session.SourceAppUserModelId);
+                    pick.MediaPropertiesChanged += OnProps;
+                    pick.PlaybackInfoChanged += OnInfo;
+                    pick.TimelinePropertiesChanged += OnInfo;
+                    Log.Write("música: " + pick.SourceAppUserModelId);
                 }
             }
-            await RefreshAsync();
         }
         catch (Exception ex) { Log.Error("música (sesión)", ex); }
+        finally { picking.Release(); }
+        await RefreshAsync();
     }
 
     void OnProps(GlobalSystemMediaTransportControlsSession s, MediaPropertiesChangedEventArgs e) => _ = RefreshAsync();
@@ -134,8 +142,9 @@ sealed class MediaService
     //   2) si no hay, la imagen de Apple Music, solo si no es la misma de la canción anterior;
     //   3) si nada, la mejor coincidencia aproximada de iTunes.
     // Se revisa cada vez que cambia la canción y cada 30 s.
-    string curKey, curArt, curSource, curThumbHash, prevThumbHash;
-    int retries;
+    string curKey, curArt, curSource, curThumbHash, prevThumbHash, curAlbum, prevAlbum;
+    int retries, sameSeen;
+    DateTime lastTry;
 
     static string Clean(string s) => Regex.Replace((s ?? "").ToLowerInvariant(), @"\s*[\(\[].*?[\)\]]", "").Replace("’", "'").Trim();
 
@@ -145,10 +154,16 @@ sealed class MediaService
         if (key != curKey)
         {
             if (curThumbHash != null) prevThumbHash = curThumbHash;
-            curKey = key; curArt = null; curSource = null; curThumbHash = null; retries = 0;
+            prevAlbum = curAlbum;
+            curKey = key; curArt = null; curSource = null; curThumbHash = null; retries = 0; sameSeen = 0; lastTry = DateTime.MinValue;
+            curAlbum = props.AlbumTitle ?? "";
         }
         if (curSource == "itunes" && !force) return curArt;   // la oficial ya está: no hay nada que revisar
         if (curArt != null && !force) return curArt;           // los avisos de avance llegan seguido: se revisa al cambiar y cada 30 s
+        // Sin carátula todavía: los avisos de avance llegan varias veces por segundo; se reintenta como mucho cada 2 s
+        // (antes cada aviso volvía a revisar: 1,871 veces en 3 minutos).
+        if (!force && (DateTime.Now - lastTry).TotalMilliseconds < 2000) return curArt;
+        lastTry = DateTime.Now;
         try
         {
             var (iurl, exact) = await ItunesAsync(props);
@@ -158,12 +173,15 @@ sealed class MediaService
             if (bytes != null)
             {
                 string h = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(bytes))[..16];
-                if (h == prevThumbHash)
+                // La misma imagen que la canción anterior: puede ser que Apple Music no la ha cambiado… o que las dos son
+                // del mismo álbum. Mismo álbum = es la buena; si no, se espera un poco y, si sigue igual, también se usa.
+                bool sameAlbum = !string.IsNullOrEmpty(curAlbum) && curAlbum == prevAlbum;
+                if (h == prevThumbHash && !sameAlbum && sameSeen++ < 3)
                 {
-                    Log.Write($"música: la imagen de «{props.Title}» todavía es la de la canción anterior; se vuelve a pedir");
+                    if (sameSeen == 1) Log.Write($"música: la imagen de «{props.Title}» todavía es la de la canción anterior; se vuelve a pedir");
                     ScheduleRetry();
                 }
-                else if (h != curThumbHash || curArt == null)
+                else if (h != curThumbHash || curArt == null || h == prevThumbHash)
                 {
                     string dir = Path.Combine(Paths.Cache, "music");
                     Directory.CreateDirectory(dir);

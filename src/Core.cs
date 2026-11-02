@@ -98,8 +98,24 @@ static class Log
             recent[key] = (DateTime.Now, 0);
             if (recent.Count > 200) recent.Clear();
         }
-        string s = ex.ToString();
+        // Errores de red (sin internet, la red corta la conexión, se acabó el tiempo): una línea con la causa, sin la pila
+        // de 30 renglones que no dice nada nuevo y llenaba el log.
+        string s = IsNetwork(ex) ? NetLine(ex) : ex.ToString();
         Write($"[{where}] {(repeated > 0 ? $"(se repitió {repeated} vez/veces en el último minuto) " : "")}{(s.Length > 2500 ? s[..2500] + " …" : s)}");
+    }
+
+    static bool IsNetwork(Exception ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+            if (e is System.Net.Http.HttpRequestException or System.Net.Sockets.SocketException or TaskCanceledException or TimeoutException
+                || (e is IOException && e.Message.Contains("transport connection"))) return true;
+        return false;
+    }
+
+    static string NetLine(Exception ex)
+    {
+        var e = ex; while (e.InnerException != null) e = e.InnerException;
+        return $"red: {ex.GetType().Name}: {ex.Message}{(e != ex ? " ← " + e.Message : "")}";
     }
 }
 
@@ -114,6 +130,8 @@ sealed class Config
     public bool DevTools { get; set; }
     public bool MuteBehind { get; set; } = true;
     public bool HideCursor { get; set; } = true;
+    public bool QuickGlass { get; set; } = true;
+    public List<ExtGame> ExternalGames { get; set; } = new();   // juegos que agregaste tú (beta 1.1)   // menú rápido encima del juego con el fondo al 50 %
     /// <summary>Versión de la interfaz que se cargó la última vez: si cambia, se borra la caché del navegador.</summary>
     public string UiStamp { get; set; } = "";
     /// <summary>Tiempo de juego que cuenta Scarlet (juegos de Xbox y apps; los de Steam los cuenta Steam). Clave = la de AppLastUsed.</summary>

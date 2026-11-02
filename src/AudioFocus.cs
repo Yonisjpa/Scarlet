@@ -75,7 +75,7 @@ static class AudioFocus
     /// <summary>Apps que nunca se silencian: la música, Scarlet y su vista web, Steam y el sistema.</summary>
     static readonly HashSet<string> Never = new(StringComparer.OrdinalIgnoreCase)
     {
-        "AppleMusic", "Spotify", "iTunes", "Scarlet", "msedgewebview2", "explorer", "steam", "steamwebhelper", "ApplicationFrameHost", "GameBar", "ArmouryCrate", "ArmouryCrateSE"
+        "AppleMusic", "AMPLibraryAgent", "Spotify", "iTunes", "Scarlet", "msedgewebview2", "explorer", "steam", "steamwebhelper", "ApplicationFrameHost", "GameBar", "ArmouryCrate", "ArmouryCrateSE"
     };
 
     static readonly object gate = new();
@@ -83,7 +83,7 @@ static class AudioFocus
     static string StateFile => Path.Combine(Paths.Local, "silenciadas.txt");
 
     /// <summary>¿Esta app es música que debe seguir sonando en el menú?</summary>
-    public static bool IsMusic(string exe) => exe != null && (exe.Contains("AppleMusic", StringComparison.OrdinalIgnoreCase) || exe.Contains("Spotify", StringComparison.OrdinalIgnoreCase) || exe.Contains("iTunes", StringComparison.OrdinalIgnoreCase));
+    public static bool IsMusic(string exe) => exe != null && (exe.Contains("AppleMusic", StringComparison.OrdinalIgnoreCase) || exe.Contains("AMPLibraryAgent", StringComparison.OrdinalIgnoreCase) || exe.Contains("Spotify", StringComparison.OrdinalIgnoreCase) || exe.Contains("iTunes", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Silencia la app dueña de esa ventana (todas sus sesiones de audio; Edge reproduce desde otro proceso con el mismo nombre).</summary>
     public static void MuteWindow(IntPtr hWnd)

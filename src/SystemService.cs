@@ -177,6 +177,7 @@ sealed class SystemService
             return new Dictionary<string, object> { ["error"] = lastAccess == RadioAccessStatus.DeniedByUser
                 ? "Windows no deja a Scarlet cambiar el Wi-Fi: Configuración › Privacidad › Radios › permitir"
                 : "No se encontró el Wi-Fi" };
+        ourAirplane = airplane;
         foreach (var r in radios)
         {
             try
@@ -198,12 +199,28 @@ sealed class SystemService
         };
     }
 
-    /// <summary>Modo avión: todo lo que no es Wi-Fi apagado (con el modo avión se puede volver a prender solo el Wi-Fi).</summary>
+    /// <summary>
+    /// Modo avión: el que dice Windows (antes se calculaba "todo lo que no es Wi-Fi está apagado", así que con el Bluetooth
+    /// apagado salía siempre activo). Si lo prendiste desde Scarlet (que apaga las radios una por una), también cuenta.
+    /// </summary>
+    static bool ourAirplane;
     static bool AirplaneOf(IReadOnlyList<Radio> radios)
     {
-        if (radios == null || radios.Count == 0) return false;
-        var others = radios.Where(r => r.Kind != RadioKind.WiFi).ToList();
-        return others.Count > 0 ? others.All(r => r.State != RadioState.On) : radios.All(r => r.State != RadioState.On);
+        bool? win = WindowsAirplane();
+        bool ours = ourAirplane && radios != null && radios.Where(r => r.Kind != RadioKind.WiFi).All(r => r.State != RadioState.On);
+        if (win is bool w) return w || ours;
+        return ours;
+    }
+
+    /// <summary>El interruptor "Modo avión" de Windows (null si este equipo no lo tiene).</summary>
+    static bool? WindowsAirplane()
+    {
+        try
+        {
+            using var k = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\RadioManagement\SystemRadioState");
+            return k?.GetValue(null) is int v ? v == 1 : null;
+        }
+        catch { return null; }
     }
 
     // ───── Brillo automático (beta 1.0) ─────
