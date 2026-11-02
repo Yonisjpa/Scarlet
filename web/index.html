@@ -309,6 +309,8 @@ html:not(.showcursor),html:not(.showcursor) *{cursor:none!important}
 #launch.show{opacity:1;pointer-events:auto}
 #launch .ll{position:absolute;right:4.6rem;bottom:4.2rem;height:5.4rem;display:flex;align-items:center;gap:1.6rem;opacity:0;transition:opacity .45s ease;perspective:60rem}
 #launch.logo .ll{opacity:1}
+#launch .lcloud{position:absolute;right:4.6rem;bottom:11rem;font-size:1.5rem;color:rgba(255,255,255,.75);opacity:0;transition:opacity .4s ease;white-space:nowrap}
+#launch.cwait .lcloud{opacity:1}
 .ll img{height:100%;width:auto;display:block;backface-visibility:visible}
 .ll .slash{height:78%}
 #launch.logo .ll .spin{animation:spinY 2s cubic-bezier(.5,.05,.25,1) .5s infinite}
@@ -888,6 +890,13 @@ html.overlay #quick.ns{width:100%}
 .glg{display:block;height:1.7rem;aspect-ratio:674/96;-webkit-mask:var(--dlogo) center/contain no-repeat;mask:var(--dlogo) center/contain no-repeat}
 #launch .ldolby .glg{height:2.4rem}
 @keyframes dgold{from{background-position:0% 0}to{background-position:-200% 0}}
+/* beta 1.2: en el logo, el mismo brillo se mueve con la GPU (una capa que se desliza) en vez de repintarlo en cada cuadro */
+.glg{position:relative;overflow:hidden;background:none;animation:none}
+.glg::before{content:"";position:absolute;top:0;bottom:0;left:-200%;width:400%;background:linear-gradient(90deg,#c9962e,#fff6dc,#e8b84a,#ffffff,#c9962e);background-size:50% 100%;animation:dgoldT 2.4s linear infinite;will-change:transform}
+@keyframes dgoldT{from{transform:translateX(0)}to{transform:translateX(50%)}}
+[data-theme="light"] #quick:not(.tinted) .glg.glg{background-image:none}
+[data-theme="light"] #quick:not(.tinted) .glg::before{background-image:linear-gradient(90deg,#8a6216,#c08a22,#5e420c,#b07f1e,#8a6216)}
+@media (prefers-reduced-motion:reduce){.glg::before{animation:none}}
 [data-theme="light"] #quick:not(.tinted) .dgt,[data-theme="light"] #quick:not(.tinted) .glg{background-image:linear-gradient(90deg,#8a6216,#c08a22,#5e420c,#b07f1e,#8a6216)}
 [data-theme="light"] #quick:not(.tinted) .dgw{filter:none}
 @media (prefers-reduced-motion:reduce){.dgt,.glg{animation:none}}
@@ -947,6 +956,47 @@ html.qglass #quick.ns:not(.tinted)::before{background:var(--nqbg)}
 html.qglass #quick.tinted::before{background:linear-gradient(140deg,var(--mt1),var(--mt2) 45%,var(--mt3) 75%,var(--mt1)),#141414;background-size:260% 260%,auto;animation:qtint 16s ease-in-out infinite alternate}
 html.overlay.hostglass #quick::before{display:none}
 .key.on{background:var(--accent);color:#06222c}
+/* ===================== beta 1.2: Internet (Wi-Fi) ===================== */
+.wsig{display:flex;align-items:center;gap:.8rem;color:var(--fg)}
+.wbars{width:2.6rem;height:2.2rem}
+.wlock{width:1.7rem;height:1.7rem;opacity:.8}
+.wrow.on .meta span{color:var(--accent)}
+.wcbox{width:min(70rem,92vw);padding:2.8rem 3rem 2.6rem;display:flex;flex-direction:column;align-items:center;gap:2.2rem}
+.wcbox h3{font-size:2.2rem;align-self:flex-start}
+.wchain{display:flex;align-items:center;width:100%;justify-content:center;gap:0}
+.wnode{display:flex;flex-direction:column;align-items:center;gap:.9rem;width:13rem;color:var(--fg2);font-size:1.4rem;text-align:center}
+.wnode i{width:6.4rem;height:6.4rem;border-radius:50%;display:grid;place-items:center;background:var(--bg3);color:var(--fg2);transition:background .3s,color .3s}
+.wnode i svg{width:3.4rem;height:3.4rem}
+.wnode.ok i{background:var(--accent);color:#06222c}
+.wnode.ok{color:var(--fg)}
+.wnode.bad i{background:#e5484d;color:#fff}
+.wlink{flex:1;max-width:10rem;height:.5rem;border-radius:.3rem;background:var(--bg3);position:relative;overflow:hidden;margin-bottom:2.6rem}
+.wlink u{position:absolute;inset:0;transform:scaleX(0);transform-origin:left;background:var(--accent);transition:transform .45s ease}
+.wlink.ok u{transform:none}
+.wlink.bad u{transform:none;background:#e5484d}
+.wlink.busy u{transform:scaleX(.35);animation:wbusy 1s ease-in-out infinite}
+@keyframes wbusy{0%{transform:translateX(-40%) scaleX(.35)}100%{transform:translateX(300%) scaleX(.35)}}
+.wmsg{font-size:1.7rem;color:var(--fg2);text-align:center;min-height:2.4rem}
+.wok{min-width:16rem}
+/* ===================== beta 1.2: Perfil ===================== */
+.pme{display:flex;align-items:center;gap:2.4rem;margin:.6rem 0 2rem}
+.pme .pav{width:11rem;height:11rem;flex:0 0 auto;pointer-events:none}
+.pmeta{display:flex;flex-direction:column;gap:.5rem;font-size:1.6rem;color:var(--fg2)}
+.pmeta h2{font-size:2.8rem;color:var(--fg);font-weight:600}
+.pmeta .dot{display:inline-block;width:1rem;height:1rem;border-radius:50%;margin-right:.7rem;vertical-align:middle}
+.pmeta .pcode b{color:var(--fg);letter-spacing:.06em}
+.ppane .stats{margin-bottom:1.6rem}
+.phist .val{color:var(--fg2);font-weight:600}
+.pcount{font-size:1.6rem;color:var(--fg2);margin:.6rem 0 1.4rem}
+.fgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.4rem}
+.fcardb{--r:1.1rem;position:relative;display:flex;flex-direction:column;align-items:center;gap:.7rem;padding:2rem 1.2rem 1.6rem;border-radius:1.1rem;background:var(--bg2);text-align:center;min-width:0}
+.fcardb .fav{width:7.2rem;height:7.2rem;font-size:3rem}
+.fcardb b{font-size:1.7rem;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fcardb>span:last-child{font-size:1.35rem;color:var(--fg2);display:flex;align-items:center;gap:.6rem;max-width:100%;white-space:nowrap;overflow:hidden}
+.fcardb .dot{width:.9rem;height:.9rem;border-radius:50%;flex:0 0 auto}
+.pcodebig{background:var(--bg2);border-radius:1.1rem;padding:2rem 2.4rem;display:flex;flex-direction:column;gap:.5rem;font-size:1.5rem;color:var(--fg2)}
+.pcodebig b{font-size:3.2rem;color:var(--fg);letter-spacing:.08em;font-weight:600}
+.fbest.on{color:#f2c230}
 </style>
 </head>
 <body>
@@ -983,7 +1033,7 @@ html.overlay.hostglass #quick::before{display:none}
   <span class="gkeys">Doble toque al botón Xbox (H H) para volver al menú · P para suspender</span></div>
 </div>
 
-<div id="launch"><div class="ldolby dolby"></div><div class="ll">
+<div id="launch"><div class="ldolby dolby"></div><div class="lcloud"></div><div class="ll">
   <img class="spin a" data-src="b1" alt="">
   <img class="slash" data-src="b2" alt="">
   <img class="spin b" data-src="b3" alt="">
@@ -1881,8 +1931,263 @@ function diagView() {
   };
 }
 
+/* ================= beta 1.2: Internet (Wi-Fi) sin salir de Scarlet =================
+   Ajustes › Red y VPN › Internet: redes registradas y encontradas (señal y candado), Y para buscar otra vez, conectarse
+   (con teclado para la contraseña) con la animación Consola → Dispositivo de red → Internet, prueba de conexión,
+   estado de la conexión y olvidar una red. */
+const WIFI_IC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2.5 8.6a13.5 13.5 0 0 1 19 0"/><path d="M5.8 12a8.8 8.8 0 0 1 12.4 0"/><path d="M9.1 15.4a4.2 4.2 0 0 1 5.8 0"/><circle cx="12" cy="18.8" r="1.4" fill="currentColor" stroke="none"/></svg>';
+const LOCK_IC = '<svg class="wlock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>';
+/* Señal en tres barras (como en la consola): las que no llegan van tenues. */
+const wifiBars = n => `<svg class="wbars" viewBox="0 0 24 20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+  <path d="M2 7a14.5 14.5 0 0 1 20 0" opacity="${n >= 3 ? 1 : .25}"/><path d="M5.6 10.8a9.4 9.4 0 0 1 12.8 0" opacity="${n >= 2 ? 1 : .25}"/><path d="M9.1 14.6a4.4 4.4 0 0 1 5.8 0" opacity="${n >= 1 ? 1 : .25}"/><circle cx="12" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>`;
+const WIFI = { data: null, at: 0 };
+async function wifiLoad(scan) {
+  const r = Host.has ? await Host.call("wifi.list", { scan: !!scan }).catch(e => ({ ok: false, error: e.message })) : fakeWifi("list", { scan });
+  WIFI.data = r; WIFI.at = Date.now();
+  return r;
+}
+function wifiView() {
+  return {
+    isWifi: true, rows: [],
+    hints() { return [["B", "Atrás"], ["Y", "Buscar redes"], ["A", "Aceptar"]]; },
+    render(el) {
+      el.innerHTML = head(WIFI_IC, "Internet", "Buscando redes…") + `<div class="vbody wbody"><p class="note">Buscando redes…</p></div>`;
+      this.paint(WIFI.data);
+      wifiLoad(!WIFI.data).then(r => this.paint(r));
+    },
+    paint(r) {
+      if (!this.el || !this.el.isConnected || !r) return;
+      const sub = $(".vhead .sub", this.el), body = $(".wbody", this.el);
+      const keep = (this.rows[this.i] || {}).key;
+      const rows = this.rows = [];
+      let html = "";
+      if (!r.ok) {
+        sub.textContent = "";
+        html += `<p class="note">${esc(r.error || "No se pudo leer el Wi-Fi")}</p>`;
+      } else {
+        const cur = r.current, nets = r.networks || [];
+        sub.textContent = cur ? `Conectado a ${cur.ssid}` : "Sin conexión";
+        const byName = Object.fromEntries(nets.map(n => [n.ssid, n]));
+        const netRow = (n, saved) => {
+          const k = rows.length; rows.push({ key: "n:" + n.ssid, net: n, saved });
+          const val = n.connected ? "Conectada" : saved && !n.visible ? "" : "";
+          return `<button class="lrow fi wrow${n.connected ? " on" : ""}" data-k="${k}"><span class="meta"><b>${esc(n.ssid)}</b>${n.connected ? `<span>Conectada${n.band ? " · " + esc(n.band) : ""}</span>` : saved && !n.visible ? `<span>Fuera de alcance</span>` : n.band ? `<span>${esc(n.band)}</span>` : ""}</span><span class="wsig">${n.secure ? LOCK_IC : ""}${n.visible === false ? "" : wifiBars(n.bars)}</span>${val ? `<span class="val">${val}</span>` : ""}</button>`;
+        };
+        if (cur) {
+          rows.push({ key: "status" }); rows.push({ key: "test" });
+          html += `<div class="nssec">Conexión actual</div>
+            <button class="lrow fi" data-k="0"><span class="meta"><b>Estado de la conexión</b><span>${esc(cur.ssid)} · ${esc(cur.security)}${cur.band ? " · " + esc(cur.band) : ""}</span></span><span class="wsig">${wifiBars(cur.signal >= 75 ? 3 : cur.signal >= 45 ? 2 : 1)}</span></button>
+            <button class="lrow fi" data-k="1"><span class="meta"><b>Prueba de conexión</b><span>Revisa si hay internet y si llega a Steam</span></span><span class="val">›</span></button>`;
+        }
+        const saved = (r.saved || []).map(s => Object.assign({ ssid: s, bars: 0, visible: false, secure: true }, byName[s] ? { ...byName[s], visible: true } : {}));
+        saved.sort((a, b) => (b.connected - a.connected) || (b.visible - a.visible) || (b.signal || 0) - (a.signal || 0));
+        if (saved.length) html += `<div class="nssec">Redes registradas</div>` + saved.map(n => netRow(n, true)).join("");
+        const found = nets.filter(n => !(r.saved || []).includes(n.ssid) && !n.saved).map(n => ({ ...n, visible: true }));
+        html += `<div class="nssec">Redes encontradas</div>` + (found.length ? found.map(n => netRow(n, false)).join("")
+          : `<p class="note">${r.location ? "Windows no deja ver las redes de alrededor sin permiso de ubicación." : "No se encontró ninguna otra red. Presiona Y para buscar de nuevo."}</p>`);
+        if (r.location) {
+          const k = rows.length; rows.push({ key: "loc" });
+          html += `<button class="lrow fi" data-k="${k}"><span class="meta"><b>Permitir ver las redes</b><span>Windows › Privacidad › Ubicación › «Permitir que las aplicaciones de escritorio accedan a tu ubicación»</span></span><span class="val">Abrir ›</span></button>`;
+        }
+      }
+      const k = rows.length; rows.push({ key: "win" });
+      html += `<div class="nssec">Más</div><button class="lrow fi" data-k="${k}"><span class="meta"><b>Wi-Fi y red en Windows</b><span>Redes ocultas, empresariales y datos avanzados</span></span><span class="val">›</span></button>`;
+      body.innerHTML = html;
+      fis(body).forEach(b => b.onclick = () => { this.i = +b.dataset.k; updateFocus(); this.act(rows[+b.dataset.k]); });
+      const j = rows.findIndex(x => x.key === keep);
+      this.i = j >= 0 ? j : Math.min(this.i || 0, rows.length - 1); updateFocus();
+    },
+    async act(row) {
+      if (!row) return;
+      if (row.key === "status") { play("select"); return openView(wifiStatusView()); }
+      if (row.key === "test") { play("select"); return openView(wifiConnectView(null, null, "test", () => this.refresh())); }
+      if (row.key === "loc") { play("select"); return openSystemApp({ appid: 990005, name: "Ajustes de Windows", sub: "Ventana de Windows a pantalla completa", url: "ms-settings:privacy-location" }); }
+      if (row.key === "win") return openSystemApp(SYS.winsettings);
+      const n = row.net; play("select");
+      if (n.connected) {
+        const v = await choiceDialog(`${n.ssid}\nConectada`, [{ label: "Atrás", value: null }, { label: "Estado de la conexión", value: "status" }, { label: "Prueba de conexión", value: "test" }, { label: "Olvidar esta red", value: "forget" }], 1);
+        if (v === "status") return openView(wifiStatusView());
+        if (v === "test") return openView(wifiConnectView(null, null, "test", () => this.refresh()));
+        if (v === "forget") return this.forget(n);
+        return;
+      }
+      if (row.saved) {
+        const opts = [{ label: "Atrás", value: null }, ...(n.visible ? [{ label: "Conectarse", value: "go" }] : []), { label: "Olvidar esta red", value: "forget" }];
+        const v = await choiceDialog(`${n.ssid}\n${n.visible ? "Registrada" : "Registrada · fuera de alcance"}`, opts, 1);
+        if (v === "go") return openView(wifiConnectView(n, null, "connect", () => this.refresh()));
+        if (v === "forget") return this.forget(n);
+        return;
+      }
+      if (!n.secure) return openView(wifiConnectView(n, null, "connect", () => this.refresh()));
+      openView(passwordKeyboardView(n.ssid, pw => openView(wifiConnectView(n, pw, "connect", () => this.refresh()))));
+    },
+    async forget(n) {
+      const ok = await confirmDialog(`¿Olvidar ${n.ssid}?\nPara volver a usarla tendrás que escribir su contraseña.`, "Olvidar");
+      if (!ok) return;
+      const r = Host.has ? await Host.call("wifi.forget", { name: n.ssid }).catch(e => ({ ok: false, error: e.message })) : fakeWifi("forget", { name: n.ssid });
+      if (!r || !r.ok) return alertDialog((r && r.error) || "No se pudo olvidar");
+      toast(`Se olvidó ${n.ssid}`); this.refresh();
+    },
+    refresh(scan) { if (!this.el || !this.el.isConnected) return; wifiLoad(scan).then(r => this.paint(r)); },
+    onKey(k) {
+      if (k === "y") { play("select"); $(".vhead .sub", this.el).textContent = "Buscando redes…"; this.refresh(true); return true; }
+      return false;
+    },
+    items() { return fis(this.el); }
+  };
+}
+/* Estado de la conexión: lo de la red actual en una lista. */
+function wifiStatusView() {
+  return {
+    hints: [["B", "Atrás"], ["▲▼", "Desplazar"]],
+    render(el) {
+      const c = (WIFI.data && WIFI.data.current) || null;
+      const row = (k, v) => v || v === 0 ? `<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>` : "";
+      el.innerHTML = head(WIFI_IC, "Estado de la conexión", c ? c.ssid : "") + `<div class="vbody">${c ? `<dl class="kv">
+        ${row("Nombre de la red (SSID)", c.ssid)}${row("Seguridad", c.security)}${row("Banda", c.band)}${row("Canal", c.channel || "")}
+        ${row("Intensidad de la señal", c.signal + " %")}${row("Velocidad", c.rx ? `${c.rx} Mbps` : "")}
+        ${row("Dirección IP", c.ip)}${row("Máscara de subred", c.mask)}${row("Puerta de enlace", c.gateway)}${row("DNS", c.dns)}
+        ${row("Dirección MAC", c.mac)}${row("Punto de acceso (BSSID)", c.bssid)}${row("Adaptador", WIFI.data.adapter)}</dl>` : `<p class="note">No estás conectado a ninguna red Wi-Fi.</p>`}</div>`;
+    },
+    onKey(k) { if (k === "up" || k === "down") { const b = $(".vbody", this.el); if (b) b.scrollBy({ top: k === "down" ? 220 : -220, behavior: "smooth" }); return true; } return false; },
+    items() { return []; }
+  };
+}
+/* Conectarse / prueba de conexión: Consola → Dispositivo de red → Internet, cada tramo se llena al quedar listo. */
+function wifiConnectView(net, password, what, after) {
+  const CON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="2" y="6.5" width="20" height="11" rx="3"/><circle cx="6.5" cy="12" r="1.6"/><path d="M16 10.5v3M14.5 12h3"/></svg>';
+  const RTR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="13" width="18" height="6" rx="1.6"/><path d="M7 13 5.5 6M17 13l1.5-7"/><circle cx="7.5" cy="16" r=".8" fill="currentColor"/><circle cx="10.5" cy="16" r=".8" fill="currentColor"/></svg>';
+  const NET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.5 3.8 5.5 3.8 9s-1.2 6.5-3.8 9c-2.6-2.5-3.8-5.5-3.8-9S9.4 5.5 12 3z"/></svg>';
+  return {
+    cls: "dialog wcdlg", done: false,
+    hints() { return this.done ? [["A", "Aceptar"]] : []; },
+    render(el) {
+      el.innerHTML = `<div class="dbox wcbox"><h3>${what === "test" ? "Prueba de conexión" : "Conectándose a " + esc(net.ssid)}</h3>
+        <div class="wchain"><div class="wnode n0 ok"><i>${CON}</i><span>Consola</span></div><div class="wlink l1"><u></u></div><div class="wnode n1"><i>${RTR}</i><span>Dispositivo de red</span></div><div class="wlink l2"><u></u></div><div class="wnode n2"><i>${NET}</i><span>Internet</span></div></div>
+        <p class="wmsg">${what === "test" ? "Probando la conexión…" : "Conectándose…"}</p><button class="key ok fi wok" hidden>Aceptar</button></div>`;
+      $(".wok", el).onclick = () => this.close();
+      this.run();
+    },
+    step(n, state) { const L = $(".l" + n, this.el), N = $(".n" + n, this.el); L.classList.remove("busy"); L.classList.add(state); N.classList.add(state); },
+    busy(n) { $(".l" + n, this.el).classList.add("busy"); },
+    async run() {
+      const msg = t => { const m = $(".wmsg", this.el); if (m) m.textContent = t; };
+      this.busy(1);
+      if (what === "connect") {
+        const r = Host.has ? await Host.call("wifi.connect", { ssid: net.ssid, password, sae: !!net.sae, open: !net.secure }).catch(e => ({ ok: false, error: e.message })) : await fakeWifi("connect", { ssid: net.ssid, password });
+        if (!this.el.isConnected) return;
+        if (!r || !r.ok) { this.step(1, "bad"); msg((r && r.error) || "No se pudo conectar"); return this.finish(false); }
+      } else {
+        const r = WIFI.data && WIFI.data.current;
+        await wait(700);
+        if (!r) { this.step(1, "bad"); msg("No estás conectado a ninguna red Wi-Fi"); return this.finish(false); }
+      }
+      this.step(1, "ok"); this.busy(2);
+      const t = Host.has ? await Host.call("wifi.test").catch(() => ({ ok: false })) : await fakeWifi("test");
+      if (!this.el.isConnected) return;
+      if (t && t.ok) { this.step(2, "ok"); msg(`${what === "test" ? "La prueba de conexión fue exitosa" : "Conexión establecida"}${t.ms ? ` · ${t.ms} ms` : ""}${t.steam === false ? " · Steam no responde en esta red (prueba la VPN)" : ""}`); }
+      else { this.step(2, "bad"); msg(t && t.portal ? "Hay red, pero pide iniciar sesión en una página (hotel, aeropuerto)" : "Conectado al dispositivo de red, pero sin internet"); }
+      this.finish(true);
+    },
+    finish(ok) {
+      this.done = true; this.ok = ok; play(ok ? "select" : "bump");
+      const b = $(".wok", this.el); b.hidden = false; this.i = 0; updateFocus();
+    },
+    close() { if (!this.done) return; closeView(); if (after) after(); },
+    onB() { if (this.done) this.close(); return true; },
+    onKey(k) { if (k === "a" && this.done) { this.close(); return true; } return !this.done; },
+    items() { return this.done ? [$(".wok", this.el)] : []; }
+  };
+}
+/* Teclado para contraseñas: letras, números, una página de símbolos (#+=), Mostrar/Ocultar, y se ve con puntos. */
+function passwordKeyboardView(ssid, onDone) {
+  const tail = isSym => ["Mayús", isSym ? "abc" : "#+=", "Espacio", "Mostrar", "Borrar", "Listo"];
+  const PAGES = {
+    abc: [[..."1234567890"], [..."qwertyuiop"], [..."asdfghjklñ"], [..."zxcvbnm-_."], tail(false)],
+    sym: [[..."1234567890"], [..."!@#$%^&*()"], [..."~`|\\{}[]<>"], [..."+=/?:;\"',"], tail(true)]
+  };
+  let page = "abc";
+  const rows = () => PAGES[page], last = 4, max = 63;
+  const flatIndex = (r, c) => rows().slice(0, r).reduce((s, x) => s + x.length, 0) + c;
+  return {
+    text: "", r: 1, c: 0, i: flatIndex(1, 0), show: false, shift: false,
+    hints: [["B", "Borrar"], ["Y", "Mostrar"], ["☰", "Listo"], ["A", "Escribir"]],
+    render(el) {
+      el.innerHTML = head(LOCK_IC.replace(' class="wlock"', ""), "Contraseña", ssid) + `<div class="kb"><div class="kbfield"><span class="kbtext"></span><i class="caret"></i></div><div class="kbcount"></div><div class="kbrows"></div></div>`;
+      this.keys();
+    },
+    keys() {
+      const box = $(".kbrows", this.el);
+      box.innerHTML = rows().map((row, ri) => `<div class="kbrow">${row.map((k, ci) => `<button class="key fi${ri === last ? " wide" : ""}${k === "Listo" ? " ok" : ""}" data-r="${ri}" data-c="${ci}">${esc(k)}</button>`).join("")}</div>`).join("");
+      fis(box).forEach(b => b.onclick = () => { this.r = +b.dataset.r; this.c = +b.dataset.c; this.i = flatIndex(this.r, this.c); updateFocus(); this.press(); });
+      this.upd();
+    },
+    syncFromIndex() { let n = this.i; for (let r = 0; r < rows().length; r++) { if (n < rows()[r].length) { this.r = r; this.c = n; return; } n -= rows()[r].length; } },
+    upd() {
+      const t = $(".kbtext", this.el);
+      $$(".key", this.el).forEach(b => { if (b.textContent.length === 1) b.style.textTransform = this.shift && page === "abc" ? "uppercase" : ""; });
+      const sk = $$(".key", this.el).find(b => b.textContent === "Mayús"); if (sk) sk.classList.toggle("on", !!this.shift);
+      const mk = $$(".key", this.el).find(b => b.textContent === "Mostrar" || b.textContent === "Ocultar"); if (mk) { mk.textContent = this.show ? "Ocultar" : "Mostrar"; mk.classList.toggle("on", this.show); }
+      t.innerHTML = this.text ? esc(this.show ? this.text : "•".repeat(this.text.length)) : `<span class="ph">Escribe la contraseña…</span>`;
+      $(".kbcount", this.el).textContent = this.text ? `${this.text.length} caracteres` : "";
+    },
+    press() {
+      const k = rows()[this.r][this.c];
+      if (k === "Mayús") { this.shift = !this.shift; play("tick"); return this.upd(); }
+      if (k === "#+=" || k === "abc") { page = page === "abc" ? "sym" : "abc"; play("tick"); this.keys(); this.i = flatIndex(this.r, Math.min(this.c, rows()[this.r].length - 1)); this.syncFromIndex(); return updateFocus(); }
+      if (k === "Mostrar" || k === "Ocultar") { this.show = !this.show; play("tick"); return this.upd(); }
+      if (k === "Espacio") return this.type(" ");
+      if (k === "Borrar") return this.del();
+      if (k === "Listo") return this.done();
+      this.type(k);
+    },
+    type(ch) {
+      if (this.text.length >= max) return play("bump");
+      if (this.shift && /\p{L}/u.test(ch)) { ch = ch.toUpperCase(); this.shift = false; }
+      this.text += ch; play("type"); this.upd();
+    },
+    del() { if (!this.text) return play("bump"); this.text = this.text.slice(0, -1); play("back"); this.upd(); },
+    done() {
+      if (this.text.length < 8) { play("bump"); return toast("La contraseña de una red Wi-Fi tiene al menos 8 caracteres"); }
+      closeView(); onDone(this.text);
+    },
+    nav(dir) {
+      let r = this.r, c = this.c;
+      if (dir === "left") c--; else if (dir === "right") c++;
+      else {
+        const nr = r + (dir === "down" ? 1 : -1);
+        if (nr < 0 || nr >= rows().length) return bump(this.items()[this.i], dir);
+        c = Math.round(c * (rows()[nr].length - 1) / Math.max(1, rows()[r].length - 1)); r = nr;
+      }
+      if (c < 0 || c >= rows()[r].length) return bump(this.items()[this.i], dir);
+      this.r = r; this.c = c; this.i = flatIndex(r, c); play("move"); updateFocus();
+    },
+    onKey(k) {
+      if (k === "x") { this.del(); return true; }
+      if (k === "y") { this.show = !this.show; play("tick"); this.upd(); return true; }
+      if (k === "start") { this.done(); return true; }
+      return false;
+    },
+    onB() { if (!this.text) return false; this.del(); return true; },
+    onType(ch) { this.type(ch); },
+    items() { return fis(this.el); }
+  };
+}
+/* Sin la app (prototipo): redes de ejemplo. */
+const FAKEWIFI = { saved: ["Casa_5G", "Oficina"], current: "Casa_5G" };
+function fakeWifi(op, a = {}) {
+  const near = [{ ssid: "Casa_5G", signal: 88, bars: 3, secure: true, security: "WPA2-Personal", band: "5 GHz" }, { ssid: "Casa", signal: 70, bars: 2, secure: true, security: "WPA2-Personal", band: "2.4 GHz" },
+    { ssid: "Vecinos-2.4", signal: 40, bars: 1, secure: true, security: "WPA3-Personal", band: "2.4 GHz", sae: true }, { ssid: "Cafeteria", signal: 55, bars: 2, secure: false, security: "Abierta", band: "2.4 GHz" }];
+  if (op === "list") return { ok: true, adapter: "Prototipo Wi-Fi", saved: [...FAKEWIFI.saved], location: false,
+    networks: near.map(n => ({ ...n, saved: FAKEWIFI.saved.includes(n.ssid), connected: n.ssid === FAKEWIFI.current, connectable: true })),
+    current: FAKEWIFI.current ? { ssid: FAKEWIFI.current, security: "WPA2-Personal", band: "5 GHz", channel: 44, signal: 88, rx: 866, ip: "192.168.1.42", mask: "255.255.255.0", gateway: "192.168.1.1", dns: "192.168.1.1", mac: "A4:B1:C1:00:11:22", bssid: "10:20:30:40:50:60" } : null };
+  if (op === "forget") { FAKEWIFI.saved = FAKEWIFI.saved.filter(s => s !== a.name); if (FAKEWIFI.current === a.name) FAKEWIFI.current = null; return { ok: true }; }
+  if (op === "connect") return wait(900).then(() => { if (a.password && a.password !== "contraseña1") return { ok: false, error: "No se pudo conectar. Revisa la contraseña." }; FAKEWIFI.current = a.ssid; if (!FAKEWIFI.saved.includes(a.ssid)) FAKEWIFI.saved.push(a.ssid); return { ok: true }; });
+  if (op === "test") return wait(700).then(() => ({ ok: true, steam: true, ms: 38 }));
+}
+
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "1.1";
+let APP_VERSION = "1.2";
 const verName = v => (/^0\./.test(String(v)) ? "alpha " : "beta ") + v;
 const updState = { available: false, latest: null };
 function updateView() {
@@ -2476,20 +2781,122 @@ function trimView(c, onSaved) {
   };
 }
 
+/* ================= beta 1.2: Perfil como en la consola =================
+   Dos columnas (como Ajustes): Perfil (avatar, lo que juegas, tu código de amigo, historial de juego con horas),
+   Lista de amigos (tarjetas, ★ primero, Y para actualizar), Añadir un amigo (por código de amigo) y Ajustes de usuario. */
+const ME = { code: 0 };
+const fmtHours = h => { const x = +h || 0; return x <= 0 ? "" : x < 1 ? `${Math.max(1, Math.round(x * 60))} min` : `${x >= 10 ? Math.round(x) : x.toFixed(1)} h`; };
+const friendCode = n => { const s = String(n || ""); return s ? s.replace(/\B(?=(\d{4})+(?!\d))/g, " ") : "—"; };
 function profileView() {
+  const PCATS = ["Perfil", "Lista de amigos", "Añadir un amigo", "Ajustes de usuario"];
+  const COLS = 3;
+  const order = { playing: 0, online: 1, away: 2, offline: 3 };
   return {
-    hints: [["B", "Atrás"], ["A", "Aceptar"]],
-    render(el) {
-      const real = games.filter(g => g.kind !== "app"), hours = real.reduce((s, g) => s + (+g.hours || 0), 0), ach = real.reduce((s, g) => s + g.ach[0], 0);
-      el.innerHTML = head(I.friends, "Perfil") + `<div class="vbody">
-        <div class="pcard"><span class="avatar">${avatarHTML()}</span><div><h2>${esc(profile.name)}</h2><p>Nivel de Steam ${esc(profile.level ?? "—")}</p></div></div>
-        <div class="stats"><div class="stat"><b>${real.length}</b>Juegos</div><div class="stat"><b>${Math.round(hours)}</b>Horas jugadas</div><div class="stat"><b>${ach}</b>Logros</div><div class="stat"><b>${friends.filter(f => f.status !== "offline").length}</b>Amigos en línea</div></div>
-        <button class="lrow fi" data-a="f"><span class="meta"><b>Amigos</b><span>Ver quién está conectado</span></span><span class="val">›</span></button>
-        <button class="lrow fi" data-a="l"><span class="meta"><b>Logros</b><span>Progreso por juego</span></span><span class="val">›</span></button></div>`;
-      el.querySelector('[data-a="f"]').onclick = () => openView(friendsView());
-      el.querySelector('[data-a="l"]').onclick = () => openView(achHubView());
+    isProfile: true, side: "L", ci: 0, ri: 0, rows: [],
+    syncFromIndex() { if (this.side === "R") this.ri = this.i; },
+    hints() {
+      if (this.side === "L") return this.ci === 1 ? [["B", "Atrás"], ["Y", "Actualizar"], ["A", "Aceptar"]] : [["B", "Atrás"], ["A", "Aceptar"]];
+      if (this.ci === 1) return [["B", "Atrás"], ["Y", "Actualizar"], ["A", "Ver perfil"]];
+      return [["B", "Atrás"], ["A", "Aceptar"]];
     },
-    items() { return fis(this.el); }
+    render(el) {
+      el.innerHTML = head(I.friends, "Perfil", profile.name || "") + `<div class="nsb"><div class="nsl">${PCATS.map((c, i) => `<button class="nscat fi" data-c="${i}">${esc(c)}</button>`).join("")}</div><div class="nsr ppane"></div></div>`;
+      $$(".nscat", el).forEach(b => b.onclick = () => { const c = +b.dataset.c; if (this.side === "L" && c === this.ci) return this.enter(); this.side = "L"; this.ci = c; this.i = c; this.pane(); updateFocus(); });
+      this.pane();
+      if (Host.has && !ME.code) Host.call("steam.me").then(m => { if (m && m.code) { ME.code = m.code; if (this.el.isConnected && (this.ci === 0 || this.ci === 2)) this.pane(true); } }).catch(() => {});
+      if (!Host.has && !ME.code) ME.code = 123456789;
+    },
+    /* La columna derecha. keep: no mover el foco (solo se actualizaron datos). */
+    pane(keep) {
+      const p = $(".ppane", this.el), rows = this.rows = [];
+      $$(".nscat", this.el).forEach(b => b.classList.toggle("sel", +b.dataset.c === this.ci));
+      const add = (html, act, extra) => { const k = rows.length; rows.push({ act, ...extra }); return html.replace("<button", `<button data-r="${k}"`); };
+      let h = "";
+      if (this.ci === 0) {
+        const real = games.filter(g => g.kind !== "app"), hours = real.reduce((s, g) => s + (+g.hours || 0), 0), ach = real.reduce((s, g) => s + (g.ach ? g.ach[0] : 0), 0);
+        const playing = state.running && byId(state.running);
+        h += `<div class="pme"><span class="avatar pav">${avatarHTML()}</span><div class="pmeta"><h2>${esc(profile.name || "Jugador")}</h2>
+          <span>${playing ? `<span class="dot" style="background:#7bd84a"></span>Jugando ${esc(playing.name)}` : `<span class="dot" style="background:#3ad7ff"></span>En línea`}</span>
+          <span>Nivel de Steam ${esc(profile.level ?? "—")}</span><span class="pcode">Código de amigo: <b>${esc(friendCode(ME.code))}</b></span></div></div>
+          <div class="stats"><div class="stat"><b>${real.length}</b>Juegos</div><div class="stat"><b>${Math.round(hours)}</b>Horas jugadas</div><div class="stat"><b>${ach}</b>Logros</div><div class="stat"><b>${friends.filter(f => f.status !== "offline").length}</b>Amigos en línea</div></div>`;
+        h += add(`<button class="lrow fi"><span class="meta"><b>Logros</b><span>Progreso por juego</span></span><span class="val">›</span></button>`, () => openView(achHubView()));
+        const hist = real.filter(g => (g.lastTs || 0) > 0 || (+g.hours || 0) > 0).sort((a, b) => (b.lastTs || 0) - (a.lastTs || 0) || (+b.hours || 0) - (+a.hours || 0)).slice(0, 30);
+        h += `<div class="nssec">Historial de juego</div>` + (hist.length ? hist.map(g => add(`<button class="lrow fi phist"><img class="mini" alt="" data-art="${g.appid}"><span class="meta"><b>${esc(g.name)}</b><span>${g.last && g.last !== "nunca" ? "Jugado por última vez: " + esc(g.last) : "Sin jugar todavía"}</span></span><span class="val">${fmtHours(g.hours)}</span></button>`, () => openView(propsView(g)))).join("")
+          : `<p class="note">Todavía no hay juegos jugados.</p>`);
+      } else if (this.ci === 1) {
+        const list = [...friends].sort((a, b) => (isBest(b.name) - isBest(a.name)) || order[a.status] - order[b.status] || a.name.localeCompare(b.name));
+        const on = list.filter(f => f.status !== "offline").length;
+        h += `<p class="pcount">${on} en línea · ${list.length} en total</p>`;
+        h += list.length ? `<div class="fgrid">${list.map(f => {
+          const [c, txt] = STATUS[f.status] || STATUS.offline;
+          return add(`<button class="fcardb fi"><span class="fav" style="background:hsl(${hueOf(f.name)},55%,48%)">${f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase())}</span><b>${esc(f.name)}${isBest(f.name) ? '<i class="nstar">★</i>' : ""}</b><span><span class="dot" style="background:${c}"></span>${esc(trunc(txt(f.game || ""), 26))}</span></button>`, () => openView(friendProfileView(f)), { grid: true, name: f.name });
+        }).join("")}</div>` : `<p class="note">${Host.has ? "Tu lista de amigos está vacía o Steam no la deja ver (revisa tu API key en Cuentas y arranque)." : "Sin amigos."}</p>`;
+      } else if (this.ci === 2) {
+        h += `<div class="nssec">Buscar</div>` + add(`<button class="lrow fi"><span class="meta"><b>Buscar por código de amigo</b><span>El número de cuenta de Steam de tu amigo (lo ve en su perfil de Scarlet o en Steam › Amigos › Añadir un amigo)</span></span><span class="val">›</span></button>`, () => this.search());
+        h += `<div class="nssec">Tu código</div><div class="pcodebig"><span>Tu código de amigo</span><b>${esc(friendCode(ME.code))}</b><span>Compártelo para que te agreguen</span></div>`;
+        h += `<div class="nssec">Solicitudes</div>` + add(`<button class="lrow fi"><span class="meta"><b>Solicitudes de amistad y jugadores recientes</b><span>Las solicitudes recibidas y enviadas se ven en Steam (Scarlet todavía no puede leerlas)</span></span><span class="val">Abrir ›</span></button>`, () => openSystemApp({ ...SYS.chat, name: "Solicitudes de amistad", url: "steam://open/friends" }));
+      } else {
+        h += `<div class="nssec">Tu cuenta</div>`;
+        if (Host.has) h += add(`<button class="lrow fi"><span class="meta"><b>Cuentas y arranque</b><span>Claves de Steam y SteamGridDB, inicio con Windows, botón Xbox</span></span><span class="val">›</span></button>`, () => openView(accountsView()));
+        h += add(`<button class="lrow fi"><span class="meta"><b>Ver tu perfil en Steam</b><span>Se abre en Steam Big Picture</span></span><span class="val">›</span></button>`, () => openSystemApp({ ...SYS.store, name: "Tu perfil de Steam", sub: "Abierto en Steam Big Picture", url: "steam://url/SteamIDPage/" + (ME.code ? (76561197960265728n + BigInt(ME.code)).toString() : "") }));
+        h += `<div class="nssec">Avisos de amigos</div>`;
+        h += add(`<button class="lrow fi"><span class="meta"><b>Amigos que se conectan</b><span>Todos, solo tus mejores amigos (★) o nadie</span></span><span class="val pnf1">${esc(optLabel(NF_FRIENDS, settings.nFriendOn))}</span></button>`, () => pickOption("Amigos que se conectan", NF_FRIENDS, "nFriendOn"));
+        h += add(`<button class="lrow fi"><span class="meta"><b>Amigos que empiezan a jugar</b><span>Todos, solo tus mejores amigos (★) o nadie</span></span><span class="val pnf2">${esc(optLabel(NF_FRIENDS, settings.nFriendPlay))}</span></button>`, () => pickOption("Amigos que empiezan a jugar", NF_FRIENDS, "nFriendPlay"));
+      }
+      p.innerHTML = h;
+      $$("[data-art]", p).forEach(im => Art.apply(im, byId(im.dataset.art) || { appid: +im.dataset.art, name: "" }));
+      $$("[data-r]", p).forEach(b => b.onclick = () => { const r = +b.dataset.r; this.side = "R"; this.ri = r; this.i = r; updateFocus(); this.rows[r].act(); });
+      if (keep && this.side === "R") { this.ri = Math.min(this.ri, Math.max(0, rows.length - 1)); this.i = this.ri; }
+      if (!keep && this.side === "L") p.scrollTop = 0;
+      if (keep) updateFocus();
+    },
+    async search() {
+      openView(keyboardView("", async code => {
+        if (!code) return;
+        const r = Host.has ? await Host.call("steam.lookup", { code }).catch(e => ({ ok: false, error: e.message })) : (code === "987654321" ? { ok: true, steamid: "76561198947920049", name: "Amiga de prueba", avatar: null, friend: false } : { ok: false, error: "No hay ninguna cuenta con ese código" });
+        if (!r || !r.ok) return alertDialog((r && r.error) || "No se pudo buscar");
+        if (r.friend) return alertDialog(`${r.name || "Esa cuenta"} ya es tu amigo.`);
+        const ok = await confirmDialog(`${r.name ? r.name : "Cuenta " + friendCode(code)}\n¿Enviar una solicitud de amistad?`, "Enviar solicitud");
+        if (!ok) return;
+        const sent = Host.has ? await Host.call("steam.addfriend", { steamid: r.steamid }).catch(() => false) : true;
+        toast(sent ? "Solicitud enviada con Steam" : "No se pudo enviar la solicitud");
+      }, null, { title: "Código de amigo", placeholder: "Escribe el código de amigo…", keys: "digits", max: 10 }));
+    },
+    items() { return this.side === "L" ? $$(".nscat", this.el) : $$("[data-r]", this.el); },
+    enter() {
+      if (!this.rows.length) return bump(this.items()[this.i], "right");
+      this.side = "R"; this.ri = 0; this.i = 0; play("move"); updateFocus();
+    },
+    nav(dir) {
+      if (this.side === "L") {
+        if (dir === "right") return this.enter();
+        if (dir === "left") return bump(this.items()[this.i], dir);
+        const c = this.ci + (dir === "down" ? 1 : -1);
+        if (c < 0 || c >= PCATS.length) return bump(this.items()[this.i], dir);
+        this.ci = c; this.i = c; this.pane(); play("move"); return updateFocus();
+      }
+      const grid = this.ci === 1, n = this.rows.length;
+      if (dir === "left" && (!grid || this.ri % COLS === 0)) { this.side = "L"; this.i = this.ci; play("move"); return updateFocus(); }
+      let j = this.ri;
+      if (grid) j += dir === "left" ? -1 : dir === "right" ? 1 : dir === "down" ? COLS : -COLS;
+      else { if (dir === "right") return bump(this.items()[this.i], dir); j += dir === "down" ? 1 : -1; }
+      if (grid && dir === "down" && j >= n && Math.floor(this.ri / COLS) < Math.floor((n - 1) / COLS)) j = n - 1;   // última fila incompleta
+      if (j < 0 || j >= n || (grid && dir === "right" && j % COLS === 0)) return bump(this.items()[this.i], dir);
+      this.ri = j; this.i = j; play("move"); updateFocus();
+    },
+    onB() { if (this.side === "R") { this.side = "L"; this.i = this.ci; play("back"); updateFocus(); return true; } return false; },
+    onKey(k) {
+      if (k === "y" && this.ci === 1) {
+        play("select"); toast("Actualizando la lista de amigos…");
+        const done = list => { if (Array.isArray(list)) friends = list; if (this.el.isConnected && this.ci === 1) this.pane(true); };
+        if (Host.has) Host.call("steam.friends.refresh").then(done).catch(() => toast("No se pudo actualizar"));
+        else setTimeout(() => done(friends), 300);
+        return true;
+      }
+      return false;
+    },
+    refresh() { if (this.el && this.el.isConnected) this.pane(true); },
+    onFocus() { },
   };
 }
 
@@ -2559,7 +2966,8 @@ function settingsCats() {
     { sep: true },
     { label: "Red y VPN", secs: [
       ["VPN", [go("VPN", "Cloudflare WARP o WireGuard, para redes que bloquean Steam o Xbox", () => openView(vpnView()), () => VPN.provider === "none" ? "Sin configurar" : vpnLabel())]],
-      ["Red", [go("Wi-Fi y red en Windows", "Redes, contraseñas y datos de la conexión", () => openSystemApp(SYS.winsettings))]]] },
+      ["Red", [go("Internet", "Redes Wi-Fi, conectarse, prueba de conexión y estado de la conexión", () => openView(wifiView()), () => WIFI.data && WIFI.data.current ? WIFI.data.current.ssid : ""),
+        go("Wi-Fi y red en Windows", "Redes, contraseñas y datos de la conexión", () => openSystemApp(SYS.winsettings))]]] },
     { label: "Juegos externos", secs: [
       ["Agregar", [go("Agregar un juego", "Un .exe, un acceso directo (.lnk) o un .url de tu PC (por ejemplo un emulador o un juego de otra tienda). Se busca con un explorador para el mando.", () => addExternalGame())]],
       ...(games.some(g => g.source === "ext") ? [["Tus juegos", games.filter(g => g.source === "ext").map(g => go(g.name, g.path || "", () => openView(propsView(g)), () => g.installed === false ? "No está" : ""))]] : [])] },
@@ -3312,7 +3720,8 @@ async function addExternalGame() {
 }
 function fakeExtAdd(path) {
   const name = path.split("\\").pop().replace(/\.(exe|lnk|url)$/i, "");
-  const id = 2000000000 + games.filter(g => g.source === "ext").length + 1;
+  fakeExtAdd.last = Math.max(fakeExtAdd.last || 2000000000, ...games.filter(g => g.source === "ext").map(g => g.appid));
+  const id = ++fakeExtAdd.last;
   games.push({ appid: id, name, source: "ext", kind: "game", installed: true, hours: 0, last: "nunca", lastTs: 0, ach: [0, 0], cols: ["Externos"], size: 0, path, args: "" });
   return { ok: true, appid: id, name };
 }
@@ -3348,6 +3757,10 @@ function extRemove(g) {
   return confirmDialog(`¿Quitar ${g.name} de Scarlet?\nNo se borra nada de tu PC: solo deja de aparecer aquí.`, "Quitar").then(async ok => {
     if (!ok) return false;
     if (Host.has) await Host.call("ext.remove", { appid: g.appid }).catch(() => {});
+    // Su portada elegida y la de SteamGridDB se borran: otro juego no debe heredarlas.
+    delete Art.pick[g.appid]; store.set("artPick", Art.pick);
+    for (const k of Object.keys(Art.cache)) if (k.includes(":" + g.appid + ":")) delete Art.cache[k];
+    store.set("artCache", Art.cache);
     games = games.filter(x => x !== g); renderHome(); refreshLibrary();
     toast(`${g.name} se quitó de Scarlet`);
     const sv = views.find(v => v.isSettings); if (sv) sv.refresh();
@@ -3370,6 +3783,21 @@ Events.on("cloud.done", d => {
   const g = byId(d.appid);
   notify(d.ok ? { kind: "dl", key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "Partida guardada en la nube", text: g ? g.name : "Steam Cloud" }
     : { kind: "err", key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "No se pudo sincronizar la nube", text: `${g ? g.name + ": " : ""}Steam lo intentará de nuevo` });
+});
+/* El juego que abres espera la nube de Steam (normalmente la partida que otro juego aún sube): se avisa en la carga. */
+Events.on("game.cloudwait", d => {
+  const L = $("#launch"); if (!L || !d) return;
+  const from = d.from && byId(d.from);
+  $(".lcloud", L).textContent = "Esperando la nube de Steam…" + (from ? ` (${from.name} aún sube su partida)` : "");
+  L.classList.toggle("cwait", !!d.on && mode === "launching");   // puede llegar antes de que la carga termine de aparecer
+});
+Events.on("game.ready", () => $("#launch").classList.remove("cwait"));
+Events.on("game.failed", () => $("#launch").classList.remove("cwait"));
+/* El botón Xbox abrió Big Picture: es un ajuste de Steam. Se avisa una vez dónde apagarlo. */
+Events.on("steam.guidebp", d => {
+  if (d && d.changed) return notify({ kind: "err", icon: I.gear, title: "Se apagó un ajuste de Steam", text: "El botón Xbox ya no abrirá Big Picture", key: "guidebp" });
+  if (store.get("guidebpTold")) return; store.set("guidebpTold", 1);
+  notify({ kind: "err", icon: I.gear, title: "El botón Xbox abrió Big Picture", text: "En Steam › Ajustes › Mando, apaga «El botón Guía enfoca Steam»", important: true, key: "guidebp" });
 });
 Events.on("cloud.ask", d => { const g = d && byId(d.appid); notify({ kind: "err", icon: I.cloud, bg: "#f08a24", title: "Steam necesita que elijas", text: `${g ? g.name + " · " : ""}partidas en la nube`, important: true }); });
 function paintCloud() {
@@ -3971,7 +4399,7 @@ async function openSystemApp(o, el) {
   const L = $("#launch"); L.classList.add("show"); await wait(380);
   (o.url === "armoury" ? Host.call("system.armoury") : Host.call("system.open", { uri: o.url })).catch(() => {});
   state.overlay = o; showGame(o, o.sub + (Host.has ? "" : " · simulación del prototipo"));
-  L.classList.remove("show"); await wait(380);
+  L.classList.remove("show", "cwait"); await wait(380);
   mode = "game";
 }
 async function launchGame(g, el, opt = {}) {
@@ -4033,7 +4461,7 @@ async function launchGame(g, el, opt = {}) {
   state.running = g.appid; home.zone = "games"; home.g = 0; home.offset = 0;
   renderHome(); showGame(g);
   L.classList.remove("logo"); await wait(250);
-  L.classList.remove("show"); await wait(400);
+  L.classList.remove("show", "cwait"); await wait(400);
   mode = "game";
   if (!Host.has && hasAch(g) && g.ach[0] < g.ach[1]) setTimeout(() => {   // logro de demostración
     if (state.running !== g.appid) return;
@@ -4060,7 +4488,7 @@ async function resumeGame(el) {
   closeAllViews();
   Host.call("game.focus", { appid: g.appid }).catch(() => {});
   showGame(g);
-  L.classList.remove("show"); await wait(380);
+  L.classList.remove("show", "cwait"); await wait(380);
   mode = "game";
 }
 function goHome() {
@@ -4078,7 +4506,8 @@ const goneAt = {};   // juegos que se acaban de cerrar: una respuesta atrasada n
 function syncRunning() {
   if (!Host.has) return;
   Host.call("game.state").then(gs => {
-    if (gs && gs.appid && gs.appid !== state.running && byId(gs.appid) && !(Date.now() - (goneAt[gs.appid] || 0) < 8000)) { state.running = gs.appid; if (mode !== "boot") renderHome(); }
+    // Solo cuenta como «Jugando» cuando ya está en pantalla (mientras abre, o mientras espera la nube, todavía no).
+    if (gs && gs.appid && gs.ready !== false && mode !== "launching" && gs.appid !== state.running && byId(gs.appid) && !(Date.now() - (goneAt[gs.appid] || 0) < 8000)) { state.running = gs.appid; if (mode !== "boot") renderHome(); }
   }).catch(() => {});
 }
 function closeRunning(silent) {
@@ -4422,7 +4851,7 @@ function qmTouchSetup() {
 function openQuick() {
   qmTouchSetup();
   if (QM.open || !["ui", "game"].includes(mode)) return;
-  QM.open = true; QM.i = 0; QM.m = 2; QM.src = null; renderQuick(); tintQuick(); mediaTick();
+  QM.open = true; QM.look = null; QM.i = 0; QM.m = 2; QM.src = null; renderQuick(); tintQuick(); mediaTick();
   loadVpn().then(() => { if (QM.open) qmPatch(() => {}); });
   // Cada vez que se abre se vuelve a leer todo (juego, barras, Salida, Dolby, canción, batería). Mientras llega,
   // se ve lo último que se sabía; lo que no conteste a tiempo se queda con su último valor.
@@ -4435,10 +4864,15 @@ function openQuick() {
   if (OVERLAY && Host.has) setTimeout(() => Host.call("quick.shown").catch(() => {}), 0);
 }
 /* Cambia filas del menú sin que el foco brinque (si aparecen o desaparecen filas arriba del foco). */
+/* Lo que se ve en el menú (para no rehacerlo si una lectura trajo lo mismo: beta 1.2). */
+const qmLook = () => { try { return JSON.stringify([sys, QM.mix, QM.outs, typeof ATMOS !== "undefined" ? ATMOS : null, QM.autoBriOk, QM.ssid, QM.noBri, battInfo]); } catch (e) { return Math.random() + ""; } };
 function qmPatch(fn) {
   const key = (qmRows()[QM.i] || {}).k, before = qmRows().map(r => r.k).join();
   fn();
   if (!QM.open) return;
+  const look = qmLook();
+  if (look === QM.look && qmRows().map(r => r.k).join() === before) return;   // nada cambió: no se repinta
+  QM.look = look;
   if (qmRows().map(r => r.k).join() === before) return renderQuick();
   const j = qmRows().findIndex(r => r.k === key); if (j >= 0) QM.i = j; else QM.i = clamp(QM.i, 0, qmRows().length - 1);
   renderQuick();
@@ -4864,6 +5298,11 @@ function setMedia(m) {
   if (m && !m.title) m = null;
   if (m && m.now) m.at = (m.at || m.now) + (Date.now() - m.now);   // reloj de la app → reloj de la página
   const had = !!media; media = m;
+  // Windows avisa varias veces por segundo (avance de la canción): solo se repinta si cambió algo que se ve.
+  // Antes cada aviso rehacía el menú y volvía a pedir la carátula.
+  const look = m ? [m.app, m.title, m.artist, m.art, m.playing, m.shuffle, m.canShuffle, m.canNext, m.canPrev, m.canSeek, Math.round(m.duration || 0)].join("|") : "";
+  const same = look === setMedia.look && had === !!m; setMedia.look = look;
+  if (same) return;
   if (QM.open && had !== !!m) QM.i = clamp(QM.i + (m ? 1 : -1), 0, qmRows().length - 1);
   if (QM.open) renderQuick();
   tintQuick();
@@ -4952,7 +5391,12 @@ function guideUp() {
 Events.on("guide.hold", d => { if (QM.open) { if (!(d && d.hidden)) closeQuick(); } else openQuick(); });
 /* botón Xbox (app): 1 toque = menú rápido */
 Events.on("quick.toggle", () => { if (!QM.open && notifAction()) return; QM.open ? closeQuick() : openQuick(); });
-Events.on("quick.open", () => { lastActivity = performance.now(); dimmed = false; mode = "ui"; QM.open = false; openQuick(); });
+Events.on("quick.open", () => {
+  lastActivity = performance.now(); dimmed = false; mode = "ui"; QM.open = false;
+  // Cerrado, esta página estuvo congelada (beta 1.2): lo que cambió mientras tanto (la canción) se pide al abrir.
+  if (OVERLAY && Host.has) Host.call("media.state").then(m => { if (QM.open) setMedia(m); }).catch(() => {});
+  openQuick();
+});
 Events.on("quick.close", () => { if (QM.open) closeQuick(false, "botón Xbox"); else Host.call("quick.close", { why: "botón Xbox" }).catch(() => {}); });
 /* Botones que manda la app cuando el juego se quedó con el foco: así el menú siempre se puede usar y cerrar. */
 Events.on("pad.key", k => { if (OVERLAY && QM.open && typeof k === "string" && QM.src !== "pad") { QM.src = "host"; lastActivity = performance.now(); input(k); } });
@@ -5033,6 +5477,7 @@ function activity() {
   return false;
 }
 setInterval(() => {
+  if (document.hidden) { lastActivity = performance.now(); return; }   // jugando: ni atenuar ni dormir
   if (OVERLAY || mode !== "ui" || QM.open) { lastActivity = Math.max(lastActivity, performance.now() - 1000); return; }
   const idle = performance.now() - lastActivity;
   if (settings.sleepAfter && idle >= settings.sleepAfter) { dimmed = false; $("#dim").classList.remove("on"); lastActivity = performance.now(); return sleepConsole(); }
@@ -5070,8 +5515,10 @@ function friendProfileView(f) {
           ${f.status === "playing" ? `<div class="fnow"><img alt=""><div><span>Jugando ahora</span><b>${esc(f.game)}</b><span>${owned ? "Lo tienes en tu biblioteca" : "No está en tu biblioteca"}</span></div></div>` : ""}
           <div class="fbtns">
             ${f.status === "playing" ? `<button class="btn primary fi" data-a="join">Unirse a la partida</button>` : ""}
-            <button class="btn fi" data-a="msg">Enviar mensaje</button><button class="btn fi" data-a="steam">Ver perfil en Steam</button>
+            <button class="btn fi" data-a="msg">Enviar mensaje</button><button class="btn fi fbest${isBest(f.name) ? " on" : ""}" data-a="best">${isBest(f.name) ? "★ Mejor amigo" : "☆ Mejores amigos"}</button><button class="btn fi" data-a="opts">Opciones</button>
           </div>
+          <div class="sect">Historial de juego</div>
+          <div class="frecent">${Host.has ? `<p class="note">Cargando…</p>` : (owned ? `<button class="lrow fi"><img class="mini" alt="" data-art="${owned.appid}"><span class="meta"><b>${esc(owned.name)}</b><span>${5 + seeded(f.name, 20)} h en las últimas 2 semanas</span></span></button>` : `<p class="note">No ha jugado nada en las últimas 2 semanas.</p>`)}</div>
           <div class="sect">Juegos en común</div>
           <div class="fcommon">${Host.has ? `<p class="note">Cargando…</p>` : (commonRows(common) || `<p class="note">No tienen juegos en común con logros.</p>`)}</div>
         </div></div></div>`;
@@ -5081,6 +5528,10 @@ function friendProfileView(f) {
       if (Host.has) Host.call("steam.friendProfile", { steamid: f.steamid }).then(d => {
         if (!el.isConnected) return;
         if (d.level != null) $(".flv", el).textContent = `Nivel de Steam ${d.level}`;
+        if (f.status === "offline" && d.lastSeen) $(".fst", el).lastChild.textContent = "Última conexión: " + d.lastSeen;
+        const rec = d.recent || [];
+        $(".frecent", el).innerHTML = rec.length ? rec.map(x => `<button class="lrow fi" data-g="${x.appid}"><img class="mini" alt="" data-art="${x.appid}"><span class="meta"><b>${esc(x.name)}</b><span>${x.weeks2} h en las últimas 2 semanas · ${Math.round(x.total)} h en total</span></span></button>`).join("")
+          : `<p class="note">${d.private ? "Su historial de juego es privado." : "No ha jugado nada en las últimas 2 semanas."}</p>`;
         const list = (d.common || []).map(x => ({ ...(byId(x.appid) || { appid: x.appid, name: x.name, ach: [0, 0] }), hours: x.mine, theirHours: x.theirs }));
         $(".fcommon", el).innerHTML = commonRows(list) || `<p class="note">${d.private ? "Su biblioteca es privada." : "No tienen juegos en común."}</p>`;
         wire(); updateFocus();
@@ -5095,7 +5546,21 @@ function friendProfileView(f) {
         toast(`Uniéndote a ${f.name}…`); launchGame(owned, j, { joined: true });
       };
       $('[data-a="msg"]', el).onclick = () => openSystemApp({ ...SYS.chat, name: "Chat con " + f.name, url: f.steamid ? `steam://friends/message/${f.steamid}` : SYS.chat.url });
-      $('[data-a="steam"]', el).onclick = () => openSystemApp({ ...SYS.store, name: "Perfil de " + f.name, sub: "Abierto en Steam Big Picture", url: f.steamid ? `steam://url/SteamIDPage/${f.steamid}` : "steam://friends/players" });
+      const steamPage = () => openSystemApp({ ...SYS.store, name: "Perfil de " + f.name, sub: "Abierto en Steam Big Picture", url: f.steamid ? `steam://url/SteamIDPage/${f.steamid}` : "steam://friends/players" });
+      // ★ Mejores amigos (beta 1.2): igual que con Y en la lista; sus avisos siguen la opción «solo mejores amigos».
+      $('[data-a="best"]', el).onclick = () => {
+        const s = new Set(settings.bestFriends || []), b = $('[data-a="best"]', el);
+        if (s.has(f.name)) s.delete(f.name); else s.add(f.name);
+        settings.bestFriends = [...s]; saveSettings(); play(s.has(f.name) ? "on" : "off");
+        b.textContent = s.has(f.name) ? "★ Mejor amigo" : "☆ Mejores amigos"; b.classList.toggle("on", s.has(f.name));
+        const nm = $(".fcard h2", el); if (nm) nm.textContent = f.name;
+        toast(s.has(f.name) ? `${f.name} es de tus mejores amigos` : `${f.name} ya no está en mejores amigos`);
+      };
+      $('[data-a="opts"]', el).onclick = async () => {
+        const v = await choiceDialog(f.name, [{ label: "Atrás", value: null }, { label: "Ver perfil en Steam", value: "steam" }, { label: "Enviar mensaje", value: "msg" }], 1);
+        if (v === "steam") steamPage();
+        if (v === "msg") $('[data-a="msg"]', el).click();
+      };
     },
     items() { return fis(this.el); }
   };
@@ -5296,11 +5761,13 @@ function clockText(d = new Date()) {
   return `${h}:${m} ${d.getHours() < 12 ? "a.m." : "p.m."}`;
 }
 function tick() {
+  if (document.hidden && !OVERLAY) return;   // escondida (jugando): nada que actualizar; al volver se pone al día
   $$(".clock").forEach(c => c.textContent = clockText());
   $$(".wifi").forEach(w => w.style.opacity = (typeof netOn === "function" ? netOn() : navigator.onLine) && (typeof sys === "undefined" || (sys.wifi && !sys.airplane)) ? 1 : .3);
   if (typeof QM !== "undefined" && QM.open) renderQuick();
 }
 setInterval(tick, 10000); tick();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) tick(); });
 /* Avisos al 20 % y al 10 % (cada uno una vez por descarga) y aviso al conectar el cargador. */
 const battWarn = { 20: false, 10: false };
 function setBatt(level, charging) {

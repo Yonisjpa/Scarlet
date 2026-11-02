@@ -1,3 +1,32 @@
+Novedades de la beta 1.2
+
+Internet sin salir de Scarlet (Ajustes › Red y VPN › Internet):
+- Tus redes registradas y las que hay alrededor, con la señal en tres barras y candado si piden contraseña. Y vuelve a buscar.
+- Conectarse con A: si pide contraseña sale un teclado con página de símbolos (#+=), botón Mostrar y la contraseña en puntos. Se ve el camino Consola → Dispositivo de red → Internet mientras conecta.
+- Prueba de conexión (¿hay internet? ¿llega a Steam?), Estado de la conexión (red, seguridad, banda, canal, señal, IP, puerta de enlace, DNS, MAC) y Olvidar esta red.
+- En Windows 11 24H2, Windows solo deja ver las redes de alrededor si las apps de escritorio tienen permiso de ubicación; si falta, Scarlet lo explica y abre ese ajuste.
+- El menú rápido no cambia: Wi-Fi sigue prendiendo y apagando como antes.
+
+Perfil nuevo (en dos columnas, como Ajustes):
+- Perfil: tu avatar, lo que juegas ahora, tu código de amigo de Steam e historial de juego con horas.
+- Lista de amigos en tarjetas (★ primero); Y la actualiza. En el perfil de un amigo: ★ Mejores amigos, Opciones, última conexión y lo que ha jugado en las últimas 2 semanas (si su perfil lo deja ver).
+- Añadir un amigo: buscar por código de amigo y mandarle la solicitud con Steam. Las solicitudes recibidas y enviadas todavía se ven en Steam (Scarlet no las puede leer).
+
+Rendimiento mientras juegas (el menú se ve y funciona igual):
+- Cerrado, el menú encima del juego se congela (no corre nada) y se despierta al abrirlo.
+- Con el juego al frente, la interfaz de Scarlet se esconde del todo (no dibuja ni anima) y sus procesos pasan a modo eficiencia de Windows con prioridad baja; al abrir el menú o volver a Scarlet regresan a lo normal al instante.
+- Steam se lee cada 5 s en vez de cada segundo y el mando activo 4 veces por segundo en vez de 15.
+- El menú rápido ya no se rehace si nada cambió, la música no se repinta con cada avance de la canción y los avisos encima del juego solo redibujan su línea.
+- Diagnóstico › Rendimiento: cuánto procesador y memoria usó Scarlet en tu último juego, con el menú cerrado y abierto (también queda en el log).
+
+Arreglos:
+- Nube de Steam: la barra naranja ahora va en el juego que de verdad sube su partida (antes salía en el juego que intentabas abrir, con «Jugando»). Ese juego muestra «Esperando la nube de Steam…» en su pantalla de carga.
+- «Jugando» ya no aparece mientras un juego todavía está abriendo.
+- Ya no se enseñan las ventanas escondidas de Steam en cada arranque (Steam «pregunta» en todos los juegos; ahora solo cuenta si de verdad pregunta algo).
+- La carátula de la música ya no se vuelve a buscar cada segundo con el menú abierto.
+- Un juego externo nuevo ya no hereda la portada ni las horas de uno que quitaste.
+- Si el botón Xbox abre Big Picture, Scarlet intenta apagar ese ajuste de Steam y, si no puede, te dice dónde: Steam › Ajustes › Mando › «El botón Guía enfoca Steam».
+
 Novedades de la beta 1.1
 
 Juegos externos (Ajustes › Juegos externos):

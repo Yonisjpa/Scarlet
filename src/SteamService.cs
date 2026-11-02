@@ -674,7 +674,45 @@ sealed class SteamService
             catch { priv = true; }
         }
         var top = common.OrderByDescending(x => x.sort).Take(8).Select(x => new { appid = x.id, name = x.name, mine = x.mine, theirs = x.theirs }).ToList();
-        return new { level, common = top, @private = priv };
+        // Su historial (lo que jugó las últimas 2 semanas), si su perfil lo deja ver (beta 1.2).
+        var recent = new List<object>();
+        string lastSeen = null;
+        if (HasKey && !string.IsNullOrEmpty(sid))
+        {
+            try
+            {
+                using var d = await Api($"IPlayerService/GetRecentlyPlayedGames/v1/?steamid={sid}&count=8&format=json");
+                if (d.RootElement.GetProperty("response").TryGetProperty("games", out var rg))
+                    foreach (var g in rg.EnumerateArray())
+                        recent.Add(new { appid = Num(g, "appid"), name = Str(g, "name") ?? NameOf(Num(g, "appid")) ?? "", weeks2 = Math.Round(Num(g, "playtime_2weeks") / 60.0, 1), total = Math.Round(Num(g, "playtime_forever") / 60.0, 1) });
+            }
+            catch { }
+            try
+            {
+                using var d = await Api($"ISteamUser/GetPlayerSummaries/v2/?steamids={sid}");
+                var pl = d.RootElement.GetProperty("response").GetProperty("players");
+                if (pl.GetArrayLength() > 0 && Num(pl[0], "lastlogoff") is long lo && lo > 0) lastSeen = DateTimeOffset.FromUnixTimeSeconds(lo).ToLocalTime().ToString("d MMM yyyy, HH:mm", new CultureInfo("es-MX"));
+            }
+            catch { }
+        }
+        return new { level, common = top, @private = priv, recent, lastSeen };
+    }
+
+    /// <summary>Busca una cuenta por su código de amigo de Steam (el número de cuenta). Devuelve nombre y foto.</summary>
+    public async Task<object> LookupAsync(string code)
+    {
+        if (!long.TryParse(Regex.Replace(code ?? "", @"\D", ""), out long acc) || acc <= 0 || acc > uint.MaxValue) return new { ok = false, error = "Ese código no es válido" };
+        string sid = (SteamIdBase + acc).ToString();
+        if (sid == SteamId) return new { ok = false, error = "Ese es tu propio código" };
+        if (!HasKey) return new { ok = true, steamid = sid, name = (string)null, avatar = (string)null, friend = false };
+        try
+        {
+            using var d = await Api($"ISteamUser/GetPlayerSummaries/v2/?steamids={sid}");
+            var pl = d.RootElement.GetProperty("response").GetProperty("players");
+            if (pl.GetArrayLength() == 0) return new { ok = false, error = "No hay ninguna cuenta con ese código" };
+            return new { ok = true, steamid = sid, name = Str(pl[0], "personaname"), avatar = Str(pl[0], "avatarfull"), friend = friends.Any(f => f.steamid == sid) };
+        }
+        catch (Exception ex) { return new { ok = false, error = "No se pudo buscar: " + ex.Message }; }
     }
 
     /// <summary>Unirse a la partida de un amigo, si Steam lo permite (lobby o servidor).</summary>

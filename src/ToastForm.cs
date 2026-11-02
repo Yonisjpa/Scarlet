@@ -23,6 +23,7 @@ sealed class ToastForm : Form
     DateTime born = DateTime.Now;
     bool closing;
     double life = 1;
+    int lastPx = -1;
 
     ToastForm(string title, string text, string letter, Color badge, Image image, bool wide, bool video, string dur, bool saving)
     {
@@ -154,9 +155,18 @@ sealed class ToastForm : Form
         double age = (DateTime.Now - born).TotalMilliseconds;
         if (!closing)
         {
-            Opacity = Math.Min(1, age / 220);
+            if (Opacity < 1) Opacity = Math.Min(1, age / 220);
             life = Math.Max(0, 1 - age / LIFE_MS);
-            Invalidate();
+            // Solo se vuelve a dibujar la línea de abajo, y solo cuando cambió al menos un píxel (beta 1.2; antes se
+            // redibujaba todo el aviso 60 veces por segundo encima del juego).
+            int px = (int)(Width * life);
+            if (px != lastPx && !saving)
+            {
+                float k = K;
+                int h = (int)Math.Ceiling(3 * k) + 1;
+                Invalidate(new Rectangle(Math.Min(px, lastPx < 0 ? px : lastPx) - 1, Height - h, Math.Abs((lastPx < 0 ? Width : lastPx) - px) + 2, h));
+                lastPx = px;
+            }
             if (age > (saving ? 30000 : LIFE_MS)) closing = true;
         }
         else

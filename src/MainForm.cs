@@ -198,6 +198,9 @@ sealed class MainForm : Form
             xin.PadKey += k => Ui(() => quick?.SendKey(k));
             xin.PadActive += c => { var a = PadService.ActiveOf(c); if (a != null) Ui(() => EmitAll("pad.active", a)); };
             if (quick != null) quick.Hidden += () => xin.ForwardKeys = false;
+            if (quick != null) quick.Opening += () => Perf.Eco(false, ScarletPids(), "se abre el menú");
+            perfTimer.Tick += (_, _) => PerfTick();
+            perfTimer.Start();
             xin.Start();
 
             media.Changed += st => EmitAll("media.changed", st);
@@ -379,6 +382,18 @@ sealed class MainForm : Form
                 return list;
             }
             case "steam.friendProfile": return await steam.FriendProfileAsync(P.S(p, "steamid"));
+            // Perfil (beta 1.2): tu código de amigo, buscar a alguien por su código y mandarle la solicitud con Steam.
+            case "steam.me": return new { code = steam.AccountId, steamid = steam.SteamId };
+            case "steam.lookup": return await steam.LookupAsync(P.S(p, "code"));
+            case "steam.addfriend":
+            {
+                string sid = P.S(p, "steamid");
+                if (string.IsNullOrEmpty(sid) || !Regex.IsMatch(sid, @"^7656\d{13}$")) return false;
+                Log.Write($"amigos: se manda solicitud a {sid} con Steam");
+                Shell.Open("steam://friends/add/" + sid);
+                return true;
+            }
+            case "steam.friends.refresh": return await steam.FriendsAsync(true);
             case "steam.achievements": return await steam.AchievementsAsync(P.L(p, "appid"));
             case "steam.news":
             {
@@ -493,6 +508,9 @@ sealed class MainForm : Form
             {
                 long id = P.L(p, "appid");
                 int n = cfg.ExternalGames.RemoveAll(x => x.Id == id);
+                // Sus horas y su «última vez» se van con él (no las hereda otro juego).
+                cfg.PlaySeconds.Remove("ext:" + id); cfg.AppLastUsed.Remove("ext:" + id);
+                try { foreach (var f in Directory.GetFiles(Path.Combine(Paths.Cache, "externos"), $"*_{id}*")) File.Delete(f); } catch { }
                 cfg.Save();
                 if (n > 0) Log.Write($"juego externo {id} quitado de Scarlet (no se borró nada del disco)");
                 return n > 0;
@@ -535,7 +553,7 @@ sealed class MainForm : Form
                 Log.Write($"{tracker.AppId} queda abierta en segundo plano");
                 tracker.Stop(); steam.SetRunning(0); AudioFocus.RestoreAll();
                 return true;
-            case "game.close": GameFreezer.Resume(); FlushPlay(); playKey = null; tracker.Close(); steam.SetRunning(0); AudioFocus.RestoreAll(); return true;   // congelado no podría cerrarse bien
+            case "game.close": { long was = tracker.AppId; GameFreezer.Resume(); FlushPlay(); playKey = null; tracker.Close(); WatchCloud(was); } steam.SetRunning(0); AudioFocus.RestoreAll(); return true;   // congelado no podría cerrarse bien
             case "game.uninstall": return await Uninstall(P.L(p, "appid"));
             // ── Instalar directo con Steam (sin sus ventanas)
             case "install.prepare": return await InstallPrepare(P.L(p, "appid"));
@@ -552,6 +570,18 @@ sealed class MainForm : Form
             // ── Red y VPN
             case "net.state": return new { internet = NetCheck.Internet, steam = NetCheck.SteamReachable };
             case "vpn.state": return await Vpn.StatusAsync(cfg);
+            // Wi-Fi sin salir de Scarlet (beta 1.2)
+            case "wifi.list": return await Wifi.ListAsync(P.B(p, "scan"));
+            case "wifi.connect":
+            {
+                string pw = P.S(p, "password");
+                var r = await Wifi.ConnectAsync(P.S(p, "ssid"), pw, P.B(p, "sae"), P.B(p, "open"));
+                _ = NetCheck.CheckAsync();
+                return r;
+            }
+            case "wifi.forget": return await Wifi.ForgetAsync(P.S(p, "name"));
+            case "wifi.disconnect": return await Wifi.DisconnectAsync();
+            case "wifi.test": return await Wifi.TestAsync();
             case "vpn.set":
             {
                 bool on = P.B(p, "on");
@@ -911,7 +941,7 @@ sealed class MainForm : Form
             return;
         }
         if (!tracker.Active && TryAdoptRunning(appid, source)) { FocusGame(); Emit("game.ready", new { appid }); return; }
-        if (tracker.Active) { GameFreezer.Resume(); FlushPlay(); tracker.Close(); }
+        if (tracker.Active) { long was = tracker.AppId; GameFreezer.Resume(); FlushPlay(); tracker.Close(); WatchCloud(was); }
         playKey = null;
         AudioFocus.RestoreAll();
         TopMost = true;   // la pantalla de carga tapa las ventanitas que abren algunos juegos al arrancar
@@ -1019,7 +1049,7 @@ sealed class MainForm : Form
         TopMost = false;
         ShowUi();
         Emit("game.exited", new { appid });
-        if (steam.InstallDirOf(appid) != null) cloudWatch[appid] = DateTime.Now.AddMinutes(15);   // ahora sube su partida a la nube
+        WatchCloud(appid);   // ahora sube su partida a la nube
         if (reconnectPending) _ = Task.Delay(3000).ContinueWith(_ => ReconnectSteamAsync("ya se cerró el juego", true));
     }
 
@@ -1028,6 +1058,17 @@ sealed class MainForm : Form
     readonly Dictionary<long, double> cloudLive = new();          // los que están sincronizando ahora (y su %)
     readonly HashSet<long> cloudAsked = new();
 
+    long lastClosed; DateTime lastClosedAt;      // el último juego de Steam que se cerró (el que suele estar subiendo su partida)
+    long waitApp, waitFrom;                        // el que se está abriendo y espera la nube, y de quién es la nube que espera
+
+    /// <summary>Un juego de Steam se cerró: durante 15 min se revisa si sube su partida.</summary>
+    void WatchCloud(long appid)
+    {
+        if (appid <= 0 || steam.InstallDirOf(appid) == null) return;
+        cloudWatch[appid] = DateTime.Now.AddMinutes(15);
+        lastClosed = appid; lastClosedAt = DateTime.Now;
+    }
+
     async Task CloudTick()
     {
         try
@@ -1035,16 +1076,43 @@ sealed class MainForm : Form
             var now = DateTime.Now;
             foreach (var k in cloudWatch.Where(kv => kv.Value < now && !cloudLive.ContainsKey(kv.Key)).Select(kv => kv.Key).ToList()) cloudWatch.Remove(k);
             var ids = cloudWatch.Keys.ToList();
-            if (tracker != null && tracker.Active && !tracker.IsReady && tracker.AppId > 0) ids.Add(tracker.AppId);   // se está abriendo: baja su partida
-            if (ids.Count == 0) return;
-            var r = await SteamCdp.CloudAsync(ids);
+            bool launching = tracker != null && tracker.Active && !tracker.IsReady && tracker.AppId > 0;
+            if (launching && !ids.Contains(tracker.AppId)) ids.Add(tracker.AppId);   // se está abriendo: puede quedarse esperando la nube
+            if (ids.Count == 0 && waitApp == 0) return;
+            var r = ids.Count == 0 ? new List<SteamCdp.Cloud>() : await SteamCdp.CloudAsync(ids);
             if (r == null) return;
-            if (r.Any(c => c.Syncing) && tracker != null && tracker.Active && !tracker.IsReady) tracker.KeepWaiting();
+
+            // ¿El juego que se abre espera la nube? Steam lo deja en «SynchronizingCloud» mientras otro juego (el que se
+            // acaba de cerrar) sube su partida: la barra naranja va en ESE otro juego y en la pantalla de carga se avisa.
+            var me = launching ? r.FirstOrDefault(c => c.AppId == tracker.AppId) : null;
+            bool waiting = me != null && me.Waiting;
+            if (waiting && waitApp != tracker.AppId)
+            {
+                waitApp = tracker.AppId;
+                waitFrom = lastClosed != 0 && lastClosed != waitApp && now - lastClosedAt < TimeSpan.FromMinutes(15) ? lastClosed : 0;
+                Log.Write($"nube: {waitApp} espera la nube de Steam{(waitFrom != 0 ? $" (la de {waitFrom}, que se acaba de cerrar)" : "")}");
+                Emit("game.cloudwait", new { appid = waitApp, from = waitFrom, on = true });
+                if (waitFrom != 0 && !cloudLive.ContainsKey(waitFrom)) { cloudLive[waitFrom] = -1; Emit("cloud.progress", new { appid = waitFrom, pct = -1 }); }
+            }
+            else if (!waiting && waitApp != 0)
+            {
+                Log.Write($"nube: {waitApp} ya no espera la nube");
+                Emit("game.cloudwait", new { appid = waitApp, from = waitFrom, on = false });
+                long from = waitFrom; waitApp = 0; waitFrom = 0;
+                var fc = r.FirstOrDefault(c => c.AppId == from);
+                if (from != 0 && cloudLive.ContainsKey(from) && (fc == null || !fc.Syncing))
+                {
+                    cloudLive.Remove(from); cloudWatch.Remove(from);
+                    Emit("cloud.done", new { appid = from, ok = fc == null || !fc.Error });
+                }
+            }
+            if (waiting && tracker.Active && !tracker.IsReady) tracker.KeepWaiting();
+
             foreach (var c in r)
             {
                 if (c.Ask && cloudAsked.Add(c.AppId))
                 {
-                    // Steam pregunta algo (por ejemplo, qué partida conservar): se enseña su ventanita en vez de esconderla.
+                    // Steam pregunta algo de verdad (por ejemplo, qué partida conservar): se enseña su ventanita.
                     Log.Write($"Steam pregunta algo al abrir {c.AppId}: se enseña su ventana");
                     Ui(() =>
                     {
@@ -1057,12 +1125,15 @@ sealed class MainForm : Form
                 if (!c.Ask) cloudAsked.Remove(c.AppId);
                 if (c.Syncing)
                 {
+                    // El que se está abriendo baja su partida: eso no es una «subida», no lleva barra.
+                    if (launching && c.AppId == tracker.AppId) continue;
                     bool first = !cloudLive.ContainsKey(c.AppId);
                     if (first) Log.Write($"nube: {c.AppId} sincronizando su partida{(c.Pct >= 0 ? $" ({c.Pct:0} %)" : "")}");
+                    if (first || Math.Abs(cloudLive[c.AppId] - c.Pct) >= 0.5) Emit("cloud.progress", new { appid = c.AppId, pct = c.Pct });
                     cloudLive[c.AppId] = c.Pct;
                     cloudWatch[c.AppId] = now.AddMinutes(15);
-                    Emit("cloud.progress", new { appid = c.AppId, pct = c.Pct });
                 }
+                else if (c.AppId == waitFrom) { }   // su barra se queda mientras el otro juego siga esperando su nube
                 else if (cloudLive.Remove(c.AppId))
                 {
                     Log.Write($"nube: {c.AppId} terminó{(c.Error ? " con error" : "")}");
@@ -1445,6 +1516,7 @@ sealed class MainForm : Form
             ["Audio espacial"] = spatial,
             ["Salida de audio"] = outs.FirstOrDefault(o => o.current)?.name ?? "—",
             ["Música (Windows)"] = media.Describe(),
+            ["Rendimiento"] = Perf.Describe() + (quick != null && quick.Suspended ? " · el menú encima del juego está congelado (cerrado)" : ""),
             ["Steam"] = $"{(steamUiAllowed ? "visible (tienda/chat)" : "escondido")}{(BigPictureWindow() != IntPtr.Zero ? " · Big Picture abierto" : "")}{(AudioFocus.SteamMuted ? " · en silencio" : "")}",
             ["Puntero"] = CursorHider.Hidden ? "escondido" : "visible",
             ["Silenciadas por Scarlet"] = AudioFocus.MutedList() is string m && m.Length > 0 ? m : "ninguna",
@@ -1762,10 +1834,18 @@ sealed class MainForm : Form
     }
 
     /// <summary>Con el juego al frente, la interfaz se oculta para no gastar batería.</summary>
+    /// <summary>
+    /// Con el juego al frente, la interfaz se esconde: así su página se marca «oculta» y deja de dibujar, animar y
+    /// leer el mando (beta 1.2: se reintenta unos segundos si el juego tarda en tomar el frente).
+    /// </summary>
     async void HideSoon()
     {
-        await Task.Delay(600);
-        if (Native.GetForegroundWindow() != Handle) web.Visible = false;
+        for (int i = 0; i < 12; i++)
+        {
+            await Task.Delay(i == 0 ? 600 : 1000);
+            if (Native.GetForegroundWindow() != Handle) { web.Visible = false; return; }
+            if (tracker == null || !tracker.Active) return;
+        }
     }
 
     void ShowUi()
@@ -1774,6 +1854,7 @@ sealed class MainForm : Form
         var fg = Native.GetForegroundWindow();
         if (fg != IntPtr.Zero && fg != Handle) lastForeign = fg;
         if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        if (Perf.EcoOn) Perf.Eco(false, ScarletPids(), "de regreso en Scarlet");   // la interfaz responde al instante
         web.Visible = true;
         Native.ForceForeground(Handle);
         web.Focus();
@@ -2316,6 +2397,37 @@ sealed class MainForm : Form
     }
 
     /// <summary>Progreso de descargas en vivo desde Steam (cada segundo mientras hay conexión directa).</summary>
+    // ───── Rendimiento mientras juegas (beta 1.2) ─────
+    readonly System.Windows.Forms.Timer perfTimer = new() { Interval = 3000 };
+    bool wasGaming;
+
+    /// <summary>Jugando = un juego ya en pantalla (no mientras abre) y la interfaz de Scarlet escondida.</summary>
+    bool Gaming => tracker != null && tracker.Active && tracker.IsReady && !web.Visible;
+
+    /// <summary>Scarlet y todos los procesos de sus vistas web (la interfaz y el menú encima del juego).</summary>
+    List<int> ScarletPids()
+    {
+        var l = new List<int> { Environment.ProcessId };
+        try { if (env != null) foreach (var pi in env.GetProcessInfos()) l.Add(pi.ProcessId); } catch { }
+        return l;
+    }
+
+    void PerfTick()
+    {
+        bool gaming = Gaming, menu = quick != null && quick.IsOpen;
+        xin.Gaming = gaming;
+        if (gaming != wasGaming)
+        {
+            wasGaming = gaming;
+            if (gaming) Perf.Reset(); else if (Perf.EcoOn) Perf.Eco(false, ScarletPids(), "ya no hay juego al frente");
+            if (!gaming) Log.Write("rendimiento del último juego: " + Perf.Describe());
+        }
+        if (!gaming) return;
+        var pids = ScarletPids();
+        Perf.Sample(pids, menu);
+        if (cfg.EcoWhilePlaying && !menu && !Perf.EcoOn) Perf.Eco(true, pids, "juego al frente, menú cerrado");
+    }
+
     async Task DownloadLoop()
     {
         var last = new Dictionary<long, (double p, string state, DateTime at, string phase, bool fresh)>();
@@ -2323,7 +2435,8 @@ sealed class MainForm : Form
         List<LocalApp> acf = new();
         while (!IsDisposed)
         {
-            await Task.Delay(1000);
+            // Jugando: Steam se lee cada 5 s en vez de cada segundo (beta 1.2). Abriendo un juego, cada segundo.
+            await Task.Delay(wasGaming && !(quick != null && quick.IsOpen) ? 5000 : 1000);
             try
             {
                 if (!SteamCdp.MarkerPresent(steam.SteamPath) || enabling) { await Task.Delay(4000); continue; }
@@ -2331,7 +2444,7 @@ sealed class MainForm : Form
                 var (live, done, ok) = await SteamCdp.DownloadsAsync();
                 if (!ok) { await Task.Delay(4000); continue; }
                 cdpLiveAt = DateTime.UtcNow;
-                if (tick % 2 == 0) await CloudTick();
+                if (wasGaming || tick % 2 == 0) await CloudTick();
                 // Respaldo: lo que dicen los archivos de Steam (cada 3 s), por si su lista en vivo no trae algún juego.
                 // Solo las que Steam marca como descargándose (256 en curso, 512 en pausa, 1024 empezada, 1048576 bajando).
                 if (tick++ % 3 == 0) acf = steam.LocalApps().Where(a => a.BytesToDownload > 0 && a.BytesDownloaded < a.BytesToDownload && (a.StateFlags & (256 | 512 | 1024 | 1048576)) != 0).ToList();
@@ -2484,6 +2597,7 @@ sealed class MainForm : Form
     }
 
     DateTime lastBpClose = DateTime.MinValue;
+    bool guideFocusTried;
 
     /// <summary>
     /// Big Picture escondido seguía corriendo detrás (con sus sonidos al navegar). Si tú no lo abriste (tienda, chat),
@@ -2507,8 +2621,20 @@ sealed class MainForm : Form
         catch { }
         if (!found) return;
         lastBpClose = DateTime.Now;
-        Log.Write("Big Picture abierto sin que lo pidieras: se cierra");
+        // ¿Lo abrió el botón Xbox? Steam tiene «El botón Guía enfoca Steam» prendido: se intenta apagar y se avisa una vez.
+        bool byGuide = guideClock.ElapsedMilliseconds - lastGuideAt < 4000;
+        Log.Write($"Big Picture abierto sin que lo pidieras{(byGuide ? " (justo después del botón Xbox)" : "")}: se cierra");
         Shell.Open("steam://close/bigpicture");
+        if (byGuide && !guideFocusTried)
+        {
+            guideFocusTried = true;
+            _ = Task.Run(async () =>
+            {
+                var (changed, found) = await SteamCdp.GuideFocusOffAsync();
+                Log.Write($"Steam: «el botón Guía enfoca Steam» → {(changed ? "apagado desde Scarlet" : "no se pudo cambiar desde aquí")} (funciones: {(string.IsNullOrEmpty(found) ? "ninguna" : found)})");
+                Emit("steam.guidebp", new { changed });
+            });
+        }
     }
 
     /// <summary>Ventana de Steam Big Picture, si está abierta.</summary>

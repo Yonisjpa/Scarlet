@@ -125,6 +125,8 @@ sealed class XInputService : IDisposable
     /// verdad). Se revisa ~15 veces por segundo; solo avisa cuando cambia de mando.
     /// </summary>
     WGI.RawGameController lastActive;
+    /// <summary>Hay un juego al frente (lo pone la app): se lee menos seguido qué mando usas.</summary>
+    public volatile bool Gaming;
     void CheckActive()
     {
         foreach (var p in wgi)
@@ -192,7 +194,8 @@ sealed class XInputService : IDisposable
             {
                 if (tick % 120 == 0) RefreshWgi();   // cada 2 s
                 if (!guide && WgiGuide()) { guide = true; if (!down) Log.Write("wgi: botón Xbox presionado"); }
-                if (tick % 4 == 0 && PadActive != null) CheckActive();
+                // Qué mando usas: ~15 veces por segundo en el menú; jugando (menú cerrado) basta con ~4 (beta 1.2).
+                if (tick % (Gaming && !ForwardKeys ? 15 : 4) == 0 && PadActive != null) CheckActive();
             }
             catch (Exception ex) { if (tick % 600 == 0) Log.Error("wgi", ex); }
             tick++;

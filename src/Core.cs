@@ -131,6 +131,8 @@ sealed class Config
     public bool MuteBehind { get; set; } = true;
     public bool HideCursor { get; set; } = true;
     public bool QuickGlass { get; set; } = true;
+    public bool EcoWhilePlaying { get; set; } = true;   // procesos de Scarlet en modo eficiencia mientras juegas (beta 1.2)
+    public long ExternalLastId { get; set; }   // el último id que se dio: nunca se reutiliza (beta 1.2)
     public List<ExtGame> ExternalGames { get; set; } = new();   // juegos que agregaste tú (beta 1.1)   // menú rápido encima del juego con el fondo al 50 %
     /// <summary>Versión de la interfaz que se cargó la última vez: si cambia, se borra la caché del navegador.</summary>
     public string UiStamp { get; set; } = "";

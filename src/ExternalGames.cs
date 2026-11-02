@@ -76,9 +76,13 @@ static class ExternalGames
         if (old != null) return (old, null);   // ya estaba: no se duplica
         string target = ext == ".lnk" ? ShortcutTarget(path) : ext == ".exe" ? path : null;
         if (target != null && target.Contains("steam.exe", StringComparison.OrdinalIgnoreCase)) return (null, "Es un acceso de Steam: ese juego ya aparece solo en Scarlet");
+        // Un id nuevo SIEMPRE (antes, al quitar uno y agregar otro, el nuevo heredaba su id: su portada y sus horas).
+        long next = Math.Max(cfg.ExternalLastId, cfg.ExternalGames.Count == 0 ? Base : cfg.ExternalGames.Max(x => x.Id)) + 1;
+        if (next <= Base) next = Base + 1;
+        cfg.ExternalLastId = next;
         var g = new ExtGame
         {
-            Id = Base + (cfg.ExternalGames.Count == 0 ? 1 : cfg.ExternalGames.Max(x => x.Id) - Base + 1),
+            Id = next,
             Name = NiceName(path, target), Path = path, Target = target, Added = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
         cfg.ExternalGames.Add(g);

@@ -183,6 +183,8 @@ sealed class QuickOverlay : Form
         if (!ready) { Log.Write("menú rápido: todavía cargando"); return false; }
         if (!keepFocus && grabbers.Contains(ExeOf(front))) keepFocus = true;
         returnTo = front;
+        try { Opening?.Invoke(); } catch { }   // la app quita el modo eficiencia antes de mostrarlo
+        Wake();
         Place(front);
         SetMemory(true);
         IsOpen = true; IsClosing = false; FocusLost = false; drawn = false;
@@ -248,6 +250,36 @@ sealed class QuickOverlay : Form
         catch { }
     }
 
+    // ───── Cerrado y suspendido (beta 1.2) ─────
+    // Con el menú cerrado su página se congela (no corre nada: ni relojes, ni animaciones, ni lecturas) para no quitarle
+    // nada al juego. Al abrirlo se despierta antes de mostrarse, así que se ve y se usa igual que siempre.
+    bool suspended;
+    int suspendTicket;
+    async Task SuspendLater()
+    {
+        int me = ++suspendTicket;
+        await Task.Delay(4000);
+        if (me != suspendTicket || IsOpen || !ready || stale || web.CoreWebView2 == null) return;
+        try
+        {
+            web.Visible = false;   // WebView2 solo se suspende si no está visible
+            suspended = await web.CoreWebView2.TrySuspendAsync();
+            if (!suspended) web.Visible = true;
+        }
+        catch (Exception ex) { web.Visible = true; Log.Error("menú rápido (suspender)", ex); }
+    }
+    void Wake()
+    {
+        suspendTicket++;
+        if (!suspended && web.Visible) return;
+        try { if (suspended) web.CoreWebView2?.Resume(); } catch (Exception ex) { Log.Error("menú rápido (despertar)", ex); }
+        suspended = false;
+        web.Visible = true;
+    }
+    /// <summary>¿Está congelado ahora? (para Diagnóstico › Rendimiento).</summary>
+    public bool Suspended => suspended;
+    public event Action Opening;
+
     void ShowBack()
     {
         if (!Glass || back == null) return;
@@ -287,6 +319,7 @@ sealed class QuickOverlay : Form
 
     void Reload(bool openAfter)
     {
+        Wake();
         try { reopen = openAfter; ready = false; web.CoreWebView2?.Reload(); }
         catch (Exception ex) { Log.Error("menú rápido (recargar)", ex); ready = true; }
     }
@@ -329,6 +362,7 @@ sealed class QuickOverlay : Form
         back?.FadeTo(0);
         Hide();
         SetMemory(false);
+        _ = SuspendLater();
         try { Hidden?.Invoke(); } catch { }
         Log.Write($"menú rápido cerrado ({why ?? closeReason ?? "interfaz"})");
         closeReason = null;

@@ -152,6 +152,34 @@ static class SteamCdp
         return v.TryGetProperty("value", out var val) ? val.Clone() : default;
     }
 
+    /// <summary>
+    /// «El botón Guía enfoca Steam» (Steam › Ajustes › Mando): con eso prendido, el botón Xbox abre Big Picture encima de
+    /// Scarlet. Steam no documenta cómo cambiarlo desde fuera: se buscan funciones con «Guide» y «Focus» en el nombre
+    /// (en SteamClient.Input y SteamClient.Settings) y, si hay una para cambiarlo, se apaga. Devuelve lo que se encontró.
+    /// </summary>
+    public static async Task<(bool changed, string found)> GuideFocusOffAsync()
+    {
+        const string js = @"(async () => {
+  const found = [], out = { changed: false };
+  for (const ns of ['Input', 'Settings', 'System']) {
+    const o = SteamClient && SteamClient[ns]; if (!o) continue;
+    for (const k of Object.keys(o)) if (/guide/i.test(k)) found.push(ns + '.' + k);
+  }
+  const setter = found.find(n => /^(Input|Settings)\.Set.*Guide.*Focus/i.test(n));
+  if (setter) { const [ns, k] = setter.split('.'); try { await SteamClient[ns][k](false); out.changed = true; } catch (e) { found.push('falló: ' + e.message); } }
+  out.found = found.join(', ');
+  return out;
+})()";
+        try
+        {
+            var r = await EvalAsync(js, 5000);
+            bool ch = r.ValueKind == JsonValueKind.Object && r.TryGetProperty("changed", out var c) && c.ValueKind == JsonValueKind.True;
+            string f = r.ValueKind == JsonValueKind.Object && r.TryGetProperty("found", out var fv) ? fv.GetString() : "";
+            return (ch, f);
+        }
+        catch (Exception ex) { return (false, "sin respuesta: " + ex.Message); }
+    }
+
     public enum Probe { NoConnection, NoApi, Ready }
 
     /// <summary>¿Se puede hablar con Steam ahora mismo? NoApi: hay conexión pero Steam ya no trae lo que Scarlet usa.</summary>
@@ -508,32 +536,38 @@ return { ov: dlOv(L.ov), items: L.items.map(dlItem).filter(i => i.a > 0), others
     // pide que elijas algo (conflicto de partidas), Scarlet lo muestra en vez de esconderlo.
     const string CloudJs = @"(() => {
 const w = window;
-if (!w.__scarletCloud) {
-  const c = w.__scarletCloud = { act: {}, ask: {}, ev: [] };
+if (!w.__scarletCloud2) {
+  const c = w.__scarletCloud2 = { act: {}, ask: {}, ev: [] };
   const hook = name => { try { SteamClient.Apps[name]((...a) => {
     let s = ''; try { s = JSON.stringify(a).slice(0, 300); } catch (e) {}
     c.ev.push(name.replace('RegisterForGameAction', '') + ' ' + s); if (c.ev.length > 12) c.ev.shift();
-    const id = String(a.find(x => (typeof x === 'string' || typeof x === 'number') && /^\d{3,}$/.test(String(x)) && String(x).length < 11) ?? '');
+    const id = /^\d{3,10}$/.test(String(a[1] ?? '')) ? String(a[1]) : String(a.find(x => (typeof x === 'string' || typeof x === 'number') && /^\d{3,}$/.test(String(x)) && String(x).length < 11) ?? '');
     if (!id) return;
-    if (name === 'RegisterForGameActionUserRequest') c.ask[id] = { at: Date.now(), s };
-    else c.act[id] = { at: Date.now(), s, cloud: /cloud|sync/i.test(s), end: name === 'RegisterForGameActionEnd' };
+    // El paso en que va (SynchronizingCloud, CreatingProcess…): suele ser el 4.º dato; si no, el primero que lo parezca.
+    const step = /^[A-Z][A-Za-z]+(_\d+)?$/.test(String(a[3] ?? '')) ? String(a[3]) : String(a.slice(2).find(x => typeof x === 'string' && /^[A-Z][A-Za-z]+(_\d+)?$/.test(x) && x !== 'LaunchApp') ?? '');
+    // Steam manda «pregunta al usuario» en TODOS los lanzamientos (ShowInterstitials, CreatingProcess): esos no son preguntas.
+    if (name === 'RegisterForGameActionUserRequest') { if (step && !/^(ShowInterstitials|CreatingProcess|WaitingGameWindow|Completed|SynchronizingCloud|SynchronizingStats|SynchronizingControllerConfig|SiteLicenseSeatCheckout|DelayLaunch|CheckShaderDepotManifest|RunningInstallScript|WaitingPrevProcess)$/.test(step)) c.ask[id] = { at: Date.now(), s }; }
+    else if (name === 'RegisterForGameActionEnd') { for (const k in c.act) c.act[k].end = true; }
+    else if (name === 'RegisterForGameActionTaskChange') c.act[id] = { at: Date.now(), s, step, end: /^(Completed|Failed|Cancelled)$/.test(step) };
   }); } catch (e) {} };
   ['RegisterForGameActionStart', 'RegisterForGameActionTaskChange', 'RegisterForGameActionUserRequest', 'RegisterForGameActionEnd', 'RegisterForGameActionShowError'].forEach(hook);
 }
-const c = w.__scarletCloud, out = [];
+const c = w.__scarletCloud2, out = [];
 for (const id of __IDS__) {
   let st = -1, pct = -1;
   try { const o = appStore.GetAppOverviewByAppID(Number(id)); const pc = o && (o.per_client_data || [])[0];
         if (pc) { st = Number(pc.display_status); pct = Number(pc.status_percentage); } } catch (e) {}
   const a = c.act[id] || {}, q = c.ask[id];
-  out.push({ id: Number(id), st, pct, act: !!a.cloud && !a.end && Date.now() - a.at < 120000, ask: !!q && Date.now() - q.at < 60000 });
+  // wait: este juego está abriendo y Steam lo tiene esperando la nube (la suya o la de otro juego que se acaba de cerrar).
+  out.push({ id: Number(id), st, pct, wait: a.step === 'SynchronizingCloud' && !a.end && Date.now() - a.at < 600000, ask: !!q && Date.now() - q.at < 60000 });
 }
 return { apps: out, ev: c.ev.splice(0) };
 })()";
 
     /// <summary>Estado de la nube de esos juegos. Syncing: Steam sube o baja su partida; Pct: 0–100 o -1 si no lo dice.</summary>
     static readonly Dictionary<long, int> lastSt = new();
-    public sealed record Cloud(long AppId, bool Syncing, double Pct, bool Error, bool Ask);
+    /// <summary>Syncing: la biblioteca de Steam dice «sincronizando» (estado 8). Waiting: abriendo y esperando la nube.</summary>
+    public sealed record Cloud(long AppId, bool Syncing, double Pct, bool Error, bool Ask, bool Waiting);
     const int DisplaySynchronizing = 8, DisplayCloudError = 34, DisplayCloudOutOfDate = 35;
 
     public static async Task<List<Cloud>> CloudAsync(IEnumerable<long> ids)
@@ -556,8 +590,9 @@ return { apps: out, ev: c.ev.splice(0) };
                 long aid = (long)N(a, "id");
                 // Para afinar: cada cambio de estado de ese juego en la biblioteca de Steam (8 = sincronizando la nube).
                 if (!lastSt.TryGetValue(aid, out int was) || was != st) { lastSt[aid] = st; Log.Write($"Steam: {aid} en la biblioteca: estado {st}{(pct >= 0 ? $" ({pct:0} %)" : "")}"); }
-                bool sync = st == DisplaySynchronizing || B(a, "act");
-                r.Add(new Cloud((long)N(a, "id"), sync, sync && pct >= 0 && pct <= 100 ? pct : -1, st == DisplayCloudError || st == DisplayCloudOutOfDate, B(a, "ask")));
+                // Solo el estado 8 es «sincronizando»: el 1 (abriendo) también trae 100 % y antes se tomaba como nube.
+                bool sync = st == DisplaySynchronizing;
+                r.Add(new Cloud(aid, sync, sync && pct >= 0 && pct <= 100 ? pct : -1, st == DisplayCloudError || st == DisplayCloudOutOfDate, B(a, "ask"), B(a, "wait")));
             }
         return r;
     }

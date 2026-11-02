@@ -82,6 +82,7 @@ sealed class MediaService
 
     readonly SemaphoreSlim busy = new(1, 1);
 
+    string lastSig;
     async Task RefreshAsync(bool forceArt = false)
     {
         if (!await busy.WaitAsync(0)) { _ = Task.Delay(250).ContinueWith(_ => RefreshAsync(forceArt)); return; }
@@ -122,6 +123,11 @@ sealed class MediaService
                 }
             }
             last = state;
+            // Mismo estado que el anterior (salvo la hora): no se manda otra vez.
+            string sig = state == null ? "" : System.Text.Json.JsonSerializer.Serialize(state);
+            sig = Regex.Replace(sig, @"""now"":\d+", "");
+            if (sig == lastSig) return;
+            lastSig = sig;
             Changed?.Invoke(state);
         }
         catch (Exception ex) { Log.Error("música (datos)", ex); }
@@ -150,7 +156,15 @@ sealed class MediaService
 
     async Task<string> ArtFor(GlobalSystemMediaTransportControlsSessionMediaProperties props, bool force)
     {
-        string key = props.Title + "|" + props.Artist + "|" + props.AlbumTitle;
+        // Sin el álbum: Apple Music a veces lo manda vacío y a veces no, y eso parecía «otra canción» (la carátula se
+        // volvía a buscar cada segundo mientras el menú estaba abierto).
+        string key = props.Title + "|" + (string.IsNullOrEmpty(props.Artist) ? props.AlbumArtist : props.Artist);
+        if (key != curKey && known.TryGetValue(key, out var k0) && k0.src == "itunes")
+        {
+            if (curThumbHash != null) prevThumbHash = curThumbHash;
+            prevAlbum = curAlbum; curKey = key; curArt = k0.url; curSource = k0.src; curAlbum = props.AlbumTitle ?? "";
+            return curArt;
+        }
         if (key != curKey)
         {
             if (curThumbHash != null) prevThumbHash = curThumbHash;
@@ -202,8 +216,10 @@ sealed class MediaService
         return curArt;
     }
 
+    readonly Dictionary<string, (string url, string src)> known = new();   // carátulas oficiales ya encontradas
     void Use(string url, string source)
     {
+        if (source == "itunes" && curKey != null) { if (known.Count > 300) known.Clear(); known[curKey] = (url, source); }
         if (curArt != url) Log.Write($"música: carátula {(source == "itunes" ? "oficial (iTunes)" : source == "thumb" ? "de Apple Music" : "aproximada (iTunes)")}");
         curArt = url; curSource = source;
     }
