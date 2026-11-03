@@ -1,5 +1,5 @@
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "1.2";
+let APP_VERSION = "1.3";
 const verName = v => (/^0\./.test(String(v)) ? "alpha " : "beta ") + v;
 const updState = { available: false, latest: null };
 function updateView() {

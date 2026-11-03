@@ -1,3 +1,26 @@
+Novedades de la beta 1.3
+
+Lo que pediste:
+- Los mosaicos de juegos y apps dicen «En uso» en vez de «Jugando» (las apps de música siguen con «Sonando / En pausa»).
+- El menú rápido (el nuevo y el clásico) ya no tiene «Apagar…» ni «Ajustes»: siguen en los íconos de abajo del Inicio.
+- El mosaico «Amigos» del Inicio abre la lista nueva (Perfil › Lista de amigos). Al marcar a alguien con ★ en su perfil, la lista se actualiza al regresar.
+
+Más ligero mientras juegas (con lo que salió en tu log de la 1.2):
+- El menú encima del juego ahora sí se congela al cerrarlo. En la 1.2 Windows lo rechazaba cada vez y el menú se quedaba despierto todo el tiempo.
+- La interfaz escondida usa la menor memoria posible mientras juegas.
+- Los números de Diagnóstico › Rendimiento ya no cuentan el instante en que abres o cierras el menú (de ahí salían los picos de 5–7 %).
+- La pantalla de arranque se quedaba animando invisible para siempre, y el «Powered by Dolby Atmos» de la pantalla de carga y del menú cerrado también: ya no.
+
+Arreglos:
+- Si vuelves a abrir un juego que todavía está abriendo (por ejemplo, esperando la nube), ya no dice «se reanuda» antes de tiempo: sigue esperando.
+- Álbum: una carpeta sin permiso ya no hace que se pierdan las capturas que venían después; muestra hasta 2,000 (antes 600); también .webp, .gif, .bmp, .mkv y .mov. Si hay archivos que no se pueden mostrar (como las capturas HDR .jxr), el log dice cuántos. Las miniaturas cargan conforme bajas.
+- El log ya no repite la misma app varias veces al abrir el menú.
+
+Por dentro (no cambia lo que ves):
+- La interfaz pasó de un archivo de 5,800 líneas a 43 módulos por tema, y la app de Windows de un archivo de 2,900 líneas a 18 partes por tema, en carpetas.
+- Todas las pruebas (las de la interfaz, las de lo que corre dentro de Steam y las de descargas) viven en el repositorio y GitHub las corre en cada cambio: si alguna falla, no se publica la versión.
+- README nuevo con capturas, instrucciones y cómo está hecho.
+
 Novedades de la beta 1.2
 
 Internet sin salir de Scarlet (Ajustes › Red y VPN › Internet):
