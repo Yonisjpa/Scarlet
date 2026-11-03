@@ -50,7 +50,7 @@ sealed class AlbumService
         var files = new List<FileInfo>();
         var skipped = new Dictionary<string, int>();
         // Una subcarpeta sin permiso ya no tumba toda la búsqueda (antes se perdía todo lo que venía después: beta 1.3).
-        var opts = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.System };
+        var opts = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = System.IO.FileAttributes.System };
         foreach (var r in Roots())
         {
             if (!Directory.Exists(r)) continue;
