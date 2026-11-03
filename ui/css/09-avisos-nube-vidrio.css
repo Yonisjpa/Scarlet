@@ -1,0 +1,35 @@
+/* ===================== beta 1.0: notificaciones ===================== */
+.notif{position:relative;overflow:hidden;padding:1rem 2rem 1.3rem 1rem;min-width:36rem;max-width:52rem}
+.notif .ntx{min-width:0}
+.notif .ntx b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notif .ntx>span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.notif .ntx ul{list-style:none;margin:.4rem 0 0;font-size:1.35rem;opacity:.85;display:flex;flex-direction:column;gap:.25rem}
+.notif .ntx li::before{content:"•";color:var(--accent);margin-right:.7rem}
+.notif.sum{align-items:flex-start}
+.notif .nact{margin-left:auto;display:flex;align-items:center;gap:.7rem;padding-left:1.8rem;font-size:1.4rem;white-space:nowrap;align-self:center}
+.xbtn{width:2.4rem;height:2.7rem;background:#fff;-webkit-mask:var(--xbtn) center/contain no-repeat;mask:var(--xbtn) center/contain no-repeat;flex:0 0 auto}
+.notif .nlife{position:absolute;left:0;right:0;bottom:0;height:.25rem;background:var(--accent);transform-origin:left center;border-radius:0 .2rem .2rem 0}
+.notif .ic.thumb{width:8.6rem;height:4.84rem;border-radius:.6rem;background:#000;position:relative}
+.notif .ic.thumb img{width:100%;height:100%;object-fit:cover}
+.notif .ic.thumb .pl{position:absolute;inset:0;display:grid;place-items:center}
+.notif .ic.thumb .pl b{width:2.2rem;height:2.2rem;border-radius:50%;background:rgba(0,0,0,.55);display:grid;place-items:center}
+.notif .ic.thumb .pl b::after{content:"";border-left:.8rem solid #fff;border-top:.5rem solid transparent;border-bottom:.5rem solid transparent;margin-left:.2rem}
+.notif .ic.thumb .du{position:absolute;right:.35rem;bottom:.3rem;font-size:1rem;font-weight:700;background:rgba(0,0,0,.6);padding:0 .35rem;border-radius:.3rem;opacity:1;color:#fff}
+.notif .ic.thumb.saving img{filter:brightness(.55)}
+.notif .ic.thumb .rec{position:absolute;inset:auto .5rem .5rem .5rem;height:.35rem;border-radius:.2rem;background:rgba(255,255,255,.3);overflow:hidden;opacity:1}
+.notif .ic.thumb .rec i{position:absolute;top:0;bottom:0;width:40%;background:var(--accent);animation:recbar 1.2s ease-in-out infinite}
+@keyframes recbar{from{left:-40%}to{left:100%}}
+/* nube de Steam: misma franja que una descarga, con la barra naranja */
+.dl.cloudsync i{background:#f08a24}
+.dl.cloudsync.indet b{position:relative}
+.dl.cloudsync.indet i{position:absolute;top:0;bottom:0;animation:cloudbar 1.4s ease-in-out infinite;transition:none}
+@keyframes cloudbar{from{left:-35%}to{left:100%}}
+/* ===================== beta 1.1: menú rápido con el fondo al 50 % ===================== */
+/* Solo el fondo (también el de los colores de la carátula); textos, íconos y barras siguen sólidos. Encima del juego,
+   la app pone ese fondo en una ventana aparte (una página no puede dejar ver a medias lo que hay detrás de su ventana). */
+html.qglass #quick{background:transparent!important;animation:none!important;isolation:isolate}
+html.qglass #quick::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.5;background:var(--bg);pointer-events:none}
+html.qglass #quick.ns:not(.tinted)::before{background:var(--nqbg)}
+html.qglass #quick.tinted::before{background:linear-gradient(140deg,var(--mt1),var(--mt2) 45%,var(--mt3) 75%,var(--mt1)),#141414;background-size:260% 260%,auto;animation:qtint 16s ease-in-out infinite alternate}
+html.overlay.hostglass #quick::before{display:none}
+.key.on{background:var(--accent);color:#06222c}

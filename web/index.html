@@ -997,6 +997,11 @@ html.overlay.hostglass #quick::before{display:none}
 .pcodebig{background:var(--bg2);border-radius:1.1rem;padding:2rem 2.4rem;display:flex;flex-direction:column;gap:.5rem;font-size:1.5rem;color:var(--fg2)}
 .pcodebig b{font-size:3.2rem;color:var(--fg);letter-spacing:.08em;font-weight:600}
 .fbest.on{color:#f2c230}
+/* ===================== beta 1.3: nada se anima donde no se ve ===================== */
+/* La pantalla de arranque, la de carga y el menú rápido cerrados se quedaban animando (invisibles) todo el tiempo. */
+#boot.off{display:none}
+#launch:not(.show) .dgt,#launch:not(.show) .glg::before,#launch:not(.show) .ll img,
+#quick:not(.show) .dgt,#quick:not(.show) .glg::before,#quick:not(.show) .eq i,#quick:not(.show) .focused::after{animation-play-state:paused}
 </style>
 </head>
 <body>
@@ -1468,7 +1473,7 @@ const APPS = [
   { label: "Noticias", icon: I.news, c: "#1ace61", act: el => openView(newsView(), el) },
   { label: "Tienda", icon: I.store, c: "#e23839", act: el => openSystemApp(SYS.store, el) },
   { label: "Álbum", icon: I.album, c: "#499fed", act: el => openView(albumView(), el) },
-  { label: "Amigos", icon: I.friends, c: "#1ac4a9", act: el => openView(friendsView(), el) },
+  { label: "Amigos", icon: I.friends, c: "#1ac4a9", act: el => { const v = profileView(); v.ci = 1; v.i = 1; openView(v, el); } },
   { label: "Controles", icon: I.ally, act: el => openView(controlsView(), el) },
   { label: "Logros", icon: I.trophy, act: el => openView(achHubView(), el) },
   { label: "Ajustes", icon: I.gear, act: el => openView(settingsView(), el) },
@@ -1501,7 +1506,7 @@ const hasAch = g => g.ach && g.ach[1] > 0;
 function tileExtras(g) {
   let h = "";
   if (isMusicTile(g)) { const on = !!(media && media.playing && norm(media.app || "") === norm(g.name)); h += `<span class="playing music${on ? "" : " paused"}"><span class="pav">${avatarHTML()}</span><b><i class="eq"><i></i><i></i><i></i></i>${on ? "Sonando" : "En pausa"}</b></span>`; }
-  else if (g.appid === state.running || g.appid === state.side) h += `<span class="playing"><span class="pav">${avatarHTML()}</span><b>Jugando</b></span>`;
+  else if (g.appid === state.running || g.appid === state.side) h += `<span class="playing"><span class="pav">${avatarHTML()}</span><b>En uso</b></span>`;
   const d = state.downloads[g.appid];
   if (d) h += `<div class="dl${d.st === "paused" ? " paused" : d.st === "queued" ? " queued" : ""}" data-dl="${g.appid}" aria-label="${esc(dlLabel(d))}"><b><i style="width:${d.p * 100}%"></i></b></div>`;
   else if (state.cloud[g.appid]) { const c = state.cloud[g.appid]; h += `<div class="dl cloudsync${c.p < 0 ? " indet" : ""}" data-cl="${g.appid}" aria-label="Sincronizando con la nube${c.p >= 0 ? " " + Math.round(c.p) + " %" : ""}"><b><i style="width:${c.p < 0 ? 35 : c.p}%"></i></b></div>`; }
@@ -1727,7 +1732,9 @@ function openView(v, origin) {
 function closeView() {
   const v = views.pop(); v.el.classList.remove("in"); v.el.classList.add("out");
   setTimeout(() => v.el.remove(), 340);
-  play(v.cls === "dialog" ? "popupclose" : "back"); updateFocus();
+  play(v.cls === "dialog" ? "popupclose" : "back");
+  const t = topView(); if (t && t.onReturn && v.cls !== "dialog") t.onReturn();   // la pantalla de abajo se pone al día (beta 1.3)
+  updateFocus();
 }
 function closeAllViews() { while (views.length) views.pop().el.remove(); updateFocus(); }
 const head = (icon, title, sub = "") => `<div class="vhead">${icon}<span>${esc(title)}</span><span class="sub">${esc(sub)}</span></div>`;
@@ -1910,6 +1917,10 @@ const dolbyOn = () => settings.dolbyTag !== false && ATMOS;
 function paintDolby() { const l = $("#launch .ldolby"); if (l) { l.innerHTML = dolbyHTML(); l.classList.toggle("gold", dolbyGold()); l.classList.toggle("on", dolbyOn()); } if (QM.open) renderQuick(); }
 function checkAtmos() { if (!Host.has) return; Host.call("audio.atmos").then(a => { ATMOS = !!a; paintDolby(); }).catch(() => {}); }
 
+/* Dolby dorado (beta 1.0) */
+document.documentElement.style.setProperty("--dlogo", `url("${DOLBY_HTML.match(/src="([^"]+)"/)[1]}")`);
+const dolbyGold = () => settings.dolbyGold !== false;
+const dolbyHTML = () => dolbyGold() ? '<span class="dgw"><span class="dgt">Powered by</span><i class="glg" role="img" aria-label="Dolby Atmos"></i></span>' : DOLBY_HTML;
 /* --- diagnóstico: para mandar una foto cuando algo no cuadra --- */
 function diagView() {
   return {
@@ -2481,73 +2492,6 @@ function keyboardView(initial, onDone, countFor, opt = {}) {
     items() { return fis(this.el); }
   };
 }
-
-const STATUS = { playing: ["#7bd84a", g => "Jugando " + g], online: ["#3ad7ff", () => "En línea"], away: ["#f2c230", () => "Ausente"], offline: ["#77777d", () => "Desconectado"] };
-const hueOf = s => [...s].reduce((a, ch) => a + ch.charCodeAt(0), 0) * 29 % 360;
-function friendsView() {
-  const order = { playing: 0, online: 1, away: 2, offline: 3 };
-  return {
-    render(el) {
-      // Mejores amigos (★, se marcan con Y) primero; luego por estado.
-      const list = [...friends].sort((a, b) => (isBest(b.name) - isBest(a.name)) || order[a.status] - order[b.status]);
-      const on = list.filter(f => f.status !== "offline").length, nb = list.filter(f => isBest(f.name)).length;
-      const row = f => {
-        const [c, txt] = STATUS[f.status] || STATUS.offline;
-        return `<button class="lrow fi" data-n="${esc(f.name)}"><span class="fav" style="background:hsl(${hueOf(f.name)},55%,48%)">${f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase())}</span><span class="meta"><b>${esc(f.name)}${isBest(f.name) ? '<i class="nstar">★</i>' : ""}</b><span>${esc(txt(f.game || ""))}</span></span><span class="dot" style="background:${c}"></span></button>`;
-      };
-      el.innerHTML = head(I.friends, "Amigos", `${on} en línea · ${list.length} en total`) + `<div class="vbody">${nb ? `<div class="fsec">Mejores amigos</div>${list.slice(0, nb).map(row).join("")}<div class="fsec">Amigos</div>` : ""}${list.slice(nb).map(row).join("")}</div>`;
-      fis(el).forEach(b => b.onclick = () => openView(friendProfileView(friends.find(f => f.name === b.dataset.n))));
-    },
-    hints() { const f = this.el && this.items()[this.i]; return [["B", "Atrás"], ["Y", f && isBest(f.dataset.n) ? "Quitar ★" : "Mejor amigo ★"], ["A", "Ver perfil"]]; },
-    onKey(k) {
-      if (k !== "y") return false;
-      const b = this.items()[this.i]; if (!b) return true;
-      const name = b.dataset.n, s = new Set(settings.bestFriends || []);
-      if (s.has(name)) s.delete(name); else s.add(name);
-      settings.bestFriends = [...s]; saveSettings(); play(s.has(name) ? "on" : "off");
-      toast(s.has(name) ? `${name} es de tus mejores amigos` : `${name} ya no está en mejores amigos`);
-      this.render(this.el); this.i = Math.max(0, this.items().findIndex(x => x.dataset.n === name)); updateFocus();
-      return true;
-    },
-    items() { return fis(this.el); }
-  };
-}
-
-function achView(g) {
-  return {
-    hints: [["B", "Atrás"]],
-    render(el) {
-      el.innerHTML = head(I.trophy, "Logros · " + g.name, "Cargando…") + `<div class="vbody"></div>`;
-      Data.achievements(g).then(a => {
-        $(".vhead .sub", el).textContent = `${a.unlocked} de ${a.total}`;
-        $(".vbody", el).innerHTML = a.list.map(x => `<button class="lrow fi" style="${x.unlocked ? "" : "opacity:.55"}">${x.icon ? `<span class="fav achi">${achImg(x)}</span>` : `<span class="fav" style="background:${x.unlocked ? "#f2c230" : "var(--line)"};color:${x.unlocked ? "#3a2c00" : "var(--fg2)"}">${x.unlocked ? I.trophy : I.lock}</span>`}<span class="meta"><b>${esc(x.name)}</b><span>${esc(x.desc)}</span></span><span class="val">${x.unlocked ? esc(x.date || "Desbloqueado") : "Bloqueado"}</span></button>`).join("");
-        updateFocus();
-      });
-    },
-    items() { return fis(this.el); }
-  };
-}
-
-function achHubView() {
-  return {
-    hints: [["B", "Atrás"], ["A", "Ver logros"]],
-    render(el) {
-      const list = games.filter(hasAch), tot = list.reduce((s, g) => s + g.ach[0], 0);
-      el.innerHTML = head(I.trophy, "Logros", `${tot} desbloqueados`) + `<div class="vbody"></div>`;
-      const body = $(".vbody", el);
-      list.forEach(g => {
-        const b = document.createElement("button"); b.className = "lrow fi";
-        const img = document.createElement("img"); img.className = "mini"; img.alt = ""; Art.apply(img, g);
-        const pct = Math.round(100 * g.ach[0] / g.ach[1]);
-        b.append(img);
-        b.insertAdjacentHTML("beforeend", `<span class="meta"><b>${esc(g.name)}</b><span>${g.ach[0]} de ${g.ach[1]}</span></span><div class="bar"><i style="width:${pct}%"></i></div><span class="val" style="width:5rem;text-align:right">${pct}%</span>`);
-        b.onclick = () => openView(achView(g)); body.append(b);
-      });
-    },
-    items() { return fis(this.el); }
-  };
-}
-
 /* --- álbum: filtros por tipo y juego, borrar --- */
 const ATYPES = ["Todo", "Fotos", "Videos"];
 const albumFilter = { type: 0, game: null };
@@ -2577,7 +2521,13 @@ function albumView() {
       $(".vhead .sub", this.el).textContent = `${ATYPES[albumFilter.type]}${albumFilter.game ? " · " + albumFilter.game : ""} · ${this.list.length}`;
       const g = $(".agrid", this.el);
       g.classList.toggle("sel", !!this.sel);
-      g.innerHTML = this.list.length ? this.list.map((c, i) => `<button class="shot fi${this.sel && this.sel.has(c.path) ? " on" : ""}" style="--k:${i % 15}" data-i="${i}"><span class="chk">✓</span>${c.type === "video" && !c.thumb && !c.url.startsWith("data:") ? `<video src="${esc(c.url)}#t=0.5" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block"></video>` : `<img alt="" src="${esc(c.thumb || c.url)}">`}${c.type === "video" ? '<span class="vid">▶ Video</span>' : ""}<span class="cap">${esc(c.game)} · ${esc(c.date)}</span></button>`).join("") : `<p class="empty" style="grid-column:1/-1">No hay capturas con este filtro.</p>`;
+      g.innerHTML = this.list.length ? this.list.map((c, i) => `<button class="shot fi${this.sel && this.sel.has(c.path) ? " on" : ""}" style="--k:${i % 15}" data-i="${i}"><span class="chk">✓</span>${c.type === "video" && !c.thumb && !c.url.startsWith("data:") ? `<video data-src="${esc(c.url)}#t=0.5" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block"></video>` : `<img alt="" loading="lazy" decoding="async" src="${esc(c.thumb || c.url)}">`}${c.type === "video" ? '<span class="vid">▶ Video</span>' : ""}<span class="cap">${esc(c.game)} · ${esc(c.date)}</span></button>`).join("") : `<p class="empty" style="grid-column:1/-1">No hay capturas con este filtro.</p>`;
+      // Los videos cargan su primer cuadro solo cuando se ven (con cientos de capturas ya no se piden todos de golpe).
+      const vids = $$("video[data-src]", g);
+      if (vids.length) {
+        const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.src = e.target.dataset.src; e.target.removeAttribute("data-src"); io.unobserve(e.target); } }), { rootMargin: "400px" });
+        vids.forEach(v => io.observe(v));
+      }
       fis(this.el).forEach(b => b.onclick = () => {
         if (!this.sel) return openView(viewerView(this, +b.dataset.i));
         const c = this.list[+b.dataset.i]; if (!c || c.url.startsWith("data:") && Host.has) return play("bump");
@@ -2896,7 +2846,121 @@ function profileView() {
       return false;
     },
     refresh() { if (this.el && this.el.isConnected) this.pane(true); },
+    onReturn() { if (this.ci === 1) this.pane(true); },   // ★ cambiado en el perfil de un amigo
     onFocus() { },
+  };
+}
+
+/* ================= amigos y logros: estados, colores, logros por juego ================= */
+const STATUS = { playing: ["#7bd84a", g => "Jugando " + g], online: ["#3ad7ff", () => "En línea"], away: ["#f2c230", () => "Ausente"], offline: ["#77777d", () => "Desconectado"] };
+const hueOf = s => [...s].reduce((a, ch) => a + ch.charCodeAt(0), 0) * 29 % 360;
+function achView(g) {
+  return {
+    hints: [["B", "Atrás"]],
+    render(el) {
+      el.innerHTML = head(I.trophy, "Logros · " + g.name, "Cargando…") + `<div class="vbody"></div>`;
+      Data.achievements(g).then(a => {
+        $(".vhead .sub", el).textContent = `${a.unlocked} de ${a.total}`;
+        $(".vbody", el).innerHTML = a.list.map(x => `<button class="lrow fi" style="${x.unlocked ? "" : "opacity:.55"}">${x.icon ? `<span class="fav achi">${achImg(x)}</span>` : `<span class="fav" style="background:${x.unlocked ? "#f2c230" : "var(--line)"};color:${x.unlocked ? "#3a2c00" : "var(--fg2)"}">${x.unlocked ? I.trophy : I.lock}</span>`}<span class="meta"><b>${esc(x.name)}</b><span>${esc(x.desc)}</span></span><span class="val">${x.unlocked ? esc(x.date || "Desbloqueado") : "Bloqueado"}</span></button>`).join("");
+        updateFocus();
+      });
+    },
+    items() { return fis(this.el); }
+  };
+}
+
+function achHubView() {
+  return {
+    hints: [["B", "Atrás"], ["A", "Ver logros"]],
+    render(el) {
+      const list = games.filter(hasAch), tot = list.reduce((s, g) => s + g.ach[0], 0);
+      el.innerHTML = head(I.trophy, "Logros", `${tot} desbloqueados`) + `<div class="vbody"></div>`;
+      const body = $(".vbody", el);
+      list.forEach(g => {
+        const b = document.createElement("button"); b.className = "lrow fi";
+        const img = document.createElement("img"); img.className = "mini"; img.alt = ""; Art.apply(img, g);
+        const pct = Math.round(100 * g.ach[0] / g.ach[1]);
+        b.append(img);
+        b.insertAdjacentHTML("beforeend", `<span class="meta"><b>${esc(g.name)}</b><span>${g.ach[0]} de ${g.ach[1]}</span></span><div class="bar"><i style="width:${pct}%"></i></div><span class="val" style="width:5rem;text-align:right">${pct}%</span>`);
+        b.onclick = () => openView(achView(g)); body.append(b);
+      });
+    },
+    items() { return fis(this.el); }
+  };
+}
+
+/* ================= v2.9.8: perfil de amigo ================= */
+const seeded = (s, n) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % n;
+function friendProfileView(f) {
+  const owned = f.game && games.find(g => g.name === f.game);
+  const common = Host.has ? [] : games.filter(hasAch).filter((g, i) => (seeded(f.name, 5) + i) % 3 === 0).slice(0, 4);
+  const commonRows = list => list.map(g => {
+    const mine = hasAch(g) ? Math.round(100 * g.ach[0] / g.ach[1]) : 0, their = g.theirPct != null ? g.theirPct : seeded(f.name + g.name, 90) + 5;
+    const theirH = g.theirHours != null ? Math.round(g.theirHours) : 5 + seeded(f.name + g.appid, 140);
+    const bars = Host.has ? "" : `<span class="cmp"><span>Tú</span><span class="bar"><i style="width:${mine}%"></i></span><span>${esc(trunc(f.name, 10))}</span><span class="bar them"><i style="width:${their}%"></i></span></span>`;
+    return `<button class="lrow fi" data-g="${g.appid}"><img class="mini" alt="" data-art="${g.appid}"><span class="meta"><b>${esc(g.name)}</b><span>${Math.round(+g.hours || 0)} h tú · ${theirH} h ${esc(f.name)}</span></span>${bars}</button>`;
+  }).join("");
+  return {
+    hints: [["B", "Atrás"], ["A", "Aceptar"]],
+    render(el) {
+      const [c, txt] = STATUS[f.status] || STATUS.offline;
+      const last = f.status === "offline" ? (f.last || (Host.has ? "Desconectado" : `Última conexión: hace ${1 + seeded(f.name, 9)} h`)) : txt(f.game || "");
+      const level = Host.has ? (f.level != null ? `Nivel de Steam ${f.level}` : "") : `Nivel de Steam ${8 + seeded(f.name, 60)}`;
+      el.innerHTML = head(I.friends, f.name, "Perfil") + `<div class="vbody"><div class="fprof">
+        <div class="fcard"><span class="fbig" style="background:hsl(${hueOf(f.name)},55%,48%)">${f.avatar ? `<img alt="" src="${esc(f.avatar)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : esc(f.name[0].toUpperCase())}</span><h2>${esc(f.name)}</h2>
+          <span class="fst"><span class="dot" style="background:${c}"></span>${esc(last)}</span><span class="flv">${esc(level)}</span></div>
+        <div>
+          ${f.status === "playing" ? `<div class="fnow"><img alt=""><div><span>Jugando ahora</span><b>${esc(f.game)}</b><span>${owned ? "Lo tienes en tu biblioteca" : "No está en tu biblioteca"}</span></div></div>` : ""}
+          <div class="fbtns">
+            ${f.status === "playing" ? `<button class="btn primary fi" data-a="join">Unirse a la partida</button>` : ""}
+            <button class="btn fi" data-a="msg">Enviar mensaje</button><button class="btn fi fbest${isBest(f.name) ? " on" : ""}" data-a="best">${isBest(f.name) ? "★ Mejor amigo" : "☆ Mejores amigos"}</button><button class="btn fi" data-a="opts">Opciones</button>
+          </div>
+          <div class="sect">Historial de juego</div>
+          <div class="frecent">${Host.has ? `<p class="note">Cargando…</p>` : (owned ? `<button class="lrow fi"><img class="mini" alt="" data-art="${owned.appid}"><span class="meta"><b>${esc(owned.name)}</b><span>${5 + seeded(f.name, 20)} h en las últimas 2 semanas</span></span></button>` : `<p class="note">No ha jugado nada en las últimas 2 semanas.</p>`)}</div>
+          <div class="sect">Juegos en común</div>
+          <div class="fcommon">${Host.has ? `<p class="note">Cargando…</p>` : (commonRows(common) || `<p class="note">No tienen juegos en común con logros.</p>`)}</div>
+        </div></div></div>`;
+      if (owned || f.status === "playing") { const im = $(".fnow img", el); if (im) Art.apply(im, owned || { appid: seeded(f.game, 99999), name: f.game }); }
+      const wire = () => { $$("[data-art]", el).forEach(im => Art.apply(im, byId(im.dataset.art) || { appid: +im.dataset.art, name: "" })); $$("[data-g]", el).forEach(b => b.onclick = () => { const g = byId(b.dataset.g); if (g && hasAch(g)) openView(achView(g)); else bump(b); }); };
+      wire();
+      if (Host.has) Host.call("steam.friendProfile", { steamid: f.steamid }).then(d => {
+        if (!el.isConnected) return;
+        if (d.level != null) $(".flv", el).textContent = `Nivel de Steam ${d.level}`;
+        if (f.status === "offline" && d.lastSeen) $(".fst", el).lastChild.textContent = "Última conexión: " + d.lastSeen;
+        const rec = d.recent || [];
+        $(".frecent", el).innerHTML = rec.length ? rec.map(x => `<button class="lrow fi" data-g="${x.appid}"><img class="mini" alt="" data-art="${x.appid}"><span class="meta"><b>${esc(x.name)}</b><span>${x.weeks2} h en las últimas 2 semanas · ${Math.round(x.total)} h en total</span></span></button>`).join("")
+          : `<p class="note">${d.private ? "Su historial de juego es privado." : "No ha jugado nada en las últimas 2 semanas."}</p>`;
+        const list = (d.common || []).map(x => ({ ...(byId(x.appid) || { appid: x.appid, name: x.name, ach: [0, 0] }), hours: x.mine, theirHours: x.theirs }));
+        $(".fcommon", el).innerHTML = commonRows(list) || `<p class="note">${d.private ? "Su biblioteca es privada." : "No tienen juegos en común."}</p>`;
+        wire(); updateFocus();
+      }).catch(() => { if (el.isConnected) $(".fcommon", el).innerHTML = `<p class="note">No se pudo cargar.</p>`; });
+      const j = $('[data-a="join"]', el);
+      if (j) j.onclick = async () => {
+        if (!owned) { bump(j); return toast(`Necesitas ${f.game} para unirte`); }
+        if (!owned.installed) { bump(j); return toast(`Primero instala ${f.game}`); }
+        if (!Host.has) { toast(`Uniéndote a ${f.name}…`); return launchGame(owned, j); }
+        const r = await Host.call("steam.join", { steamid: f.steamid, appid: owned.appid }).catch(() => null);
+        if (!r || !r.ok) { bump(j); return toast(`La partida de ${f.name} no admite unirse ahora`); }
+        toast(`Uniéndote a ${f.name}…`); launchGame(owned, j, { joined: true });
+      };
+      $('[data-a="msg"]', el).onclick = () => openSystemApp({ ...SYS.chat, name: "Chat con " + f.name, url: f.steamid ? `steam://friends/message/${f.steamid}` : SYS.chat.url });
+      const steamPage = () => openSystemApp({ ...SYS.store, name: "Perfil de " + f.name, sub: "Abierto en Steam Big Picture", url: f.steamid ? `steam://url/SteamIDPage/${f.steamid}` : "steam://friends/players" });
+      // ★ Mejores amigos (beta 1.2): sus avisos siguen la opción «solo mejores amigos».
+      $('[data-a="best"]', el).onclick = () => {
+        const s = new Set(settings.bestFriends || []), b = $('[data-a="best"]', el);
+        if (s.has(f.name)) s.delete(f.name); else s.add(f.name);
+        settings.bestFriends = [...s]; saveSettings(); play(s.has(f.name) ? "on" : "off");
+        b.textContent = s.has(f.name) ? "★ Mejor amigo" : "☆ Mejores amigos"; b.classList.toggle("on", s.has(f.name));
+        const nm = $(".fcard h2", el); if (nm) nm.textContent = f.name;
+        toast(s.has(f.name) ? `${f.name} es de tus mejores amigos` : `${f.name} ya no está en mejores amigos`);
+      };
+      $('[data-a="opts"]', el).onclick = async () => {
+        const v = await choiceDialog(f.name, [{ label: "Atrás", value: null }, { label: "Ver perfil en Steam", value: "steam" }, { label: "Enviar mensaje", value: "msg" }], 1);
+        if (v === "steam") steamPage();
+        if (v === "msg") $('[data-a="msg"]', el).click();
+      };
+    },
+    items() { return fis(this.el); }
   };
 }
 
@@ -2955,8 +3019,8 @@ function settingsCats() {
         sw("Logros", "Avisa cuando desbloqueas un logro", () => settings.nAch !== false, v => settings.nAch = v),
         sw("Batería baja", "Avisa al llegar al 20 % y al 10 %", () => settings.nBatt !== false, v => settings.nBatt = v)]],
       ["Amigos", [
-        opt("Amigos que se conectan", "Marca a tus mejores amigos con Y en la lista de Amigos", NF_FRIENDS, "nFriendOn"),
-        opt("Amigos que empiezan a jugar", "Marca a tus mejores amigos con Y en la lista de Amigos", NF_FRIENDS, "nFriendPlay")]],
+        opt("Amigos que se conectan", "Marca a tus mejores amigos con ★ en su perfil (Perfil › Lista de amigos)", NF_FRIENDS, "nFriendOn"),
+        opt("Amigos que empiezan a jugar", "Marca a tus mejores amigos con ★ en su perfil (Perfil › Lista de amigos)", NF_FRIENDS, "nFriendPlay")]],
       ["Durante el juego", [
         opt("Avisos encima del juego", "Solo importantes: batería baja, descargas y capturas. Lo que no veas te espera al volver al menú, en «Mientras jugabas».", NF_GAME, "nInGame")]],
       ["General", [sw("Sonido de notificación", "Un sonido corto cuando llega un aviso", () => settings.nSound !== false, v => settings.nSound = v)]]] },
@@ -4736,8 +4800,8 @@ const qmRowsClassic = () => [
   // Interruptores en cuadritos, lado a lado (como el centro de control): ocupan la mitad y se tocan fácil.
   { k: "wifi", type: "tile", grp: "radio", icon: QI.wifi, label: "Wi-Fi" },
   { k: "airplane", type: "tile", grp: "radio", icon: QI.plane, label: "Modo avión" },
-  ...(VPN.provider !== "none" ? [{ k: "vpn", type: "tile", grp: "radio", icon: QI.vpn, label: "VPN" }] : []),
-  { k: "sleep", type: "btn", grp: "act", icon: QI.power, label: "Apagar…" }, { k: "settings", type: "btn", grp: "act", icon: QI.gear, label: "Ajustes" }
+  ...(VPN.provider !== "none" ? [{ k: "vpn", type: "tile", grp: "radio", icon: QI.vpn, label: "VPN" }] : [])
+  // beta 1.3: sin «Apagar…» ni «Ajustes» (están en el Inicio, en los íconos de abajo)
 ];
 /* Filas agrupadas: las que van lado a lado (cuadritos, Apagar/Ajustes) forman un grupo para moverse con la cruceta. */
 function qmGroups(rows) {
@@ -5018,9 +5082,8 @@ const qmRowsNS = () => [
   ...(QM.mix || []).map(m => ({ k: "mix:" + m.exe, type: "mix", m })),
   { k: "airplane", type: "val", label: "Modo avión", help: "Con el modo avión no puedes usar internet, mandos inalámbricos ni Bluetooth." },
   { k: "wifi", type: "val", label: "Wi-Fi" },
-  ...(VPN.provider !== "none" ? [{ k: "vpn", type: "val", label: "VPN" }] : []),
-  { k: "sleep", type: "act", label: "Apagar…" },
-  { k: "settings", type: "act", label: "Ajustes" }
+  ...(VPN.provider !== "none" ? [{ k: "vpn", type: "val", label: "VPN" }] : [])
+  // beta 1.3: sin «Apagar…» ni «Ajustes» (están en el Inicio, en los íconos de abajo)
 ];
 /* Valor que se ve a la derecha de cada fila (en color cuando está prendido). */
 function nqVal(r) {
@@ -5227,11 +5290,6 @@ function powerMenu() {
   openView(v);
 }
 Events.on("ui.hibernate", () => { setTimeout(() => sleepConsole("hibernate"), 200); });
-
-/* ================= beta 1.0: Dolby dorado ================= */
-document.documentElement.style.setProperty("--dlogo", `url("${DOLBY_HTML.match(/src="([^"]+)"/)[1]}")`);
-const dolbyGold = () => settings.dolbyGold !== false;
-const dolbyHTML = () => dolbyGold() ? '<span class="dgw"><span class="dgt">Powered by</span><i class="glg" role="img" aria-label="Dolby Atmos"></i></span>' : DOLBY_HTML;
 
 /* ================= alpha 0.4: reproduciendo ahora (Apple Music y cualquier app que lo reporte a Windows) ================= */
 const MI = {
@@ -5491,81 +5549,6 @@ function pickOption(title, opts, key) {
   }));
 }
 
-/* ================= v2.9.8: perfil de amigo ================= */
-const seeded = (s, n) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) % n;
-function friendProfileView(f) {
-  const owned = f.game && games.find(g => g.name === f.game);
-  const common = Host.has ? [] : games.filter(hasAch).filter((g, i) => (seeded(f.name, 5) + i) % 3 === 0).slice(0, 4);
-  const commonRows = list => list.map(g => {
-    const mine = hasAch(g) ? Math.round(100 * g.ach[0] / g.ach[1]) : 0, their = g.theirPct != null ? g.theirPct : seeded(f.name + g.name, 90) + 5;
-    const theirH = g.theirHours != null ? Math.round(g.theirHours) : 5 + seeded(f.name + g.appid, 140);
-    const bars = Host.has ? "" : `<span class="cmp"><span>Tú</span><span class="bar"><i style="width:${mine}%"></i></span><span>${esc(trunc(f.name, 10))}</span><span class="bar them"><i style="width:${their}%"></i></span></span>`;
-    return `<button class="lrow fi" data-g="${g.appid}"><img class="mini" alt="" data-art="${g.appid}"><span class="meta"><b>${esc(g.name)}</b><span>${Math.round(+g.hours || 0)} h tú · ${theirH} h ${esc(f.name)}</span></span>${bars}</button>`;
-  }).join("");
-  return {
-    hints: [["B", "Atrás"], ["A", "Aceptar"]],
-    render(el) {
-      const [c, txt] = STATUS[f.status] || STATUS.offline;
-      const last = f.status === "offline" ? (f.last || (Host.has ? "Desconectado" : `Última conexión: hace ${1 + seeded(f.name, 9)} h`)) : txt(f.game || "");
-      const level = Host.has ? (f.level != null ? `Nivel de Steam ${f.level}` : "") : `Nivel de Steam ${8 + seeded(f.name, 60)}`;
-      el.innerHTML = head(I.friends, f.name, "Perfil") + `<div class="vbody"><div class="fprof">
-        <div class="fcard"><span class="fbig" style="background:hsl(${hueOf(f.name)},55%,48%)">${f.avatar ? `<img alt="" src="${esc(f.avatar)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : esc(f.name[0].toUpperCase())}</span><h2>${esc(f.name)}</h2>
-          <span class="fst"><span class="dot" style="background:${c}"></span>${esc(last)}</span><span class="flv">${esc(level)}</span></div>
-        <div>
-          ${f.status === "playing" ? `<div class="fnow"><img alt=""><div><span>Jugando ahora</span><b>${esc(f.game)}</b><span>${owned ? "Lo tienes en tu biblioteca" : "No está en tu biblioteca"}</span></div></div>` : ""}
-          <div class="fbtns">
-            ${f.status === "playing" ? `<button class="btn primary fi" data-a="join">Unirse a la partida</button>` : ""}
-            <button class="btn fi" data-a="msg">Enviar mensaje</button><button class="btn fi fbest${isBest(f.name) ? " on" : ""}" data-a="best">${isBest(f.name) ? "★ Mejor amigo" : "☆ Mejores amigos"}</button><button class="btn fi" data-a="opts">Opciones</button>
-          </div>
-          <div class="sect">Historial de juego</div>
-          <div class="frecent">${Host.has ? `<p class="note">Cargando…</p>` : (owned ? `<button class="lrow fi"><img class="mini" alt="" data-art="${owned.appid}"><span class="meta"><b>${esc(owned.name)}</b><span>${5 + seeded(f.name, 20)} h en las últimas 2 semanas</span></span></button>` : `<p class="note">No ha jugado nada en las últimas 2 semanas.</p>`)}</div>
-          <div class="sect">Juegos en común</div>
-          <div class="fcommon">${Host.has ? `<p class="note">Cargando…</p>` : (commonRows(common) || `<p class="note">No tienen juegos en común con logros.</p>`)}</div>
-        </div></div></div>`;
-      if (owned || f.status === "playing") { const im = $(".fnow img", el); if (im) Art.apply(im, owned || { appid: seeded(f.game, 99999), name: f.game }); }
-      const wire = () => { $$("[data-art]", el).forEach(im => Art.apply(im, byId(im.dataset.art) || { appid: +im.dataset.art, name: "" })); $$("[data-g]", el).forEach(b => b.onclick = () => { const g = byId(b.dataset.g); if (g && hasAch(g)) openView(achView(g)); else bump(b); }); };
-      wire();
-      if (Host.has) Host.call("steam.friendProfile", { steamid: f.steamid }).then(d => {
-        if (!el.isConnected) return;
-        if (d.level != null) $(".flv", el).textContent = `Nivel de Steam ${d.level}`;
-        if (f.status === "offline" && d.lastSeen) $(".fst", el).lastChild.textContent = "Última conexión: " + d.lastSeen;
-        const rec = d.recent || [];
-        $(".frecent", el).innerHTML = rec.length ? rec.map(x => `<button class="lrow fi" data-g="${x.appid}"><img class="mini" alt="" data-art="${x.appid}"><span class="meta"><b>${esc(x.name)}</b><span>${x.weeks2} h en las últimas 2 semanas · ${Math.round(x.total)} h en total</span></span></button>`).join("")
-          : `<p class="note">${d.private ? "Su historial de juego es privado." : "No ha jugado nada en las últimas 2 semanas."}</p>`;
-        const list = (d.common || []).map(x => ({ ...(byId(x.appid) || { appid: x.appid, name: x.name, ach: [0, 0] }), hours: x.mine, theirHours: x.theirs }));
-        $(".fcommon", el).innerHTML = commonRows(list) || `<p class="note">${d.private ? "Su biblioteca es privada." : "No tienen juegos en común."}</p>`;
-        wire(); updateFocus();
-      }).catch(() => { if (el.isConnected) $(".fcommon", el).innerHTML = `<p class="note">No se pudo cargar.</p>`; });
-      const j = $('[data-a="join"]', el);
-      if (j) j.onclick = async () => {
-        if (!owned) { bump(j); return toast(`Necesitas ${f.game} para unirte`); }
-        if (!owned.installed) { bump(j); return toast(`Primero instala ${f.game}`); }
-        if (!Host.has) { toast(`Uniéndote a ${f.name}…`); return launchGame(owned, j); }
-        const r = await Host.call("steam.join", { steamid: f.steamid, appid: owned.appid }).catch(() => null);
-        if (!r || !r.ok) { bump(j); return toast(`La partida de ${f.name} no admite unirse ahora`); }
-        toast(`Uniéndote a ${f.name}…`); launchGame(owned, j, { joined: true });
-      };
-      $('[data-a="msg"]', el).onclick = () => openSystemApp({ ...SYS.chat, name: "Chat con " + f.name, url: f.steamid ? `steam://friends/message/${f.steamid}` : SYS.chat.url });
-      const steamPage = () => openSystemApp({ ...SYS.store, name: "Perfil de " + f.name, sub: "Abierto en Steam Big Picture", url: f.steamid ? `steam://url/SteamIDPage/${f.steamid}` : "steam://friends/players" });
-      // ★ Mejores amigos (beta 1.2): igual que con Y en la lista; sus avisos siguen la opción «solo mejores amigos».
-      $('[data-a="best"]', el).onclick = () => {
-        const s = new Set(settings.bestFriends || []), b = $('[data-a="best"]', el);
-        if (s.has(f.name)) s.delete(f.name); else s.add(f.name);
-        settings.bestFriends = [...s]; saveSettings(); play(s.has(f.name) ? "on" : "off");
-        b.textContent = s.has(f.name) ? "★ Mejor amigo" : "☆ Mejores amigos"; b.classList.toggle("on", s.has(f.name));
-        const nm = $(".fcard h2", el); if (nm) nm.textContent = f.name;
-        toast(s.has(f.name) ? `${f.name} es de tus mejores amigos` : `${f.name} ya no está en mejores amigos`);
-      };
-      $('[data-a="opts"]', el).onclick = async () => {
-        const v = await choiceDialog(f.name, [{ label: "Atrás", value: null }, { label: "Ver perfil en Steam", value: "steam" }, { label: "Enviar mensaje", value: "msg" }], 1);
-        if (v === "steam") steamPage();
-        if (v === "msg") $('[data-a="msg"]', el).click();
-      };
-    },
-    items() { return fis(this.el); }
-  };
-}
-
 /* ================= v2.9.8: noticias ================= */
 const NEWS_T = [
   ["Actualización 1.4 ya disponible", "Llegan nuevas misiones secundarias, ajustes de equilibrio y mejoras de rendimiento en equipos portátiles.", "El parche reduce los tiempos de carga, corrige errores reportados por la comunidad y agrega opciones de accesibilidad. También mejora la estabilidad en modo ventana sin bordes."],
@@ -5651,14 +5634,6 @@ function storageView() {
     items() { return fis(this.el); }
   };
 }
-
-/* ================= v2.9.8: modo TV ================= */
-function setTvMode(on, silent) {
-  const was = document.documentElement.classList.contains("tv");
-  document.documentElement.classList.toggle("tv", on);
-  if (on !== was) { requestAnimationFrame(() => updateFocus()); if (!silent) notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4.5" width="19" height="13" rx="2"/><path d="M8 21h8"/></svg>', title: on ? "Modo TV" : "Modo portátil", text: on ? "Pantalla externa conectada" : "Pantalla externa desconectada" }); }
-}
-Events.on("display.changed", d => setTvMode(!!d.tv));
 
 /* ================= entrada: teclado, mando, táctil ================= */
 function input(k) {
@@ -5787,6 +5762,13 @@ function setBatt(level, charging) {
 let battReady = false; setTimeout(() => battReady = true, 4000);
 if (navigator.getBattery) navigator.getBattery().then(b => { const u = () => setBatt(b.level, b.charging); u(); b.addEventListener("levelchange", u); b.addEventListener("chargingchange", u); }).catch(() => setBatt(.82)); else setBatt(.82);
 addEventListener("resize", () => updateFocus());
+/* ================= v2.9.8: modo TV ================= */
+function setTvMode(on, silent) {
+  const was = document.documentElement.classList.contains("tv");
+  document.documentElement.classList.toggle("tv", on);
+  if (on !== was) { requestAnimationFrame(() => updateFocus()); if (!silent) notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4.5" width="19" height="13" rx="2"/><path d="M8 21h8"/></svg>', title: on ? "Modo TV" : "Modo portátil", text: on ? "Pantalla externa conectada" : "Pantalla externa desconectada" }); }
+}
+Events.on("display.changed", d => setTvMode(!!d.tv));
 
 /* ================= arranque ================= */
 const bootStart = performance.now();
@@ -5794,6 +5776,7 @@ function dismissBoot() {
   if (mode !== "boot" || performance.now() - bootStart < 700) return;
   mode = "ui";
   $("#boot").classList.add("gone"); play("boot");
+  setTimeout(() => $("#boot").classList.add("off"), 800);   // ya desvanecida: fuera del todo (sus animaciones seguían corriendo)
   renderHome();
   if (state.running && state.adopted) {   // la app se reinició con un juego abierto: se regresa a él
     state.adopted = false; showGame(runningGame()); mode = "game";

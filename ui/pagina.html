@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scarlet</title>
+<!--
+  Scarlet · alpha 0.3 (proyecto personal)
+  Home estilo consola híbrida para la ROG Xbox Ally X. Íconos de la interfaz,
+  sonidos (sintetizados) y portadas de respaldo son propios del proyecto.
+
+  Controles en navegador (en paréntesis, el botón de la Ally):
+    Flechas ........ moverse            Enter (A) ..... iniciar / aceptar
+    Esc (B) ........ atrás / borrar     X (X) ......... opciones / borrar
+    Y (Y) .......... ordenar / tipo     M (Menú) ...... ajustes · en biblioteca: buscar
+    Q / E (LB/RB) .. saltar             Z / C (LT/RT) . cambiar colección
+    H H (Xbox ×2) .. volver al menú / al juego          P ............. suspender
+    Mantener H ..... menú rápido (brillo, volumen, energía, Wi-Fi)
+    K .............. captura · mantener K = guardar video (solo jugando)
+    Bloqueo ........ el mismo botón tres veces
+
+  Contrato con la app anfitriona (C# + WebView2):
+    UI → host  postMessage({ id, type, payload })  ·  host → UI { id, ok, data | error }
+      steam.profile → {name, level, avatarUrl}      steam.games → [{appid, name, source, kind, installed,
+      hours, last, ach:[u,t], cols:[...]}]          steam.friends · steam.achievements {appid}
+      game.launch {appid, source} · game.focus · game.close · steam.open {url}
+      sgdb {path} · album.list → [{url, thumb, path, game, date, type}] · album.delete {path}
+      rumble {strong, weak, ms} · ui.show · system.sleep
+      system.open {uri}  (steam://store, ms-settings:bluetooth, explorer…) · system.armoury (abre Armoury Crate)
+      pads.list → [{key, name, type, player, battery}] · pad.player {key, player} · pad.rumble {key} · pad.disconnect {key}
+      bt.scan → inicia búsqueda (eventos bt.found)  ·  bt.pair {id}
+      Las apps (kind:"app") traen exec, p. ej. YouTube: msedge --app=https://www.youtube.com/tv --start-fullscreen
+    host → UI eventos { event, data }
+      game.ready · game.exited · guide.double · friend.online · system.resumed · battery.low
+      achievement.unlocked {appid, name, desc} · download.progress {appid, progress, kind} · download.done {appid}
+      pad.connected · pad.disconnected · bt.found {id, name} · bt.paired {id}
+-->
+<style>
+@@CSS@@</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="users" id="users"></div>
+    <div class="status">
+      <button class="npchip" id="npchip" hidden><span class="npart"></span><span class="nptxt"><b></b><i class="eq"><i></i><i></i><i></i></i></span></button>
+      <span class="tvchip">TV</span>
+      <span class="vpnchip" hidden>VPN</span>
+      <span class="clock">--:--</span>
+      <svg class="wifi" viewBox="0 0 24 19" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><path d="M2.2 6.6a14 14 0 0 1 19.6 0"/><path d="M5.6 10.1a9.2 9.2 0 0 1 12.8 0"/><path d="M9 13.5a4.4 4.4 0 0 1 6 0"/><circle cx="12" cy="16.9" r="1.6" fill="currentColor" stroke="none"/></svg>
+      <span class="batt"><span class="battPct">--%</span>
+        <svg viewBox="0 0 30 16"><rect x=".8" y=".8" width="25" height="14.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="27.2" y="5" width="2.2" height="6" rx="1" fill="currentColor"/><rect class="battFill" x="3" y="3" width="20.6" height="10" rx="1.5" fill="currentColor"/><path class="battBolt" style="display:none" d="M15.6 1.6 9.8 9h3.6l-1.6 5.4L17.8 7h-3.7z" fill="#3ad16b" stroke="var(--bg,#000)" stroke-width="1.1" stroke-linejoin="round"/></svg>
+      </span>
+    </div>
+  </header>
+
+  <main class="home">
+    <div class="titlebar"><div id="gameTitle"><svg class="gt-ic" viewBox="0 0 17 21" fill="currentColor"><path d="M2.2 0h12.6A2.2 2.2 0 0 1 17 2.2v16.6a2.2 2.2 0 0 1-2.2 2.2H2.2A2.2 2.2 0 0 1 0 18.8V2.2A2.2 2.2 0 0 1 2.2 0z"/><path d="M5 15.5h7v2.2H5z" fill="#1f1f1f"/></svg><span id="gtText"></span></div></div>
+    <div class="rowwrap" id="rowwrap"><div class="track" id="track"></div></div>
+    <nav class="apps" id="apps"></nav>
+  </main>
+
+  <footer class="hints">
+    <div class="left"><span class="padsq" id="padsq"><i class="on"></i><i></i><i></i><i></i></span><span class="padicon" aria-hidden="true"></span><span id="padName">ROG Xbox Ally X</span></div>
+    <div class="right" id="hints"></div>
+  </footer>
+  <div id="toast"></div>
+</div>
+
+<div id="game"><img alt=""><div class="gshade"></div>
+  <div class="ginfo"><b id="gname"></b><span>Juego en ejecución · simulación del prototipo</span>
+  <span class="gkeys">Doble toque al botón Xbox (H H) para volver al menú · P para suspender</span></div>
+</div>
+
+<div id="launch"><div class="ldolby dolby"></div><div class="lcloud"></div><div class="ll">
+  <img class="spin a" data-src="b1" alt="">
+  <img class="slash" data-src="b2" alt="">
+  <img class="spin b" data-src="b3" alt="">
+</div></div>
+
+<div id="lock"><div class="lbg"></div>
+  <div class="ltop"><span class="clock">--:--</span><span class="batt"><span class="battPct">--%</span><svg viewBox="0 0 30 16"><rect x=".8" y=".8" width="25" height="14.4" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="27.2" y="5" width="2.2" height="6" rx="1" fill="currentColor"/><rect class="battFill" x="3" y="3" width="20.6" height="10" rx="1.5" fill="currentColor"/><path class="battBolt" style="display:none" d="M15.6 1.6 9.8 9h3.6l-1.6 5.4L17.8 7h-3.7z" fill="#3ad16b" stroke="var(--bg,#000)" stroke-width="1.1" stroke-linejoin="round"/></svg></span></div>
+  <div class="lcenter"><div class="lclock clock">--:--</div><div class="licon" id="licon"></div><div class="ldots"><i></i><i></i><i></i></div><p>Presiona el mismo botón tres veces</p></div>
+</div>
+
+<img id="padsrc" src="__PAD__" alt="" hidden><img id="xpadsrc" src="__XPAD__" alt="" hidden><img id="pspadsrc" src="__PSPAD__" alt="" hidden><img id="xbtnsrc" src="__XBTN__" alt="" hidden>
+<div id="sleep"></div>
+<div id="dim"></div><div id="flash"></div><div id="recdot"><i></i>Grabando</div>
+<div id="qshade"></div><aside id="quick" aria-label="Menú rápido"></aside>
+<div id="notifs"></div>
+
+<div id="boot"><div class="mark">
+  <div class="blogos"><img class="b1" src="__ROG__" alt=""><img class="b2" src="__SLASH__" alt=""><img class="b3" src="__XBOX__" alt=""></div>
+  <b>SCARLET</b><span class="press">Presiona cualquier botón</span>
+</div></div>
+
+
+<script>
+@@JS@@</script>
+</body>
+</html>

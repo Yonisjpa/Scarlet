@@ -152,7 +152,6 @@ static class Native
     [DllImport("user32.dll")] public static extern bool IsHungAppWindow(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hWnd);
     [DllImport("user32.dll")] public static extern bool EnableWindow(IntPtr hWnd, bool enable);
-    [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr hWnd, uint flags);
 
     /// <summary>
     /// Ventana principal (de nivel superior) que está en ese punto de la pantalla. Se busca por la lista de ventanas, sin

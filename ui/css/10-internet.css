@@ -1,0 +1,22 @@
+/* ===================== beta 1.2: Internet (Wi-Fi) ===================== */
+.wsig{display:flex;align-items:center;gap:.8rem;color:var(--fg)}
+.wbars{width:2.6rem;height:2.2rem}
+.wlock{width:1.7rem;height:1.7rem;opacity:.8}
+.wrow.on .meta span{color:var(--accent)}
+.wcbox{width:min(70rem,92vw);padding:2.8rem 3rem 2.6rem;display:flex;flex-direction:column;align-items:center;gap:2.2rem}
+.wcbox h3{font-size:2.2rem;align-self:flex-start}
+.wchain{display:flex;align-items:center;width:100%;justify-content:center;gap:0}
+.wnode{display:flex;flex-direction:column;align-items:center;gap:.9rem;width:13rem;color:var(--fg2);font-size:1.4rem;text-align:center}
+.wnode i{width:6.4rem;height:6.4rem;border-radius:50%;display:grid;place-items:center;background:var(--bg3);color:var(--fg2);transition:background .3s,color .3s}
+.wnode i svg{width:3.4rem;height:3.4rem}
+.wnode.ok i{background:var(--accent);color:#06222c}
+.wnode.ok{color:var(--fg)}
+.wnode.bad i{background:#e5484d;color:#fff}
+.wlink{flex:1;max-width:10rem;height:.5rem;border-radius:.3rem;background:var(--bg3);position:relative;overflow:hidden;margin-bottom:2.6rem}
+.wlink u{position:absolute;inset:0;transform:scaleX(0);transform-origin:left;background:var(--accent);transition:transform .45s ease}
+.wlink.ok u{transform:none}
+.wlink.bad u{transform:none;background:#e5484d}
+.wlink.busy u{transform:scaleX(.35);animation:wbusy 1s ease-in-out infinite}
+@keyframes wbusy{0%{transform:translateX(-40%) scaleX(.35)}100%{transform:translateX(300%) scaleX(.35)}}
+.wmsg{font-size:1.7rem;color:var(--fg2);text-align:center;min-height:2.4rem}
+.wok{min-width:16rem}

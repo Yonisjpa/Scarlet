@@ -1,0 +1,30 @@
+/* ===================== beta 1.0: Ajustes como en la Switch 2 ===================== */
+.nsb{flex:1;display:flex;min-height:0;margin:0 var(--pad)}
+.nsl{width:31rem;flex:0 0 auto;padding:1.6rem 0;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:.2rem;overflow:auto;scrollbar-width:none}
+.nsl::-webkit-scrollbar,.nsr::-webkit-scrollbar{display:none}
+.nscat{--r:1rem;position:relative;text-align:left;font-size:1.9rem;padding:1.05rem 2.4rem 1.05rem 3.4rem;margin:.1rem 2rem .1rem .7rem;border-radius:1rem;flex:0 0 auto}
+.nscat.sel{color:var(--accent)}
+.nscat.sel::before{content:"";position:absolute;left:1.5rem;top:.95rem;bottom:.95rem;width:.32rem;border-radius:.2rem;background:var(--accent)}
+.nscat.focused{background:var(--bg3)}
+.nscat.focused::after,.nsrow.focused::after{--ringgap:0rem}
+.nsl hr{border:0;border-top:1px solid var(--line);margin:.7rem 2rem .7rem 1rem;flex:0 0 auto}
+.nsr{flex:1;min-width:0;padding:1.2rem .8rem 3rem 4rem;overflow:auto;scrollbar-width:none}
+.nssec{display:flex;align-items:center;gap:1rem;font-size:1.6rem;color:var(--fg2);margin:2.4rem 0 .9rem}
+.nssec:first-child{margin-top:.8rem}
+.nssec::before{content:"";width:.3rem;height:1.9rem;background:currentColor;border-radius:.1rem}
+.nssec.blank{margin:.4rem 0}.nssec.blank::before{display:none}
+.nsrow{--r:1rem;position:relative;display:flex;align-items:center;gap:1.8rem;width:100%;text-align:left;font-size:2rem;padding:1.65rem 2.2rem;border-bottom:1px solid var(--line)}
+.nssec + .nsrow{border-top:1px solid var(--line)}
+.nsrow.focused{background:var(--bg3);border-radius:1rem;border-color:transparent}
+.nsrow.focused + .nshelp + .nsrow,.nsrow.focused + .nsrow{border-top-color:transparent}
+.nsrow .nl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nsrow .nv{color:var(--accent);white-space:nowrap;max-width:50%;overflow:hidden;text-overflow:ellipsis}
+.nsrow .nv.go{color:var(--fg2);font-size:2.4rem;line-height:1}
+.nsrow.on .nl{color:var(--accent)}
+.nsw{width:4.8rem;height:2.6rem;border-radius:1.3rem;background:color-mix(in srgb,var(--fg2) 55%,transparent);position:relative;flex:0 0 auto;transition:background .15s}
+.nsw::after{content:"";position:absolute;left:.35rem;top:.35rem;width:1.9rem;height:1.9rem;border-radius:50%;background:#fff;transition:transform .15s}
+.nsw.on{background:var(--accent)}.nsw.on::after{transform:translateX(2.2rem)}
+.nrad{width:2.6rem;height:2.6rem;border-radius:50%;border:.2rem solid var(--fg2);flex:0 0 auto;box-sizing:border-box}
+.nrad.on{border:0;background:radial-gradient(circle,#fff 0 .5rem,var(--accent) .55rem)}
+.nswatch{width:5.4rem;height:3.4rem;border-radius:.3rem;border:1px solid var(--line);flex:0 0 auto}
+.nshelp{font-size:1.5rem;color:var(--fg2);padding:1rem 2.2rem 1.4rem;line-height:1.45;border-bottom:1px solid var(--line)}

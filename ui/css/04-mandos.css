@@ -1,0 +1,76 @@
+/* controles */
+.pchip{width:4.6rem;height:4.6rem;border-radius:50%;display:grid;place-items:center;font-weight:900;font-size:1.6rem;background:var(--accent);color:#06222c;flex:0 0 auto}
+.lrow .ico{width:4.6rem;height:4.6rem;border-radius:50%;display:grid;place-items:center;background:var(--icon);color:var(--fg);flex:0 0 auto}
+.lrow .ico svg{width:2.4rem;height:2.4rem}
+.sect{font-size:1.4rem;font-weight:700;color:var(--fg2);margin:2rem 0 1rem;text-transform:uppercase;letter-spacing:.12rem}
+.sect:first-child{margin-top:0}
+.map{display:grid;grid-template-columns:1.15fr 1fr;gap:3.4rem;align-items:start}
+.allyart{width:100%;aspect-ratio:840/364;background:var(--fg2);-webkit-mask:var(--padimg) center/contain no-repeat;mask:var(--padimg) center/contain no-repeat;margin-top:2rem}
+.mtable{display:grid;grid-template-columns:auto 1fr;gap:1rem 2.4rem;font-size:1.55rem;background:var(--bg2);border-radius:1.2rem;padding:2.2rem 2.6rem}
+.mtable dt{color:var(--fg2)} .mtable dd{font-weight:700}
+.btnrow{display:flex;gap:1.6rem;margin-top:2.4rem}
+.btn{--r:99rem;position:relative;padding:1.2rem 2.8rem;border-radius:99rem;background:var(--bg2);font-weight:700;font-size:1.65rem;box-shadow:var(--shadow)}
+.btn.primary{background:var(--accent);color:#06222c}
+.bthelp{background:var(--bg2);border-radius:1.2rem;padding:2rem 2.4rem;font-size:1.6rem;line-height:1.5;color:var(--fg2);margin-bottom:2rem;display:flex;gap:1.6rem;align-items:center}
+.bthelp svg{width:4rem;height:4rem;color:var(--accent);flex:0 0 auto}
+.dots3 i{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:currentColor;margin-left:.35rem;animation:dot 1.2s infinite}
+.dots3 i:nth-child(2){animation-delay:.2s}.dots3 i:nth-child(3){animation-delay:.4s}
+@keyframes dot{0%,80%,100%{opacity:.25}40%{opacity:1}}
+/* pantalla de controles estilo consola */
+.ctl{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 1px 46rem;min-height:0;margin:0 var(--pad)}
+.ctl-left{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3rem;padding:2rem 3rem 2rem 0;min-width:0}
+.ctl-div{background:var(--line);margin:2.8rem 0}
+.ctl-right{display:flex;flex-direction:column;justify-content:center;padding:1rem 0 1rem 3.2rem}
+.crow{--r:.8rem;position:relative;text-align:left;font-size:1.9rem;font-weight:500;padding:2.25rem 2.4rem;border-bottom:1px solid var(--line);border-radius:.8rem .8rem 0 0}
+.crow.focused{background:var(--bg2);border-radius:.8rem;border-bottom-color:transparent;box-shadow:var(--shadow)}
+.cards{display:flex;gap:1.6rem;align-items:flex-end;justify-content:center;flex-wrap:wrap;max-width:100%}
+.ccard{--r:1.2rem;position:relative;display:flex;flex-direction:column;align-items:center;gap:1.1rem;padding:1.4rem 1.2rem;border-radius:1.2rem;transition:transform .22s cubic-bezier(.2,.9,.25,1),background .2s}
+.ccard .clabel{font-size:1.65rem;color:var(--fg2);font-weight:500}
+.ccard .cart{color:var(--fg)}
+.ccard .cart svg{display:block;width:100%;height:auto}
+.ccard .cbatt{display:flex;gap:.8rem;align-items:center;color:var(--fg);font-size:1.3rem;font-weight:700}
+.ccard .cbatt svg{height:1.9rem;width:auto}
+.ccard .cname{font-size:1.3rem;color:var(--fg2);max-width:16rem;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ccard.lifted{transform:translateY(-1.6rem);background:var(--bg2)}
+.ctl-note{font-size:1.75rem;color:var(--fg2);font-weight:500;min-height:2.4rem;text-align:center}
+.ordering .ctl-right{opacity:.35}
+.allymini{aspect-ratio:840/364;background:currentColor;-webkit-mask:var(--padimg) center/contain no-repeat;mask:var(--padimg) center/contain no-repeat}
+.art{color:var(--fg)}
+.art .hot{fill:none;stroke:currentColor;stroke-width:3;transition:fill .08s,stroke .08s}
+.art .hotfill{fill:transparent;stroke:none;transition:fill .08s}
+.art .on .hot,.art .on .hotfill{fill:var(--accent);stroke:var(--accent)}
+.art .sh{fill:none;stroke:transparent;stroke-width:7;stroke-linecap:round}
+.art .on .sh{stroke:var(--accent)}
+.art .lbl{fill:currentColor;stroke:none;font:700 15px "Segoe UI",sans-serif;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.art .on .lbl{fill:#06222c}
+.art .ovl{opacity:0}.art .on .ovl{opacity:1}
+.art .dotm{fill:currentColor}
+.art .scrs{fill:var(--fg2);font:600 18px "Segoe UI",sans-serif;text-anchor:middle}
+.art .scrb{fill:var(--fg);font:600 42px "Segoe UI",sans-serif;text-anchor:middle}
+.help{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem}
+.hcard{background:var(--bg2);border-radius:1.2rem;padding:2.4rem;display:flex;flex-direction:column;gap:1.4rem;font-size:1.55rem;line-height:1.5;color:var(--fg2)}
+.hcard h3{font-size:1.9rem;color:var(--fg);font-weight:600}
+.hcard .cart{width:16rem;align-self:center;color:var(--fg)}
+.hcard ol{padding-left:2rem;display:flex;flex-direction:column;gap:.6rem}
+/* prueba de botones */
+.tester{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.6rem;min-height:0;padding:1rem var(--pad);overflow:hidden}
+.tshoulders{width:min(100rem,92%);display:flex;justify-content:space-between}
+.tsh{display:flex;flex-direction:column;gap:.8rem;width:22rem}
+.tsh.r{align-items:flex-end}
+.trig{position:relative;height:2.6rem;width:100%;border:.25rem solid var(--fg2);border-radius:99rem;overflow:hidden;display:grid;place-items:center;font-size:1.3rem;font-weight:800;color:var(--fg2)}
+.trig i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--accent)}
+.tsh.r .trig i{left:auto;right:0}
+.trig span{position:relative}
+.bmp{height:3.4rem;width:100%;border:.25rem solid var(--fg2);border-radius:99rem;display:grid;place-items:center;font-size:1.4rem;font-weight:800;color:var(--fg2);transition:background .08s}
+.bmp.on{background:var(--accent);border-color:var(--accent);color:#06222c}
+.tart{width:min(100rem,92%)}
+.tart svg{width:100%;height:auto;display:block}
+.tinfo{display:flex;gap:3rem;align-items:center;color:var(--fg2);font-size:1.5rem;font-weight:600}
+.tinfo b{color:var(--fg);font-size:1.9rem}
+.holdbar{width:24rem;height:.6rem;border-radius:99rem;background:var(--line);overflow:hidden}
+.holdbar i{display:block;height:100%;width:0;background:var(--accent)}
+@keyframes wIn{from{opacity:0;letter-spacing:1.8rem}to{opacity:1;letter-spacing:.5rem}}
+@keyframes breathe{50%{opacity:.4}}
+@keyframes bOut{to{opacity:0;transform:scale(1.08)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{to{opacity:0}}

@@ -1,0 +1,7 @@
+{
+  "name": "scarlet-pruebas-interfaz",
+  "private": true,
+  "description": "Pruebas de la interfaz de Scarlet con Chromium (Playwright) y un anfitrión simulado",
+  "scripts": { "test": "node run.js" },
+  "devDependencies": { "playwright": "1.48.2" }
+}

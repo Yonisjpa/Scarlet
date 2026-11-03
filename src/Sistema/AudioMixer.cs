@@ -471,7 +471,8 @@ static class AudioMixer
     {
         var parts = new List<string>();
         Each((c2, vol, pid, name) => { vol.GetMute(out bool m); vol.GetMasterVolume(out float l); c2.GetState(out int st); parts.Add($"{name}{(m ? " [silenciada]" : "")} {(int)(l * 100)}%{(st == 1 ? " ▶" : "")}"); });
-        return string.Join(", ", parts);
+        // Una app con varias sesiones (o en varias salidas) salía repetida: se junta (beta 1.3).
+        return string.Join(", ", parts.GroupBy(x => x).Select(g => g.Count() > 1 ? $"{g.Key} ×{g.Count()}" : g.Key));
     }
 
     /// <param name="allOutputs">Todas las salidas activas (bocinas, audífonos, HDMI); false = solo la principal.</param>

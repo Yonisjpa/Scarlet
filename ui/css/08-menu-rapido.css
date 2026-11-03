@@ -1,0 +1,95 @@
+/* ===================== beta 1.0: menú rápido como en la Switch 2 ===================== */
+:root{--nqbg:#2c2c2e}
+:root[data-theme="light"]{--nqbg:#f4f4f6}
+#quick.ns{width:44rem;padding:2.2rem 2.6rem 0}
+#quick.ns:not(.tinted){background:var(--nqbg)}
+.nqst{display:flex;justify-content:flex-end;align-items:center;gap:1.6rem;padding:.4rem .4rem 1.6rem;border-bottom:1px solid var(--line);margin-bottom:.6rem;font-size:2.4rem}
+.nqst .qclock{font-size:2.4rem;font-weight:400;font-variant-numeric:tabular-nums}
+.nqwifi svg{height:2.3rem;width:auto}
+.nqbatt{display:flex;align-items:center;gap:.7rem;font-size:1.9rem;font-variant-numeric:tabular-nums}
+.nqbatt svg{height:2rem;width:auto}
+#quick.ns .qdolby{margin:.6rem 0 .4rem}
+.nqwrap{flex:1;min-height:0;position:relative}
+#quick.ns .nqlist{display:block;height:100%;overflow-y:auto;padding:.5rem .5rem 1rem;margin:0 -.5rem}
+.nqscroll{position:absolute;right:-1.5rem;top:0;width:.35rem;border-radius:.2rem;background:var(--fg2);opacity:.55;pointer-events:none}
+#quick.ns .qrow{background:transparent;border-radius:1rem;border-bottom:1px solid var(--line);font-size:2rem;font-weight:400;padding:1.55rem 1.8rem;gap:1.4rem}
+#quick.ns .qrow.focused{background:var(--bg3);border-bottom-color:transparent}
+#quick.ns .qrow.focused::after{--ringgap:0rem}
+#quick.ns .qrow svg.qi{color:var(--fg);width:2.6rem;height:2.6rem}
+#quick.ns .qrow svg.qi.mute{color:var(--fg2)}
+.nqit .qlab{flex:1}
+.nqv{margin-left:auto;font-size:1.9rem;color:var(--fg);opacity:.8;white-space:nowrap;max-width:60%;overflow:hidden;text-overflow:ellipsis}
+.nqv.on{color:var(--accent);opacity:1}
+.nqit.busy .nqv{opacity:.5}
+.nqhelp{font-size:1.5rem;color:var(--fg2);padding:1rem 1.8rem 1.3rem;line-height:1.4;border-bottom:1px solid var(--line)}
+#quick.ns .nqsl{padding:2.15rem 1.8rem}
+#quick.ns .qrow.qoff .nqbar u{opacity:.4}
+.nqbar{flex:1;height:.6rem;border-radius:.3rem;background:color-mix(in srgb,var(--fg2) 45%,transparent);position:relative;overflow:visible!important;cursor:pointer}
+.nqbar::after{content:"";position:absolute;inset:-1.6rem 0}
+.nqbar i{position:absolute!important;left:0;top:0;bottom:0;height:auto!important;border-radius:.3rem;background:var(--accent)}
+.nqbar u{position:absolute;top:50%;width:3rem;height:3rem;border-radius:50%;background:#a3a3a8;transform:translate(-50%,-50%);box-shadow:0 .2rem .6rem rgba(0,0,0,.4);transition:left .12s}
+.nqbar em{display:none;z-index:3;position:absolute;left:50%;bottom:calc(100% + .25rem);transform:translateX(-50%);background:#111;color:#fff;border-radius:.5rem;padding:.25rem .7rem;font-style:normal;font-size:1.4rem;line-height:1.2;white-space:nowrap;font-variant-numeric:tabular-nums}
+.qrow.focused .nqbar em{display:block}
+.qrow.focused .nqbar u{background:#fff}
+#quick.ns .nqmix .mico{width:2.6rem;height:2.6rem}
+#quick.ns .nqmix .qlab{flex:0 0 11rem;font-size:1.65rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#quick.ns .qrow.nqmu{display:grid;grid-template-columns:5.2rem minmax(0,1fr) auto;align-items:center;column-gap:1.3rem;padding:1.3rem 1.8rem 1.9rem}
+.nqart{width:5.2rem;height:5.2rem;border-radius:.6rem;background:linear-gradient(135deg,#ff5a6e,#7a2cff) center/cover no-repeat;display:grid;place-items:center;color:#fff;box-shadow:none}
+.nqart[style*="background-image"]{background-color:var(--line)}
+.nqart svg{width:2.4rem;height:2.4rem}
+.nqmtx{min-width:0}
+.nqmtx b{display:block;font-size:1.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nqmtx>span{display:block;font-size:1.4rem;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.nqctl{display:flex;gap:.5rem}
+#quick.ns .qmb{width:3.9rem;height:3.9rem}
+#quick.ns .qmb svg{width:2rem;height:2rem}
+#quick.ns .qrow.focused .qmb.sel{background:color-mix(in srgb,var(--fg) 12%,transparent);box-shadow:0 0 0 .25rem var(--accent)}
+#quick.ns .nqline{position:absolute;left:1.8rem;right:1.8rem;bottom:.7rem;display:block}
+#quick.ns .nqline .qbar{display:block;height:.3rem;background:color-mix(in srgb,var(--fg) 16%,transparent)}
+#quick.ns .nqline .qbar i{background:var(--fg)}
+#quick.ns .nqfoot{display:flex;align-items:center;justify-content:flex-start;gap:2.2rem;border-top:1px solid var(--line);margin-top:0;padding:1.5rem .6rem 2rem;font-size:1.9rem;font-weight:400}
+.nqdev{margin-right:auto;display:flex;align-items:center;gap:1.1rem;color:var(--fg2)}
+.nqdev .padicon{height:3.4rem}
+#quick.ns .nqfoot .hint{margin-left:0}
+html.overlay #quick.ns{width:100%}
+/* el ícono del mando que estás usando */
+.padicon.xbox{aspect-ratio:600/424;-webkit-mask-image:var(--xpad);mask-image:var(--xpad)}
+.padicon.ps{aspect-ratio:600/401;-webkit-mask-image:var(--pspad);mask-image:var(--pspad)}
+/* Dolby: dorado y blanco que corre por las letras, con un brillo suave */
+.dgw{display:flex;align-items:center;gap:1rem;filter:drop-shadow(0 0 .45rem rgba(255,210,110,.38))}
+.dgt,.glg{background:linear-gradient(90deg,#c9962e,#fff6dc,#e8b84a,#ffffff,#c9962e);background-size:200% 100%;animation:dgold 2.4s linear infinite}
+.dgt{-webkit-background-clip:text;background-clip:text;color:transparent}
+.glg{display:block;height:1.7rem;aspect-ratio:674/96;-webkit-mask:var(--dlogo) center/contain no-repeat;mask:var(--dlogo) center/contain no-repeat}
+#launch .ldolby .glg{height:2.4rem}
+@keyframes dgold{from{background-position:0% 0}to{background-position:-200% 0}}
+/* beta 1.2: en el logo, el mismo brillo se mueve con la GPU (una capa que se desliza) en vez de repintarlo en cada cuadro */
+.glg{position:relative;overflow:hidden;background:none;animation:none}
+.glg::before{content:"";position:absolute;top:0;bottom:0;left:-200%;width:400%;background:linear-gradient(90deg,#c9962e,#fff6dc,#e8b84a,#ffffff,#c9962e);background-size:50% 100%;animation:dgoldT 2.4s linear infinite;will-change:transform}
+@keyframes dgoldT{from{transform:translateX(0)}to{transform:translateX(50%)}}
+[data-theme="light"] #quick:not(.tinted) .glg.glg{background-image:none}
+[data-theme="light"] #quick:not(.tinted) .glg::before{background-image:linear-gradient(90deg,#8a6216,#c08a22,#5e420c,#b07f1e,#8a6216)}
+@media (prefers-reduced-motion:reduce){.glg::before{animation:none}}
+[data-theme="light"] #quick:not(.tinted) .dgt,[data-theme="light"] #quick:not(.tinted) .glg{background-image:linear-gradient(90deg,#8a6216,#c08a22,#5e420c,#b07f1e,#8a6216)}
+[data-theme="light"] #quick:not(.tinted) .dgw{filter:none}
+@media (prefers-reduced-motion:reduce){.dgt,.glg{animation:none}}
+/* tocar la batería */
+#battpop{position:fixed;z-index:92;background:rgba(8,8,10,.95);color:#fff;border:1px solid rgba(255,255,255,.2);border-radius:1rem;padding:1.2rem 1.6rem;display:flex;flex-direction:column;gap:.3rem;box-shadow:0 .8rem 2.4rem rgba(0,0,0,.5);opacity:0;transform:translateY(-.6rem);pointer-events:none;transition:opacity .18s,transform .18s}
+#battpop.show{opacity:1;transform:none}
+#battpop b{font-size:2rem;font-weight:600}
+#battpop span{font-size:1.5rem;opacity:.85}
+.status .batt{cursor:pointer}
+/* opciones de energía */
+.pwbox{width:min(62rem,92vw);padding:2.6rem 2.8rem 2.4rem;display:flex;flex-direction:column;gap:.9rem}
+.pwbox h3{font-size:2.3rem;font-weight:500;margin-bottom:.8rem}
+.pwrow{--r:1rem;position:relative;display:flex;align-items:center;gap:1.8rem;text-align:left;padding:1.5rem 2rem;border-radius:1rem;background:var(--bg3);font-size:2rem}
+.pwrow svg{width:2.8rem;height:2.8rem;flex:0 0 auto}
+.pwrow b{display:block;font-weight:400}
+.pwrow span span{display:block;font-size:1.45rem;color:var(--fg2);margin-top:.2rem}
+.pwrow.focused::after{--ringgap:0rem}
+.pwcount{display:flex;align-items:center;gap:1.4rem;font-size:1.45rem;color:var(--fg2);margin-top:.8rem}
+.pwcount i{flex:1;height:.4rem;border-radius:.2rem;background:var(--line);overflow:hidden}
+.pwcount u{display:block;height:100%;background:var(--accent);transition:width 1s linear}
+/* amigos */
+.nstar{font-style:normal;color:#f2c230;margin-left:.5rem;font-size:.85em}
+.fsec{font-size:1.4rem;letter-spacing:.06em;text-transform:uppercase;color:var(--fg2);margin:1rem 1.2rem .4rem}
+.fsec:not(:first-child){margin-top:2.2rem}

@@ -10,7 +10,9 @@ sealed class AlbumService
 {
     readonly SteamService steam;
     readonly List<FileSystemWatcher> watchers = new();
-    static readonly string[] Exts = { ".png", ".jpg", ".jpeg", ".mp4", ".webm" };
+    static readonly string[] Exts = { ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".mp4", ".webm", ".mkv", ".mov" };
+    static readonly string[] VideoExts = { ".mp4", ".webm", ".mkv", ".mov" };
+    const int MaxItems = 2000;   // antes 600: con muchas capturas las más viejas no salían
 
     public event Action<Dictionary<string, object>> NewCapture;
     /// <summary>Un video que la Game Bar apenas empezó a escribir ("Guardando video…").</summary>
@@ -46,23 +48,34 @@ sealed class AlbumService
     public List<Dictionary<string, object>> List()
     {
         var files = new List<FileInfo>();
+        var skipped = new Dictionary<string, int>();
+        // Una subcarpeta sin permiso ya no tumba toda la búsqueda (antes se perdía todo lo que venía después: beta 1.3).
+        var opts = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.System };
         foreach (var r in Roots())
         {
             if (!Directory.Exists(r)) continue;
             try
             {
-                foreach (var f in new DirectoryInfo(r).EnumerateFiles("*", System.IO.SearchOption.AllDirectories))
+                foreach (var f in new DirectoryInfo(r).EnumerateFiles("*", opts))
                     if (IsMedia(f.FullName)) files.Add(f);
+                    else if (f.Extension.Length > 0 && !f.FullName.Contains("thumbnails", StringComparison.OrdinalIgnoreCase)) { string e = f.Extension.ToLowerInvariant(); skipped[e] = skipped.GetValueOrDefault(e) + 1; }
             }
             catch (Exception ex) { Log.Error("álbum " + r, ex); }
         }
-        return files.GroupBy(f => f.FullName, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).OrderByDescending(f => f.LastWriteTime).Take(600).Select(f => Item(f.FullName)).ToList();
+        // Para saber qué no se puede mostrar (por ejemplo capturas HDR .jxr de la Game Bar).
+        string sk = string.Join(", ", skipped.Where(k => k.Key is ".jxr" or ".avif" or ".heic" or ".tif" or ".tiff" or ".avi" or ".wmv").Select(k => $"{k.Key} ×{k.Value}"));
+        if (sk != lastSkipped) { lastSkipped = sk; if (sk.Length > 0) Log.Write("álbum: archivos que no se pueden mostrar: " + sk); }
+        var all = files.GroupBy(f => f.FullName, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
+        if (all.Count > MaxItems) Log.Write($"álbum: {all.Count} capturas; se muestran las {MaxItems} más recientes");
+        return all.OrderByDescending(f => f.LastWriteTime).Take(MaxItems).Select(f => Item(f.FullName)).ToList();
     }
+
+    string lastSkipped = "";
 
     public Dictionary<string, object> Item(string path)
     {
         var fi = new FileInfo(path);
-        bool video = fi.Extension.ToLowerInvariant() is ".mp4" or ".webm";
+        bool video = VideoExts.Contains(fi.Extension.ToLowerInvariant());
         string game, thumb = null;
 
         var m = Regex.Match(path, @"[\\/]760[\\/]remote[\\/](\d+)[\\/]screenshots[\\/]", RegexOptions.IgnoreCase);

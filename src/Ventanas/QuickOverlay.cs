@@ -255,26 +255,53 @@ sealed class QuickOverlay : Form
     // nada al juego. Al abrirlo se despierta antes de mostrarse, así que se ve y se usa igual que siempre.
     bool suspended;
     int suspendTicket;
+    // beta 1.3: en la 1.2 nunca se congelaba (log: COMException 0x8007139F en TrySuspend). Esconder el control con la
+    // ventana ya escondida no le avisa a WebView2, que seguía creyendo la página «visible». Ahora se le dice directo
+    // al controlador de WebView2 (el control de WinForms no lo deja ver, se toma por reflexión).
+    Microsoft.Web.WebView2.Core.CoreWebView2Controller ctl;
+    bool ctlSearched;
+    Microsoft.Web.WebView2.Core.CoreWebView2Controller Controller()
+    {
+        if (ctlSearched) return ctl;
+        ctlSearched = true;
+        try
+        {
+            var f = typeof(WebView2).GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public)
+                .FirstOrDefault(x => x.FieldType == typeof(Microsoft.Web.WebView2.Core.CoreWebView2Controller));
+            ctl = f?.GetValue(web) as Microsoft.Web.WebView2.Core.CoreWebView2Controller;
+            if (ctl == null) Log.Write("menú rápido: no se encontró el controlador de WebView2 (no se podrá congelar)");
+        }
+        catch (Exception ex) { Log.Error("menú rápido (controlador)", ex); }
+        return ctl;
+    }
+    void SetPageVisible(bool on)
+    {
+        try { var c = Controller(); if (c != null && c.IsVisible != on) c.IsVisible = on; } catch (Exception ex) { Log.Error("menú rápido (visible)", ex); }
+    }
+
     async Task SuspendLater()
     {
         int me = ++suspendTicket;
         await Task.Delay(4000);
         if (me != suspendTicket || IsOpen || !ready || stale || web.CoreWebView2 == null) return;
+        if (Controller() == null) return;
         try
         {
-            web.Visible = false;   // WebView2 solo se suspende si no está visible
+            SetPageVisible(false);   // WebView2 solo se congela si la página no está visible
             suspended = await web.CoreWebView2.TrySuspendAsync();
-            if (!suspended) web.Visible = true;
+            if (me != suspendTicket || IsOpen) { Wake(); return; }   // se abrió mientras tanto
+            if (!suspended) { SetPageVisible(true); Log.Write("menú rápido: Windows no lo dejó congelar"); }
+            else if (!suspendLogged) { suspendLogged = true; Log.Write("menú rápido: congelado mientras está cerrado"); }
         }
-        catch (Exception ex) { web.Visible = true; Log.Error("menú rápido (suspender)", ex); }
+        catch (Exception ex) { SetPageVisible(true); suspended = false; Log.Error("menú rápido (congelar)", ex); }
     }
+    bool suspendLogged;
     void Wake()
     {
         suspendTicket++;
-        if (!suspended && web.Visible) return;
         try { if (suspended) web.CoreWebView2?.Resume(); } catch (Exception ex) { Log.Error("menú rápido (despertar)", ex); }
         suspended = false;
-        web.Visible = true;
+        SetPageVisible(true);
     }
     /// <summary>¿Está congelado ahora? (para Diagnóstico › Rendimiento).</summary>
     public bool Suspended => suspended;

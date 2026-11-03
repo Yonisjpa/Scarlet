@@ -52,7 +52,7 @@ static class Perf
     /// Toma una muestra: % de procesador (de toda la máquina) y memoria de Scarlet + sus procesos web, y la suma a
     /// «menú cerrado» o «menú abierto». Se llama cada pocos segundos mientras hay un juego.
     /// </summary>
-    public static void Sample(IEnumerable<int> pids, bool menuOpen)
+    public static void Sample(IEnumerable<int> pids, bool menuOpen, bool count = true)
     {
         var now = DateTime.UtcNow;
         double secs = lastAt == default ? 0 : (now - lastAt).TotalSeconds;
@@ -73,7 +73,7 @@ static class Perf
             catch { }
         }
         foreach (var k in lastCpu.Keys.Where(k => !seen.Contains(k)).ToList()) lastCpu.Remove(k);
-        if (secs <= 0 || secs > 30) return;
+        if (secs <= 0 || secs > 30 || !count) return;   // count=false: el rato justo al abrir/cerrar el menú no cuenta en ninguno
         double pct = delta.TotalSeconds / secs / Environment.ProcessorCount * 100;
         string key = menuOpen ? "open" : "closed";
         lock (buckets)
@@ -98,11 +98,4 @@ static class Perf
         lock (buckets) return $"{Part("closed", "jugando con el menú cerrado")} · {Part("open", "con el menú abierto")}{(ecoOn ? " · modo eficiencia activo" : "")}";
     }
 
-    public static object State()
-    {
-        object B(string k) => buckets.TryGetValue(k, out var b) && b.N > 0
-            ? new { cpu = Math.Round(b.Cpu / b.N, 2), peak = Math.Round(b.Peak, 1), mb = Math.Round(b.Mem / b.N / 1048576.0), samples = b.N }
-            : null;
-        return new { closed = B("closed"), open = B("open"), eco = ecoOn, text = Describe() };
-    }
 }

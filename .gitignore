@@ -11,3 +11,10 @@ log.txt
 cache/
 EdgeApps/
 WebView2/
+
+# pruebas
+tests/ui/.sitio/
+tests/ui/node_modules/
+tests/steam/scripts.json
+tests/steam/fixtures.json
+ui/index.html

@@ -11,10 +11,38 @@ permissions:
   contents: write
 
 jobs:
+  # Primero las pruebas (interfaz con Chromium + lo que Scarlet corre dentro de Steam). Si alguna falla, no se compila
+  # ni se publica nada.
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Instalar Chromium para las pruebas
+        working-directory: tests/ui
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Lo que Scarlet corre dentro de Steam
+        run: |
+          python3 tests/steam/extract.py
+          FIXTURES=$RUNNER_TEMP/fixtures.json node tests/steam/sim.js
+          node tests/steam/nube.js
+
+      - name: Interfaz (todos los escenarios)
+        run: node tests/ui/run.js
+
   build:
+    needs: pruebas
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-dotnet@v4
         with:
