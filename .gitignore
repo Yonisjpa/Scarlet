@@ -18,3 +18,5 @@ tests/ui/node_modules/
 tests/steam/scripts.json
 tests/steam/fixtures.json
 ui/index.html
+tests/ui/escenarios/*.png
+tests/ui/escenarios/*.json
