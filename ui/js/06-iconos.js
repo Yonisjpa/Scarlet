@@ -2,11 +2,8 @@
 const I = {
   ally: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5.6 6.4h12.8c1.5 0 2.8 1 3.2 2.4l1.5 5.9c.5 2-1.9 3.4-3.4 2l-1.6-1.6H5.9l-1.6 1.6c-1.5 1.4-3.9 0-3.4-2l1.5-5.9c.4-1.4 1.7-2.4 3.2-2.4z"/><rect x="7" y="7.9" width="10" height="5.6" rx=".6"/><circle cx="4.5" cy="9.3" r=".95"/><path d="M4.5 11.6v1.6M3.7 12.4h1.6" stroke-width="1.2"/><path d="M19.5 8.5v.01M18.7 9.3v.01M20.3 9.3v.01M19.5 10.1v.01" stroke-width="1.4"/><circle cx="19.5" cy="12.4" r=".8"/></svg>',
   friends: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19.5c.8-3.4 3.3-5.3 6.2-5.3s5.4 1.9 6.2 5.3"/><circle cx="17" cy="9" r="2.6"/><path d="M16.2 14.3c2.6-.2 4.5 1.4 5 4.3"/></svg>',
-  news: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 5h12v14H6a2 2 0 0 1-2-2z"/><path d="M16 9h4v8a2 2 0 0 1-2 2h-2"/><path d="M7.5 9h5M7.5 12.5h5M7.5 16h3" stroke-linecap="round"/></svg>',
-  store: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 8h14l-1.2 11.2a1.5 1.5 0 0 1-1.5 1.3H7.7a1.5 1.5 0 0 1-1.5-1.3z"/><path d="M9 10V7a3 3 0 0 1 6 0v3" stroke-linecap="round"/></svg>',
   album: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="8.5" cy="10" r="1.6"/><path d="M4 17l5-4.5 3.5 3 3-2.5L20 17"/></svg>',
   trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H4.5a3 3 0 0 0 3.6 4M16 6h3.5a3 3 0 0 1-3.6 4"/><path d="M12 13v4M8.5 20h7M10 17h4"/></svg>',
-  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4A1.5 1.5 0 0 1 4 14.5z"/><path d="M8.5 10h.01M12 10h.01M15.5 10h.01" stroke-width="2.8" stroke-linecap="round"/></svg>',
   pad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10a4.5 4.5 0 0 1 4.4 5.4l-.8 4a2.6 2.6 0 0 1-4.5 1.2L14.5 16h-5l-1.6 1.6a2.6 2.6 0 0 1-4.5-1.2l-.8-4A4.5 4.5 0 0 1 7 7z"/><path d="M8 10.5v3M6.5 12h3"/><path d="M15.5 11h.01M17.5 13h.01" stroke-width="2.6"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.8l1.6 2.3 2.7-.7.6 2.7 2.6 1-.9 2.6 1.6 2.3-2.2 1.6.2 2.8-2.8.2-1.3 2.4L12 19l-2.3 1.2-1.3-2.4-2.8-.2.2-2.8L3.6 13.6l1.6-2.3-.9-2.6 2.6-1 .6-2.7 2.7.7z"/></svg>',
   power: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.6 6.6a8 8 0 1 0 10.8 0"/></svg>',
@@ -23,9 +20,10 @@ const I = {
 };
 
 const APPS = [
-  { label: "Chat", icon: I.chat, c: "#dc6b17", act: el => openSystemApp(SYS.chat, el) },
-  { label: "Noticias", icon: I.news, c: "#1ace61", act: el => openView(newsView(), el) },
-  { label: "Tienda", icon: I.store, c: "#e23839", act: el => openSystemApp(SYS.store, el) },
+  // beta 1.4: Steam y Armoury Crate en lugar de Chat, Noticias y Tienda (la tienda y el chat están dentro de Steam).
+  // Sus íconos son las imágenes que dio Jhon (ui/assets/steam.png y armoury.png), pintadas con el color de la barra.
+  { label: "Steam", icon: '<i class="appimg" style="--img:url(__STEAMIC__)"></i>', c: "#66c0f4", act: el => openSystemApp(SYS.steam, el) },
+  { label: "Armoury Crate", icon: '<i class="appimg" style="--img:url(__ARMOURYIC__)"></i>', act: el => openSystemApp(SYS.armoury, el) },   // sin color propio: gris como Controles (se ve en tema claro y oscuro)
   { label: "Álbum", icon: I.album, c: "#499fed", act: el => openView(albumView(), el) },
   { label: "Amigos", icon: I.friends, c: "#1ac4a9", act: el => { const v = profileView(); v.ci = 1; v.i = 1; openView(v, el); } },
   { label: "Controles", icon: I.ally, act: el => openView(controlsView(), el) },

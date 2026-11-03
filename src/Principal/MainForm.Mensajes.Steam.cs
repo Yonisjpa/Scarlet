@@ -50,12 +50,6 @@ sealed partial class MainForm
             }
             case "steam.friends.refresh": return await steam.FriendsAsync(true);
             case "steam.achievements": return await steam.AchievementsAsync(P.L(p, "appid"));
-            case "steam.news":
-            {
-                var top = lastGames.Where(g => (string)g["source"] == "steam" && ((bool)g["installed"] || (long)g["lastTs"] > 0))
-                                   .Take(6).Select(g => ((long)g["appid"], (string)g["name"])).ToList();
-                return await steam.NewsAsync(top);
-            }
             case "steam.open": await OpenSystemAsync(P.S(p, "url")); return true;
             case "steam.join":
             {

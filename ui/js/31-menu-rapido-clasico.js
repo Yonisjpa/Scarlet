@@ -77,7 +77,7 @@ function renderQuickClassic() {
     <div class="qrows">${qmGroups(rows).map(g => g.grp === "radio" ? `<div class="qpair${g.items.length === 3 ? " three" : ""}">${g.items.map(i => rowAt(rows[i], i)).join("")}</div>`
       : g.grp === "act" ? `<div class="qbtns">${g.items.map(i => `<div data-qi="${i}" class="qrow${QM.i === i ? " focused" : ""}">${rows[i].icon || ""}<span>${rows[i].label}</span></div>`).join("")}</div>`
       : g.items.map(i => rowAt(rows[i], i)).join("")).join("")}</div>
-    <div class="qhint"><span class="hint"><span class="glyph">B</span>Cerrar</span><span class="hint"><span class="glyph">◀▶</span>Ajustar</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
+    <div class="qhint"><span class="hint" data-key="b"><span class="glyph">B</span>Cerrar</span><span class="hint"><span class="glyph">◀▶</span>Ajustar</span><span class="hint" data-key="a"><span class="glyph">A</span>Aceptar</span></div>`;
   const qr = $(".qrows", q);
   q.classList.remove("dense2");
   if (qr && qr.scrollHeight > qr.clientHeight + 2) q.classList.add("dense");   // no cabe: versión compacta

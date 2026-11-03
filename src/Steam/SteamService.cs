@@ -725,52 +725,6 @@ sealed class SteamService
         return false;
     }
 
-    // ───── Noticias ─────
-
-    public async Task<object> NewsAsync(List<(long id, string name)> top)
-    {
-        var all = new List<(long date, object item)>();
-        foreach (var (id, name) in top)
-        {
-            try
-            {
-                using var r = await http.GetAsync($"{API}ISteamNews/GetNewsForApp/v2/?appid={id}&count=3&maxlength=1500&format=json&feeds=steam_community_announcements");
-                if (!r.IsSuccessStatusCode) continue;
-                using var d = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
-                foreach (var n in d.RootElement.GetProperty("appnews").GetProperty("newsitems").EnumerateArray())
-                {
-                    string text = Clean(Str(n, "contents") ?? "");
-                    long date = Num(n, "date");
-                    var paras = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Where(x => x.Length > 1).Take(10).ToList();
-                    if (paras.Count == 0) continue;
-                    string summary = paras[0].Length > 180 ? paras[0][..177] + "…" : paras[0];
-                    all.Add((date, new { appid = id, game = name, title = Str(n, "title") ?? "", summary, body = paras, date = FmtDate(date), url = Str(n, "url") ?? "" }));
-                }
-            }
-            catch (Exception ex) { Log.Error("noticias " + id, ex); }
-        }
-        if (all.Count == 0) return LoadCache<List<JsonElement>>("news.json") ?? new List<JsonElement>();
-        var list = all.OrderByDescending(x => x.date).Take(14).Select(x => x.item).ToList();
-        SaveCache("news.json", list);
-        return list;
-    }
-
-    static string Clean(string s)
-    {
-        s = Regex.Replace(s, @"\{STEAM_CLAN_IMAGE\}\S*", "");
-        s = Regex.Replace(s, @"\[img[^\]]*\].*?\[/img\]", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        s = Regex.Replace(s, @"\[(previewyoutube|video)[^\]]*\].*?\[/\1\]", "", RegexOptions.IgnoreCase | RegexOptions.Singleline);
-        s = Regex.Replace(s, @"\[\*\]", "\n• ");
-        s = Regex.Replace(s, @"\[/?(p|h\d|list|olist|hr)[^\]]*\]", "\n", RegexOptions.IgnoreCase);
-        s = Regex.Replace(s, @"<br\s*/?>|</p>|</h\d>|</li>", "\n", RegexOptions.IgnoreCase);
-        s = Regex.Replace(s, @"\[[^\]]{1,60}\]", "");
-        s = Regex.Replace(s, @"<[^>]+>", "");
-        s = System.Net.WebUtility.HtmlDecode(s);
-        s = Regex.Replace(s, @"[ \t]+", " ");
-        s = Regex.Replace(s, @"\n\s*\n+", "\n");
-        return s.Trim();
-    }
-
     // ───── Descargas y actualizaciones (archivos locales, cada 3 s) ─────
 
     readonly HashSet<long> downloading = new();

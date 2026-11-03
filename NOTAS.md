@@ -1,3 +1,24 @@
+Novedades de la beta 1.4
+
+Barra de abajo:
+- Ahora: Steam, Armoury Crate, Álbum, Amigos, Controles, Logros, Ajustes y Apagar. Se fueron Chat, Noticias y Tienda.
+- Steam abre Steam Big Picture (tu biblioteca, la tienda y los amigos); al lanzar un juego se cierra solo, como antes la tienda.
+- Armoury Crate abre su panel.
+- Los íconos de Steam y Armoury Crate son tus imágenes, limpias y del tamaño y color de la barra.
+- Al chat con un amigo se sigue llegando desde su perfil («Enviar mensaje»).
+
+Pantalla táctil:
+- Un toque elige un juego y el segundo lo abre (en el Inicio y en la Biblioteca). Con A se abre directo, como siempre.
+- La fila del Inicio se desliza con el dedo, con inercia; las listas (Biblioteca, Álbum, Ajustes…) también.
+- Deslizar desde la orilla izquierda hacia la derecha regresa (una flechita te dice cuándo ya va a regresar).
+- Dejar el dedo sobre un juego abre sus opciones; en el Álbum empieza a elegir capturas para mandarlas al celular.
+- Las ayudas de abajo («B Atrás», «A Aceptar», X, Y, ☰…), las del menú rápido y las pestañas de la Biblioteca se tocan.
+
+Por dentro:
+- Se quitó el código de Noticias (en la interfaz y en la app) y estilos que ya no se usaban.
+- Las ayudas de abajo ya no se vuelven a dibujar si no cambiaron.
+- 8 pruebas nuevas con un dedo simulado (tocar, deslizar, orilla, toque largo) y la barra nueva en las de siempre.
+
 Novedades de la beta 1.3
 
 Lo que pediste:

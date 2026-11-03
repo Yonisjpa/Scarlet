@@ -22,3 +22,21 @@
 #boot.off{display:none}
 #launch:not(.show) .dgt,#launch:not(.show) .glg::before,#launch:not(.show) .ll img,
 #quick:not(.show) .dgt,#quick:not(.show) .glg::before,#quick:not(.show) .eq i,#quick:not(.show) .focused::after{animation-play-state:paused}
+/* ===================== beta 1.4: pantalla táctil ===================== */
+[data-key]{cursor:pointer}
+/* el área para el dedo es más grande que el texto, sin mover nada de lugar */
+.hint[data-key]{position:relative}
+.hint[data-key]::before{content:"";position:absolute;inset:-.9rem -1rem;border-radius:99rem;z-index:-1;transition:background .12s}
+.hint.tap::before{background:var(--sel)}
+.chip.tap{background:var(--sel)}
+.track.dragging{transition:none}
+.tabs .tab{cursor:pointer}
+#edgeback{position:fixed;left:0;top:0;width:4.6rem;height:4.6rem;margin-top:-2.3rem;border-radius:50%;display:grid;place-items:center;
+  background:var(--bg2);color:var(--fg);box-shadow:0 .4rem 1.6rem rgba(0,0,0,.35);z-index:120;pointer-events:none;opacity:0;
+  transform:translateX(calc(-100% + var(--p,0) * 6.4rem)) scale(calc(.7 + var(--p,0) * .3));transition:opacity .15s}
+#edgeback.on{opacity:1}
+#edgeback.ready{background:var(--accent);color:#06222c}
+#edgeback svg{width:2.4rem;height:2.4rem}
+/* El navegador no se queda con los gestos de lado (eran para la fila y la orilla); las listas siguen subiendo y bajando. */
+body{touch-action:pan-y}
+#rowwrap{touch-action:none}

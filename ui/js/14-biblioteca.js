@@ -142,7 +142,8 @@ function libraryView() {
     },
     refresh(keepI) {
       const cols = collections(); lib.col = clamp(lib.col, 0, cols.length - 1);
-      $(".tabs", this.el).innerHTML = `<span class="chip">LT</span>` + cols.map((c, i) => `<span class="tab${i === lib.col ? " on" : ""}">${esc(c)}</span>`).join("") + `<span class="chip">RT</span>`;
+      $(".tabs", this.el).innerHTML = `<span class="chip" data-key="lt">LT</span>` + cols.map((c, i) => `<span class="tab${i === lib.col ? " on" : ""}" data-col="${i}">${esc(c)}</span>`).join("") + `<span class="chip" data-key="rt">RT</span>`;
+      $$(".tab", this.el).forEach(t => t.onclick = () => { if (+t.dataset.col === lib.col) return; lib.col = +t.dataset.col; play("select"); this.refresh(); });
       this.list = libraryList();
       $(".vhead .sub", this.el).textContent = `${lib.query ? `“${lib.query}” · ` : ""}${this.list.length} · ${SORTS[lib.sort]}`;
       const grid = $(".grid", this.el); grid.innerHTML = "";
@@ -150,7 +151,11 @@ function libraryView() {
       else this.list.forEach((g, i) => {
         const b = buildTile(g, "tile fi"); b.style.setProperty("--k", i % 12);
         b.insertAdjacentHTML("beforeend", `<span class="cap">${esc(g.name)}</span>`);
-        b.onclick = () => launchGame(g, b); grid.append(b);
+        b.onclick = () => {   // táctil: primer toque elige, segundo abre (A abre directo)
+          if (!b.classList.contains("focused")) { this.i = i; play("move"); return updateFocus(); }
+          launchGame(g, b);
+        };
+        grid.append(b);
       });
       if (!keepI) this.i = 0;
       updateFocus();

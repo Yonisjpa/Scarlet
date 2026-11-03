@@ -27,7 +27,7 @@ function showGame(g, sub) {
 /* apps del sistema: la tienda y el chat de Steam se abren en Big Picture; Explorador y Ajustes como ventanas a pantalla completa */
 const SYS = {
   store: { appid: 990001, name: "Tienda de Steam", sub: "Abierta en Steam Big Picture", url: "steam://store" },
-  news: { appid: 990002, name: "Noticias de Steam", sub: "Abiertas en Steam Big Picture", url: "steam://open/news" },
+  steam: { appid: 990008, name: "Steam", sub: "Abierto en Steam Big Picture", url: "steam://open/bigpicture" },
   chat: { appid: 990003, name: "Amigos y chat de Steam", sub: "Abierto en Steam Big Picture", url: "steam://open/friends" },
   explorer: { appid: 990004, name: "Explorador de archivos", sub: "Ventana de Windows a pantalla completa", url: "explorer" },
   winsettings: { appid: 990005, name: "Ajustes de Windows", sub: "Ventana de Windows a pantalla completa", url: "ms-settings:" },

@@ -73,6 +73,9 @@ function onHomeClick(e) {
   const el = e.target.closest("[data-z]"); if (!el || views.length || mode !== "ui") return;
   const z = el.dataset.z, i = +el.dataset.i;
   if (z === "g") {
+    // Táctil (beta 1.4): el primer toque elige el juego y el segundo lo abre, como en la consola. A (que también
+    // «toca» el elegido) lo abre directo.
+    if (!(home.zone === "games" && home.g === i)) { home.zone = "games"; home.g = i; play("move"); return updateFocus(); }
     home.zone = "games"; home.g = i; updateFocus();
     if (i < homeGames().length) launchGame(homeGames()[i], el); else openView(libraryView(), el);
   } else if (z === "a") { home.zone = "apps"; home.a = i; updateFocus(); APPS[i].act(el); }

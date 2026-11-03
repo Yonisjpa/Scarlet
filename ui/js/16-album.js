@@ -4,7 +4,7 @@ const albumFilter = { type: 0, game: null };
 const albumList = () => (albumData || []).filter(c => (albumFilter.type === 0 || (albumFilter.type === 1 ? c.type !== "video" : c.type === "video")) && (!albumFilter.game || c.game === albumFilter.game));
 function albumView() {
   return {
-    cols: 5,
+    cols: 5, isAlbum: true,
     hints() { return this.sel ? [["B", "Cancelar"], ["A", "Marcar"], ["☰", `Enviar (${this.sel.size})`]] : [["B", "Atrás"], ["Y", "Tipo"], ["X", "Juego"], ["RB", "Actualizar"], ["☰", "Enviar"], ["A", "Ver"]]; },
     render(el) {
       el.innerHTML = head(I.album, "Álbum", "Cargando…") + `<div class="vbody"><div class="agrid"></div></div>`;

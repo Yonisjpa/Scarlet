@@ -22,7 +22,7 @@ Un toque al botón Xbox abre el menú rápido encima de cualquier juego.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/capturas/inicio.png" alt="Inicio, tema oscuro"><br><sub><b>Inicio</b> · tus juegos recientes y las apps de abajo</sub></td>
+    <td width="50%"><img src="docs/capturas/inicio.png" alt="Inicio, tema oscuro"><br><sub><b>Inicio</b> · tus juegos recientes; abajo Steam, Armoury Crate, Álbum, Amigos…</sub></td>
     <td width="50%"><img src="docs/capturas/inicio-claro.png" alt="Inicio, tema claro"><br><sub><b>Tema claro</b> · o automático, como Windows</sub></td>
   </tr>
   <tr>
@@ -57,6 +57,8 @@ Un toque al botón Xbox abre el menú rápido encima de cualquier juego.
 | 👥 **Perfil y amigos** | Tu código de amigo, historial de juego, amigos en línea y jugando, ★ mejores amigos, buscar por código. |
 | 🖼️ **Álbum** | Capturas y videos de la Game Bar (Videos › Capturas) y de Steam; recortar, borrar y mandar al celular con un QR. |
 | 🔔 **Avisos** | Logros, amigos, descargas y batería. Mientras juegas solo lo importante; lo demás te espera en «Mientras jugabas». |
+| 👆 **Pantalla táctil** | Toca para elegir y otra vez para abrir, desliza la fila y las listas, desliza desde la orilla izquierda para regresar, deja el dedo sobre un juego para sus opciones y toca las ayudas de abajo («B Atrás», «A Aceptar»…). |
+| 🧭 **Barra de abajo** | Steam (abre Big Picture: biblioteca, tienda y amigos), Armoury Crate, Álbum, Amigos, Controles, Logros, Ajustes y Apagar. |
 | 🔋 **Ligero mientras juegas** | Con el menú cerrado, Scarlet se congela y pasa a modo eficiencia de Windows. Diagnóstico › Rendimiento muestra cuánto usó. |
 
 ## Instalar
@@ -116,6 +118,8 @@ Para deshacerlo, vuelve a elegir la app de Xbox como app de inicio.
 | **View + Menú** | Respaldo del botón Xbox: tocar = Inicio / juego · mantener = menú rápido |
 
 Las capturas se toman con la Game Bar o con Steam y aparecen al instante en el Álbum.
+
+**Con el dedo:** un toque elige y otro abre · deslizar mueve la fila y las listas · desde la orilla izquierda hacia la derecha = Atrás · dejar el dedo sobre un juego = sus opciones (en el Álbum, empezar a elegir) · las ayudas de abajo también se tocan.
 
 ## Si algo falla
 

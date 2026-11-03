@@ -238,12 +238,14 @@ sealed partial class MainForm
         if (uri == "explorer") { Shell.Open("explorer.exe"); return; }
         if (uri.StartsWith("http", StringComparison.OrdinalIgnoreCase)) uri = "steam://openurl/" + uri;   // en el navegador de Steam (Big Picture)
         // Tienda, noticias y controles se abren en Big Picture; se abre solo cuando hace falta y se cierra al lanzar un juego.
-        bool needsBigPicture = Regex.IsMatch(uri, @"^steam://(store|openurl|controllerconfig|nav|url|open/(news|friends))", RegexOptions.IgnoreCase);
+        bool needsBigPicture = Regex.IsMatch(uri, @"^steam://(store|openurl|controllerconfig|nav|url|open/(news|friends|bigpicture))", RegexOptions.IgnoreCase);
         if (needsBigPicture) steamUiAllowed = true;
+        bool justBp = uri.Equals("steam://open/bigpicture", StringComparison.OrdinalIgnoreCase);   // el ícono de Steam (beta 1.4)
         if (needsBigPicture && BigPictureWindow() == IntPtr.Zero)
         {
             Shell.Open("steam://open/bigpicture");
             for (int i = 0; i < 40 && BigPictureWindow() == IntPtr.Zero; i++) await Task.Delay(150);
+            if (justBp) return;
             await Task.Delay(800);
         }
         Shell.Open(uri);

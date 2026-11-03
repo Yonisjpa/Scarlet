@@ -60,7 +60,7 @@ function renderQuickNS() {
   q.innerHTML = `<div class="nqst"><span class="qclock clock">${clockText()}</span><span class="nqwifi"${sys.wifi && !sys.airplane && netOn() ? "" : ' style="opacity:.3"'}>${NQ.wifi}</span><button class="nqbatt" aria-label="Batería">${b} % ${battSvg(deviceBatt)}</button></div>
     ${dolbyOn() ? `<div class="dolby qdolby${gold ? " gold" : ""}">${dolbyHTML()}</div>` : ""}
     <div class="nqwrap"><div class="qrows nqlist">${rows.map(row).join("")}</div><i class="nqscroll"></i></div>
-    <div class="qhint nqfoot"><span class="nqdev"><span class="padsq">${$("#padsq").innerHTML}</span><span class="padicon ${padIconCls()}"></span></span><span class="hint"><span class="glyph">B</span>Atrás</span><span class="hint"><span class="glyph">A</span>Aceptar</span></div>`;
+    <div class="qhint nqfoot"><span class="nqdev"><span class="padsq">${$("#padsq").innerHTML}</span><span class="padicon ${padIconCls()}"></span></span><span class="hint" data-key="b"><span class="glyph">B</span>Atrás</span><span class="hint" data-key="a"><span class="glyph">A</span>Aceptar</span></div>`;
   const nl = $(".nqlist", q); nl.scrollTop = keep;
   const fr = $(".nqlist .focused", q);
   if (fr) { const h = fr.nextElementSibling && fr.nextElementSibling.classList.contains("nqhelp") ? fr.nextElementSibling : fr; fr.scrollIntoView({ block: "nearest" }); if (h !== fr) h.scrollIntoView({ block: "nearest" }); }

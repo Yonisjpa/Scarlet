@@ -45,8 +45,12 @@ function marquee(box, text, active) {
   box.style.setProperty("--mqdur", (dist / (rem() * 5.5) / .84).toFixed(2) + "s");
   box.classList.add("scroll");
 }
+/* Táctil (beta 1.4): las ayudas de abajo («B Atrás», «A Aceptar», X, Y, ☰…) se pueden tocar. */
+const GLYPH_KEY = { A: "a", B: "b", X: "x", Y: "y", "☰": "start", LB: "lb", RB: "rb", LT: "lt", RT: "rt" };
+const hintHTML = ([k, t]) => `<span class="hint"${GLYPH_KEY[k] ? ` data-key="${GLYPH_KEY[k]}"` : ""}><span class="glyph">${esc(k)}</span>${esc(t)}</span>`;
 function setHints(list) {
-  $("#hints").innerHTML = list.map(([k, t]) => `<span class="hint"><span class="glyph">${esc(k)}</span>${esc(t)}</span>`).join("");
+  const h = list.map(hintHTML).join("");
+  if (h !== setHints.last) { $("#hints").innerHTML = h; setHints.last = h; }   // no se rehace si no cambió
 }
 function updateFocus() {
   $$(".focused").forEach(e => { e.classList.remove("focused"); const c = e.querySelector(".cap"); if (c) marquee(c, c.dataset.t || c.textContent, false); });

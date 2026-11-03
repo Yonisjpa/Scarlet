@@ -12,7 +12,8 @@ import base64, pathlib, sys
 
 root = pathlib.Path(__file__).parent
 ASSETS = [("__PAD__", "pad"), ("__ROG__", "rog"), ("__SLASH__", "slash"), ("__XBOX__", "xbox"), ("__XPAD__", "xboxpad"),
-          ("__PSPAD__", "pspad"), ("__DOLBY__", "dolby"), ("__XBTN__", "xboxbtn")]
+          ("__PSPAD__", "pspad"), ("__DOLBY__", "dolby"), ("__XBTN__", "xboxbtn"),
+          ("__STEAMIC__", "steam"), ("__ARMOURYIC__", "armoury")]
 
 
 def join(folder, ext):

@@ -223,8 +223,16 @@ const dismiss = p => ev(p, () => { if (mode === "boot" && typeof dismissBoot ===
     return th[0] === 'auto' && th2 === 'light' && classic && ns ? { p } : { p, fail: JSON.stringify({ th, th2, classic, ns }) };
   });
 
-  await run('Apps del Inicio (Chat, Noticias, Tienda, Álbum, Amigos, Controles, Logros, Ajustes, Apagar)', async () => {
+  await run('Apps del Inicio (Steam, Armoury Crate, Álbum, Amigos, Controles, Logros, Ajustes, Apagar)', async () => {
     const p = await page(); await dismiss(p);
+    const labels = await ev(p, () => APPS.map(a => a.label).join());
+    if (labels !== 'Steam,Armoury Crate,Álbum,Amigos,Controles,Logros,Ajustes,Apagar') return { p, fail: 'barra: ' + labels };
+    const imgs = await ev(p, () => [...document.querySelectorAll('#apps .app .appimg')].map(i => getComputedStyle(i).webkitMaskImage.startsWith('url("data:image/png')));
+    if (imgs.length !== 2 || !imgs.every(Boolean)) return { p, fail: 'íconos de Steam/Armoury: ' + JSON.stringify(imgs) };
+    await ev(p, () => APPS[0].act(document.querySelector('#apps .app'))); await p.waitForTimeout(900);
+    const opened = (await ev(p, () => window.__qa.log.filter(x => x.type === 'system.open').map(x => x.payload.uri))).pop();
+    if (opened !== 'steam://open/bigpicture') return { p, fail: 'Steam abrió: ' + opened };
+    await ev(p, () => { if (mode === "game") goHome(); }); await p.waitForTimeout(500);
     const n = await ev(p, () => APPS.length);
     for (let i = 0; i < n; i++) {
       await ev(p, i => { closeAllViews(); if (mode !== "ui") { mode = "game"; goHome(); } APPS[i].act(document.querySelectorAll('#apps .app')[i]); }, i);
