@@ -78,7 +78,8 @@ const selQ = (p, k) => ev(p, k => { QM.i = qmRows().findIndex(r => r.k === k); r
     await selQ(p, 'wifi');
     const path = [];
     for (const k of ['right', 'right', 'right', 'left', 'down', 'up']) { await keys(p, [k], 80); path.push(await ev(p, () => qmRows()[QM.i].k)); }
-    return path.join() === 'airplane,vpn,vpn,airplane,settings,airplane' || path.join() === 'airplane,vpn,vpn,airplane,sleep,airplane' ? { p, note: path.join(' → ') } : { p, fail: path.join(' → ') };
+    // beta 1.3: los cuadros son lo último del menú (ya no hay Apagar/Ajustes abajo): abajo no se mueve, arriba va al volumen
+    return path.join() === 'airplane,vpn,vpn,airplane,airplane,volume' ? { p, note: path.join(' → ') } : { p, fail: path.join(' → ') };
   });
 
   await run('VPN lenta (2 s): dice "Conectando…" y apretar otra vez no manda otra orden', async () => {
@@ -216,7 +217,7 @@ const selQ = (p, k) => ev(p, k => { QM.i = qmRows().findIndex(r => r.k === k); r
     const p = await page({ vp: { width: 1280, height: 720 }, vpn: { provider: "warp", warp: true, status: "on" } });
     await ev(p, () => { settings.theme = "light"; applyTheme(); window.__qa.media = { app: "Apple Music", title: "Canción", artist: "A", playing: true, position: 1, duration: 100, now: Date.now() }; window.__qa.mixer = [{ key: "game", exe: "SB", name: "Stellar Blade", volume: 80, appid: 3489700 }, { key: "music", exe: "AppleMusic", name: "Apple Music", volume: 60, appid: 900002 }, { key: "app", exe: "msedge", name: "YouTube", volume: 40, appid: 900001 }]; openQuick(); });
     await p.waitForTimeout(900);
-    const r = await ev(p, () => { const q = document.querySelector('#quick .qrows'); const btn = document.querySelector('#quick .qbtns'); const tiles = [...document.querySelectorAll('#quick .qpair .qtile')].map(t => t.scrollWidth <= t.clientWidth + 1); return [q.scrollHeight <= q.clientHeight + 2, btn.getBoundingClientRect().bottom <= innerHeight, tiles]; });
+    const r = await ev(p, () => { const q = document.querySelector('#quick .qrows'); const tiles = [...document.querySelectorAll('#quick .qpair .qtile')].map(t => t.scrollWidth <= t.clientWidth + 1); return [q.scrollHeight <= q.clientHeight + 2, q.getBoundingClientRect().bottom <= innerHeight + 1, tiles]; });
     await p.screenshot({ path: __dirname + '/vpn_tv_claro.png' });
     return r[0] && r[1] && r[2].every(Boolean) ? { p } : { p, fail: JSON.stringify(r) };
   });
