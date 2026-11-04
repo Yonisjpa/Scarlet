@@ -174,11 +174,12 @@ sealed partial class MainForm : Form
             xbox.ArtChanged += () => Emit("library.changed", null);
             steam.FriendOnline += f => Emit("friend.online", f);
             steam.FriendsChanged += () => Emit("friends.changed", steam.Friends);
-            steam.AchievementUnlocked += async (id, name, desc, icon) =>
+            steam.AchievementUnlocked += async a =>
             {
                 string file = null;
-                try { file = await art.CacheFileAsync(icon, "ach"); } catch { }
-                Emit("achievement.unlocked", new { appid = id, name, desc, icon = file != null ? ArtCache.LocalUrl(file) : null, iconPath = file });
+                try { file = await art.CacheFileAsync(a.Icon, "ach"); } catch { }
+                Emit("achievement.unlocked", new { appid = a.AppId, name = a.Name, desc = a.Desc, icon = file != null ? ArtCache.LocalUrl(file) : null, iconPath = file,
+                    percent = a.Percent, unlocked = a.Unlocked, total = a.Total });
             };
             steam.DownloadProgress += (id, p, kind) => Emit("download.progress", new { appid = id, progress = p, kind });
             steam.DownloadDone += id => Emit("download.done", new { appid = id });

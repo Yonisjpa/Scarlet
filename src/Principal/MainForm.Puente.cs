@@ -220,7 +220,7 @@ sealed partial class MainForm
         var map = new Dictionary<string, string>();
         try
         {
-            foreach (var dir in new[] { SoundsDir, SoundPack.Dir })
+            foreach (var dir in new[] { SoundsDir, SoundPack.Dir, SoundPack.AchDir })
                 if (Directory.Exists(dir))
                     foreach (var f in Directory.EnumerateFiles(dir))
                         if (Regex.IsMatch(Path.GetExtension(f), @"^\.(wav|mp3|ogg|m4a)$", RegexOptions.IgnoreCase))
@@ -233,7 +233,7 @@ sealed partial class MainForm
     }
 
     bool Allowed(string path) =>
-        Paths.Under(path, SoundsDir) || Paths.Under(path, SoundPack.Dir) || Paths.Under(path, Paths.Cache) || Paths.Under(path, steam.SteamPath) || album.Roots().Any(r => Paths.Under(path, r));
+        Paths.Under(path, SoundsDir) || Paths.Under(path, SoundPack.Dir) || Paths.Under(path, SoundPack.AchDir) || Paths.Under(path, Paths.Cache) || Paths.Under(path, steam.SteamPath) || album.Roots().Any(r => Paths.Under(path, r));
 
     static string Mime(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {

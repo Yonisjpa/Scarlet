@@ -49,9 +49,12 @@ const Snd = {
       catch (e) { console.warn("sonido", name, e); }
     }
   },
-  sample(name, rate = 1) {
+  sample(name, rate = 1, vol = 1, direct = false) {
     const c = this.ensure(), b = this.custom[name]; if (!c || !b) return false;
-    const s = c.createBufferSource(); s.buffer = b; s.playbackRate.value = rate; s.connect(this.bus); s.start();
+    const s = c.createBufferSource(); s.buffer = b; s.playbackRate.value = rate;
+    if (vol === 1 && !direct) s.connect(this.bus);
+    else { const g = c.createGain(); g.gain.value = vol; s.connect(g).connect(direct ? c.destination : this.bus); }   // logros: a su volumen, sin el compresor
+    s.start();
     return true;
   },
   whoosh(t, f0, f1, dur, v) {

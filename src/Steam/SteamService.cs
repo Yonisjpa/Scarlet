@@ -49,7 +49,10 @@ sealed class SteamService
     public event Action LibraryChanged;
     public event Action<Friend> FriendOnline;
     public event Action FriendsChanged;
-    public event Action<long, string, string, string> AchievementUnlocked;   // appid, nombre, descripción, ícono
+    /// <summary>Un logro recién desbloqueado. Percent: % de jugadores que lo tienen (null si Steam no lo dijo);
+    /// Unlocked/Total: cuántos llevas contándolo a él (si Unlocked == Total, con este llegaste al 100 %).</summary>
+    public sealed record AchUnlock(long AppId, string Name, string Desc, string Icon, double? Percent, int Unlocked, int Total);
+    public event Action<AchUnlock> AchievementUnlocked;
     public event Action<long, double, string> DownloadProgress;
     public event Action<long> DownloadDone;
 
@@ -406,6 +409,30 @@ sealed class SteamService
         catch (Exception ex) { Log.Error("logros " + appid, ex); return null; }
     }
 
+    /// <summary>Qué porcentaje de jugadores tiene cada logro (para saber si es raro). Se guarda un día.</summary>
+    async Task<Dictionary<string, double>> GlobalPercentAsync(long appid)
+    {
+        string file = $"pct_{appid}.json";
+        var cached = LoadCache<Dictionary<string, double>>(file);
+        if (cached != null && DateTime.Now - File.GetLastWriteTime(Path.Combine(Paths.Cache, file)) < TimeSpan.FromDays(1)) return cached;
+        try
+        {
+            using var d = await Api($"ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid={appid}");
+            var map = new Dictionary<string, double>();
+            if (d.RootElement.TryGetProperty("achievementpercentages", out var ap) && ap.TryGetProperty("achievements", out var arr) && arr.ValueKind == JsonValueKind.Array)
+                foreach (var a in arr.EnumerateArray())
+                {
+                    if (Str(a, "name") is not string api || !a.TryGetProperty("percent", out var pe)) continue;
+                    // Steam lo manda como número o como texto ("3.1"), según la época
+                    if (pe.ValueKind == JsonValueKind.Number) map[api] = pe.GetDouble();
+                    else if (pe.ValueKind == JsonValueKind.String && double.TryParse(pe.GetString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var pd)) map[api] = pd;
+                }
+            if (map.Count > 0) SaveCache(file, map);
+            return map;
+        }
+        catch (Exception ex) { Log.Error("porcentaje de logros " + appid, ex); return cached ?? new Dictionary<string, double>(); }
+    }
+
     void Remember(long appid, AchResult r)
     {
         ach[appid] = new AchCount { U = r.U, T = r.T, Checked = DateTimeOffset.UtcNow.ToUnixTimeSeconds() };
@@ -467,9 +494,21 @@ sealed class SteamService
         if (r == null || id != runningApp || r.T == 0) return;
         var now = r.List.Where(x => (bool)x["unlocked"]).Select(x => (string)x["api"]).ToHashSet();
         if (runningUnlocked != null)
-            foreach (var x in r.List)
-                if ((bool)x["unlocked"] && !runningUnlocked.Contains((string)x["api"]))
-                    AchievementUnlocked?.Invoke(id, (string)x["name"], (string)x["desc"], x.TryGetValue("icon", out var ic) ? ic as string : null);
+        {
+            // Los nuevos en el orden en que los desbloqueaste: así el último es el que te dio el 100 %.
+            var fresh = r.List.Where(x => (bool)x["unlocked"] && !runningUnlocked.Contains((string)x["api"])).OrderBy(x => (long)x["ts"]).ToList();
+            if (fresh.Count > 0)
+            {
+                var pct = await GlobalPercentAsync(id);
+                int before = r.U - fresh.Count;
+                for (int i = 0; i < fresh.Count; i++)
+                {
+                    var x = fresh[i];
+                    double? p = pct.TryGetValue((string)x["api"], out var pv) ? pv : null;
+                    AchievementUnlocked?.Invoke(new AchUnlock(id, (string)x["name"], (string)x["desc"], x.TryGetValue("icon", out var ic) ? ic as string : null, p, before + i + 1, r.T));
+                }
+            }
+        }
         runningUnlocked = now;
         Remember(id, r);
         SaveCache("ach.json", ach);

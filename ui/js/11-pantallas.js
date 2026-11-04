@@ -88,7 +88,24 @@ function propsView(g) {
   };
   return {
     detail: true,
-    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", hero: "Elegir fondo", logo: "Elegir logo", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", compat: "Opciones", keepfocus: g.keepFocus ? "Desactivar" : "Activar", rename: "Cambiar", extart: "Elegir", args: "Cambiar", where: "Elegir otro", remove: "Quitar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
+    // beta 1.6: en «Logo», ◀ ▶ cambian el tamaño (de 10 en 10 %, de 50 a 150 %) y Y la posición
+    onLR(i, dir) {
+      if (!this.s[i] || this.s[i].k !== "logo") return play("bump");
+      const s = (logoLook(g).s ?? 100) + (dir === "right" ? 10 : -10);
+      if (s < 50 || s > 150) return bump(this.items()[i], dir);
+      setLogoLook(g, { s }); play("tick"); this.lookChanged();
+    },
+    onKey(k) {
+      if (k !== "y" || !this.s[this.i] || this.s[this.i].k !== "logo") return false;
+      const ps = LOGO_POS.map(x => x[1]), p = ps[(ps.indexOf(logoLook(g).p || "bl") + 1) % ps.length];
+      setLogoLook(g, { p }); play("select"); this.lookChanged(); return true;
+    },
+    lookChanged() {
+      const p = $(".ppane", this.el), l = logoLook(g); if (!p) return;
+      const st = $(".gpstage", p); if (st) applyLogoLook(st, g);
+      const a = $(".glsz", p), b = $(".glpos", p); if (a) a.textContent = (l.s ?? 100) + " %"; if (b) b.textContent = optLabel(LOGO_POS, l.p || "bl");
+    },
+    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; if (k === "logo") return [["B", "Atrás"], ["◀▶", "Tamaño"], ["Y", "Posición"], ["A", "Elegir logo"]]; const a = { ach: "Ver todos", art: "Elegir portada", hero: "Elegir fondo", logo: "Elegir logo", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", compat: "Opciones", keepfocus: g.keepFocus ? "Desactivar" : "Activar", rename: "Cambiar", extart: "Elegir", args: "Cambiar", where: "Elegir otro", remove: "Quitar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
     render(el) {
       this.s = sections();
       el.innerHTML = head(I.gear, g.name, "Opciones") + `<div class="props"><div class="pmenu">${this.s.map((s, i) => `<button class="lrow fi" data-i="${i}"><span class="meta"><b>${esc(s.label)}</b></span></button>`).join("")}</div><div class="ppane"></div></div>`;
@@ -118,10 +135,12 @@ function propsView(g) {
         p.innerHTML = `<h2>Portada</h2><div class="artprev"><img alt=""><p class="note">Presiona A para ver todas las portadas disponibles en SteamGridDB y elegir la que más te guste. ${settings.sgdbKey || Host.has ? "" : "Sin API key solo se alternan los colores de la portada de respaldo."}</p></div>`;
         Art.apply($("img", p), g);
       } else if (k === "hero" || k === "logo") {
-        p.innerHTML = `<h2>${k === "hero" ? "Fondo" : "Logo"}</h2><div class="gprev"><img class="gpbg" alt=""><span class="gplogo"></span></div><p class="note">${k === "hero"
+        const l = logoLook(g);
+        p.innerHTML = `<h2>${k === "hero" ? "Fondo" : "Logo"}</h2><div class="gprev"><div class="gpstage"><img class="gpbg" alt=""><div class="gshade"></div><div class="ginfo"><span class="gplogo"></span></div></div></div>
+          ${k === "logo" ? `<div class="glook"><span>Tamaño: <b class="glsz">${l.s ?? 100} %</b></span><span>Posición: <b class="glpos">${esc(optLabel(LOGO_POS, l.p || "bl"))}</b></span></div>` : ""}<p class="note">${k === "hero"
           ? "La imagen detrás del logo cuando entras o sales del juego. Presiona A para elegir entre los fondos de SteamGridDB, una imagen de tu PC o el arte original de Steam."
-          : "El logo que se ve en la pantalla del juego. Presiona A para elegir entre los logos de SteamGridDB o el de Steam, o dejar solo el nombre."}</p>`;
-        paintGameScreen(p, g);
+          : "◀ ▶ cambian el tamaño y Y la posición; la vista previa es igual a la pantalla del juego. A: elegir entre los logos de SteamGridDB o el de Steam, o dejar solo el nombre."}</p>`;
+        fitPreview(p); paintGameScreen(p, g);
       } else if (k === "install") {
         p.innerHTML = `<h2>Instalar</h2><p class="note">Steam descargará el juego. Verás el progreso sobre su ícono en el menú.</p>`;
       } else if (k === "controls") {

@@ -20,3 +20,6 @@ tests/steam/fixtures.json
 ui/index.html
 tests/ui/escenarios/*.png
 tests/ui/escenarios/*.json
+
+# sonidos que importas tú (por ejemplo los de Xbox): solo en tu consola, nunca en el repositorio
+scarlet_logro_*

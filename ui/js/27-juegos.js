@@ -20,9 +20,22 @@ function waitReady(g) {
   });
 }
 /* La pantalla del juego (al entrar o salir de él): su fondo y su logo, sin textos (beta 1.5). Si no hay logo, su nombre. */
+/* beta 1.6: tamaño y posición del logo — por juego (Opciones › Logo) y un tamaño general (Ajustes › Pantalla) */
+const LOGO_POS = [["Abajo a la izquierda", "bl"], ["Abajo al centro", "bc"], ["Al centro", "c"]];
+const logoLook = g => ((settings.logoLook || {})[g.appid]) || {};
+function setLogoLook(g, ch) {
+  const all = settings.logoLook = settings.logoLook || {}, cur = { s: 100, p: "bl", ...all[g.appid], ...ch };
+  if (cur.s === 100 && cur.p === "bl") delete all[g.appid]; else all[g.appid] = cur;
+  saveSettings();
+}
+function applyLogoLook(stage, g) {
+  const l = logoLook(g), s = (settings.logoSize ?? 100) / 100 * (l.s ?? 100) / 100;
+  stage.style.setProperty("--lsz", s.toFixed(3)); stage.dataset.lpos = l.p || "bl";
+}
 function paintGameScreen(box, g) {
   const sys = g.appid >= 990000 && g.appid <= 990999;
   const bg = box.querySelector("img"), lg = box.querySelector(".gplogo, #glogo");
+  applyLogoLook(box.querySelector(".gpstage") || box, g);
   if (sys) bg.removeAttribute("src"); else Art.apply(bg, g, "hero");
   const name = () => { lg.classList.remove("img"); lg.innerHTML = `<b>${esc(g.name)}</b>`; };
   name();
@@ -214,3 +227,11 @@ Events.on("guide.double", d => {
   if (mode === "game") goHome(); else if (mode === "ui") { play("select"); updateFocus(); }
 });
 
+/* La vista previa de la pantalla del juego: la pantalla real (100vw × 100vh) escalada al ancho del recuadro. */
+function fitPreview(root) {
+  const gp = root.querySelector(".gprev"); if (!gp) return;
+  gp.style.setProperty("--sar", `${innerWidth}/${innerHeight}`);
+  const st = gp.querySelector(".gpstage"), fit = () => { if (gp.clientWidth) st.style.transform = `scale(${(gp.clientWidth / innerWidth).toFixed(4)})`; };
+  fit(); requestAnimationFrame(fit);
+}
+const LOGO_SIZES = [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150].map(v => [v === 100 ? "100 % (normal)" : v + " %", v]);

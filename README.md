@@ -56,7 +56,8 @@ Un toque al botón Xbox abre el menú rápido encima de cualquier juego.
 | 📶 **Internet** | Redes registradas y encontradas, conectarse con contraseña, prueba de conexión, estado y olvidar redes. VPN con Cloudflare WARP o WireGuard. |
 | 👥 **Perfil y amigos** | Tu código de amigo, historial de juego, amigos en línea y jugando, ★ mejores amigos, buscar por código. |
 | 🖼️ **Álbum** | Capturas y videos de la Game Bar (Videos › Capturas) y de Steam; recortar, borrar y mandar al celular con un QR. |
-| 🔔 **Avisos** | Logros, amigos, descargas y batería. Mientras juegas solo lo importante; lo demás te espera en «Mientras jugabas». |
+| 🔔 **Avisos** | Amigos, descargas, capturas y batería en cápsulas que se apilan. Mientras juegas solo lo importante; lo demás te espera en «Mientras jugabas». |
+| 🏆 **Logros estilo Xbox** | Logro, logro raro (diamante que gira) y juego al 100 % con el último logro, encima del juego o en el menú, con sus sonidos y la posición que elijas. |
 | 👆 **Pantalla táctil** | Toca para elegir y otra vez para abrir, desliza la fila y las listas, desliza desde la orilla izquierda para regresar, deja el dedo sobre un juego para sus opciones y toca las ayudas de abajo («B Atrás», «A Aceptar»…). |
 | 🧭 **Barra de abajo** | Steam (abre Big Picture: biblioteca, tienda y amigos), Armoury Crate, Álbum, Amigos, Controles, Logros, Ajustes y Apagar. |
 | 🔋 **Ligero mientras juegas** | Con el menú cerrado, Scarlet se congela y pasa a modo eficiencia de Windows. Diagnóstico › Rendimiento muestra cuánto usó. |

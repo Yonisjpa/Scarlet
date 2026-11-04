@@ -12,7 +12,9 @@ en lugar de los sonidos sintetizados. Los que falten se siguen oyendo como antes
   tick      deslizar brillo o volumen (se afina solo según el valor)
   launch    abrir un juego
   notif     notificación (amigo conectado, captura…)
-  achieve   logro desbloqueado
+  achieve   logro desbloqueado (2.8 s)
+  achrare   logro raro: lo tiene menos del 10 % de los jugadores (6.0 s)
+  ach100    juego al 100 % (7.8 s)
   wake      despertar de la suspensión
   boot      al encender
 
@@ -35,3 +37,9 @@ Si compilas de nuevo, esta carpeta se copia a dist\Scarlet\sounds.
 
 Los que vienen incluidos se recortaron del video de referencia que mandaste (uso personal).
 Si alguno no te convence, bórralo y vuelve el sintetizado.
+
+Logros (beta 1.6): achieve.ogg, achrare.ogg y ach100.ogg son sonidos propios de Scarlet, hechos desde cero con
+tools/sonidos-logros.py. Cada aviso de logro dura exactamente lo que su sonido. Para usar los tuyos (por ejemplo los
+de Xbox) sin subirlos a ningún lado: pon scarlet_logro_normal, scarlet_logro_raro o scarlet_logro_100 (.wav, .mp3,
+.ogg) en Descargas y en Ajustes › Notificaciones › Importar sonidos de logros. Se guardan en
+%LOCALAPPDATA%\Scarlet\sounds-logros.

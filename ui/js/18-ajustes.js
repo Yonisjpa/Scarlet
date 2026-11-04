@@ -44,6 +44,9 @@ function settingsCats() {
         sw("Ocultar el puntero del mouse", "Como en una consola: no se ve en Scarlet ni en los juegos (sí en el Explorador y Ajustes de Windows)", () => settings.hideCursor !== false,
           v => { settings.hideCursor = v; document.documentElement.classList.toggle("showcursor", !v); Host.call("cursor.hide", { on: v }).catch(() => {}); }),
         { label: "Formato del reloj", desc: "Cómo se muestra la hora en la consola", val: () => settings.clock24 !== false ? "24 horas" : "12 horas (a.m./p.m.)", act() { settings.clock24 = settings.clock24 === false; tick(); } }]],
+      ["Pantalla del juego", [
+        { label: "Tamaño de los logos", desc: "El logo que sale al entrar o salir de un juego. Cada juego se puede ajustar aparte en sus opciones (X › Logo).",
+          val: () => optLabel(LOGO_SIZES, settings.logoSize ?? 100), act() { if (settings.logoSize == null) settings.logoSize = 100; pickOption("Tamaño de los logos", LOGO_SIZES, "logoSize"); } }]],
       ...(H ? [] : [["Televisión", [sw("Probar: modo TV", "Simula conectar la consola a una pantalla externa", () => document.documentElement.classList.contains("tv"), v => setTvMode(v))]]])] },
     { label: "Temas", secs: [
       [null, [theme("Claro", "light", "#fff"), theme("Oscuro", "dark", "#000"), theme("Automático (como Windows)", "auto", "linear-gradient(90deg,#fff 50%,#000 50%)")]]] },
@@ -57,6 +60,18 @@ function settingsCats() {
         opt("Amigos que empiezan a jugar", "Marca a tus mejores amigos con ★ en su perfil (Perfil › Lista de amigos)", NF_FRIENDS, "nFriendPlay")]],
       ["Durante el juego", [
         opt("Avisos encima del juego", "Solo importantes: batería baja, descargas y capturas. Lo que no veas te espera al volver al menú, en «Mientras jugabas».", NF_GAME, "nInGame")]],
+      ["Logros", [
+        { label: "Posición de los logros", desc: "Dónde salen los logros, en el menú y encima del juego", val: () => optLabel(ACH_POS, settings.achPos || "tl"),
+          act() { if (!settings.achPos) settings.achPos = "tl"; pickOption("Posición de los logros", ACH_POS, "achPos"); } },
+        ...["normal", "rare", "full"].map(k => ({ label: { normal: "Volumen: logro", rare: "Volumen: logro raro", full: "Volumen: juego al 100 %" }[k],
+          desc: "Qué tan fuerte suena ese logro (aparte del volumen de la consola)", val: () => volLabel(settings["achVol_" + k] ?? ACH_VOL[k]),
+          act() { if (settings["achVol_" + k] == null) settings["achVol_" + k] = ACH_VOL[k]; pickOption(this.label, ACH_VOLS, "achVol_" + k); } })),
+        { label: "Sonidos de logros", desc: "Los de Scarlet o los que importaste (por ejemplo, los de Xbox). Los importados se quedan solo en tu consola.",
+          val: () => settings.achSounds === "custom" ? "Personalizados" : "Scarlet", act() { settings.achSounds = settings.achSounds === "custom" ? "scarlet" : "custom"; if (settings.achSounds === "custom" && !achCustomCount()) toast("Primero importa tus sonidos de logros"); } },
+        ...(H ? [go("Importar sonidos de logros", "Busca en Descargas, Escritorio y Documentos archivos llamados scarlet_logro_normal, scarlet_logro_raro y scarlet_logro_100 (.wav, .mp3, .ogg)", () => importAchSounds(), () => achCustomCount() ? `${achCustomCount()} importados` : "")] : []),
+        go("Probar: logro", "Así se ve y se oye un logro", () => demoAchievement("normal")),
+        go("Probar: logro raro", "Lo tiene menos del 10 % de los jugadores", () => demoAchievement("rare")),
+        go("Probar: juego al 100 %", "Con el último logro que desbloqueaste", () => demoAchievement("full"))]],
       ["General", [sw("Sonido de notificación", "Un sonido corto cuando llega un aviso", () => settings.nSound !== false, v => settings.nSound = v)]]] },
     { label: "Energía", secs: [
       ["Ahorro de energía", [opt("Suspender automáticamente", "Suspende la consola tras un tiempo sin uso en el menú", SLEEP_OPTS, "sleepAfter")]],
@@ -82,7 +97,6 @@ function settingsCats() {
         go("Ajustes de Windows", "Red, pantalla, cuentas y más", () => openSystemApp(SYS.winsettings))]],
       ...(H ? [] : [["Pruebas", [
         { label: "Probar: amigo conectado", desc: "Notificación de amigos", val: () => "", act() { demoFriendOnline(true); } },
-        { label: "Probar: logro desbloqueado", desc: "Notificación de logros", val: () => "", act() { const g = games.find(hasAch); notifyAchievement(g, "Explorador"); } },
         { label: "Probar: captura guardada", desc: "Notificación de captura con miniatura", val: () => "", act() { demoCapture(); } },
         { label: "Probar: batería baja", desc: "Aviso de batería", val: () => "", act() { notifyBattery(.15); } },
         { label: "Probar: mando conectado", desc: "Aviso de mando", val: () => "", act() { notify({ icon: I.pad, title: "Mando conectado", text: "Mando Xbox inalámbrico" }); } },

@@ -53,6 +53,9 @@
     "setup.set": p => ({ steamId: "76561198000000000", steamKey: true, sgdbKey: true, autostart: !!p.value, gamebar: true }),
     "compat.fix": () => ({ message: "Las opciones de Windows ya estaban bien." }), "compat.set": () => true,
     "sounds.import": () => ({ ok: true, name: "Nintendo Switch 2 UI Sounds", count: 26 }), "sounds.reset": () => true,
+    // beta 1.6: logros encima del juego y sonidos de logros importados
+    "ach.show": () => true,
+    "sounds.importAch": () => Q.achImportFail ? { ok: false, error: Q.achImportFail } : { ok: true, name: "logros", count: 2 },
     "album.delete": () => true, "album.trim": () => ({ ok: true, item: { type: "video", url: "", path: "c", game: "x", date: "hoy" } }),
     "album.share": () => ({ url: "http://192.168.1.5:8765/x", qr: "", minutes: 10 }), "album.shareStop": () => true, "album.copy": () => true,
     "pad.player": () => true, "pad.rumble": () => true, "pad.disconnect": () => true, "bt.scan": () => true, "bt.pair": () => true,

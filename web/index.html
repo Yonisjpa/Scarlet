@@ -1009,20 +1009,78 @@ body{touch-action:pan-y}
 #rowwrap{touch-action:none}
 /* ===================== beta 1.5: pantalla del juego (fondo y logo, sin textos) ===================== */
 #glogo,.gplogo{display:block}
-#glogo img,.gplogo img{display:block;max-width:min(46vw,62rem);max-height:22vh;width:auto;height:auto;object-fit:contain;object-position:left bottom;filter:drop-shadow(0 .4rem 1.6rem rgba(0,0,0,.55))}
-.gprev{position:relative;width:100%;max-width:62rem;aspect-ratio:16/9;border-radius:1.1rem;overflow:hidden;background:#000;margin:1.2rem 0 1.4rem}
-.gprev .gpbg{width:100%;height:100%;object-fit:cover;display:block}
-.gprev::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent 55%)}
-.gprev .gplogo{position:absolute;left:5%;bottom:7%;z-index:1;color:#fff}
-.gprev .gplogo b{font-size:2.6rem}
-.gprev .gplogo img{max-width:46%;max-height:30%}
-.gprev .gplogo.img img{max-width:100%;max-height:none;width:auto;height:min(8rem,100%)}
+/* beta 1.6: el tamaño (--lsz, 0.5–1.5 × el normal) y la posición (data-lpos) se eligen por juego; el normal es más chico que antes */
+#glogo img,.gplogo img{display:block;max-width:calc(32vw * var(--lsz,1));max-height:calc(15vh * var(--lsz,1));width:auto;height:auto;object-fit:contain;object-position:left bottom;filter:drop-shadow(0 .4rem 1.6rem rgba(0,0,0,.55))}
+[data-lpos="bc"]>.ginfo{left:50%;transform:translateX(-50%);align-items:center}
+[data-lpos="c"]>.ginfo{left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%);align-items:center}
+[data-lpos="bc"] #glogo img,[data-lpos="bc"] .gplogo img{object-position:center bottom}
+[data-lpos="c"] #glogo img,[data-lpos="c"] .gplogo img{object-position:center}
+/* la vista previa es la pantalla del juego de verdad (mismo tamaño que la pantalla), escalada al recuadro */
+.gprev{position:relative;width:100%;max-width:50rem;aspect-ratio:var(--sar,16/9);border-radius:1.1rem;overflow:hidden;background:#000;margin:1.2rem 0 1rem}
+.gpstage{position:absolute;left:0;top:0;width:100vw;height:100vh;transform-origin:0 0;color:#fff}
+.gpstage>img{width:100%;height:100%;object-fit:cover;display:block}
+.glook{display:flex;gap:2.4rem;font-size:1.4rem;margin:0 0 1rem;opacity:.9}
+.glook b{font-weight:700}
 /* el selector de fondos y logos: tarjetas anchas; los logos sobre un fondo oscuro para que se lean */
 .apick-hero .grid,.apick-logo .grid{grid-template-columns:repeat(3,1fr)}
 .apick-hero .tile,.apick-logo .tile{aspect-ratio:16/9}
 .apick-hero .tile img,.apick-hero .tile video{object-fit:cover}
 .apick-logo .tile{background:linear-gradient(135deg,#24324a,#3a2a52)}
 .apick-logo .tile img{object-fit:contain;padding:1.6rem}
+/* ===================== beta 1.6: logros como en Xbox ===================== */
+.ach{position:fixed;left:0;z-index:96;pointer-events:none;font-family:"Segoe UI",system-ui,sans-serif;color:#fff}
+.ach .adisc{position:absolute;left:0;top:0;border-radius:50%;perspective:44rem;z-index:2}
+.ach .aflip{position:absolute;inset:0;transform-style:preserve-3d}
+.ach .aface{position:absolute;inset:0;border-radius:50%;backface-visibility:hidden;display:grid;place-items:center;overflow:hidden}
+.ach .aback{transform:rotateY(180deg)}
+.ach .aface>i{width:52%;display:block}
+.ach .axb{width:62%!important;height:62%;background:#fff;-webkit-mask:var(--xbtn) center/contain no-repeat;mask:var(--xbtn) center/contain no-repeat}
+.ach .apill{position:absolute;top:0;border-radius:99rem;overflow:hidden}
+.ach .atx{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center;white-space:nowrap;opacity:0;max-width:calc(100% - 7rem)}
+.ach .atx b,.ach .atx span{overflow:hidden;text-overflow:ellipsis}
+.ach .atx b{font-size:1.65rem;font-weight:600}
+.ach .atx span{font-size:1.4rem;opacity:.88}
+/* normal: verde y gris oscuro */
+.ach.k-normal .apill{height:7rem;background:linear-gradient(90deg,#1e1e1e,#2b2b2b);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12),0 .8rem 2.4rem rgba(0,0,0,.45)}
+.ach.k-normal .aface{background:#107c10;box-shadow:inset 0 0 0 .32rem #0b5a0b}
+/* raro: azul marino con diamante */
+.ach.k-rare .apill{height:7.7rem;background:linear-gradient(180deg,#0b3592,#03236f 40%,#031f65);box-shadow:inset 0 2px 0 rgba(150,180,255,.55),inset 0 -2px 0 rgba(0,0,0,.35),0 .8rem 2.4rem rgba(0,0,0,.45)}
+.ach.k-rare .aface{background:#031f65;box-shadow:inset 0 0 0 .38rem #0a1747}
+.ach.k-rare .aback{background:radial-gradient(circle,#0b2f86,#031a55)}
+.ach .agem{width:78%;height:78%;overflow:visible;filter:drop-shadow(0 0 .4rem rgba(150,200,255,.7))}
+.ach .ashine{position:absolute;top:0;bottom:0;left:0;width:16rem;background:linear-gradient(100deg,transparent,rgba(160,190,255,.35) 50%,transparent)}
+/* 100 %: verde «mítico» */
+.ach.k-full .apill{top:.8rem;height:6rem;background:linear-gradient(90deg,rgba(28,110,28,.95),rgba(16,82,16,.92) 60%,rgba(12,64,12,.9));box-shadow:0 0 1.9rem rgba(0,0,0,.4)}
+.ach.k-full .atx b,.ach.k-full .atx span{font-size:1.55rem;opacity:1}
+.ach .adot{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,#2fb52f,#107c10 60%,#0b5a0b);box-shadow:0 0 1.9rem rgba(40,200,40,.6),inset 0 0 0 .45rem rgba(0,0,0,.25)}
+.ach .aemb,.ach .aicon{position:absolute;inset:0}
+.ach .aemb svg{width:100%;height:100%;display:block}
+.ach .aicon{inset:.4rem;border-radius:50%;overflow:hidden;background:#15181b;box-shadow:0 0 0 .25rem #d7dde3,0 0 1.1rem rgba(255,255,255,.6);display:grid;place-items:center}
+.ach .aicon img{width:100%;height:100%;object-fit:cover}
+.ach .aicon i{width:55%;display:block}
+.ach .ashards{position:absolute;left:0;top:0;z-index:3;overflow:visible;filter:drop-shadow(0 0 .3rem rgba(255,255,255,.9))}
+.ach .ahalo{position:absolute;left:-6.2rem;top:-6.2rem;width:20rem;height:20rem;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,0) 32%,rgba(235,245,235,.55) 42%,rgba(255,255,255,0) 66%);opacity:0}
+.ach .arays{position:absolute;left:-2.5rem;top:-7.5rem;width:53rem;height:22.6rem;opacity:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,0) 0 2.4rem,rgba(220,235,220,.07) 2.4rem 2.9rem);
+  -webkit-mask:radial-gradient(ellipse at 30% 50%,#000,transparent 70%);mask:radial-gradient(ellipse at 30% 50%,#000,transparent 70%)}
+
+/* ===================== beta 1.6: notificaciones en cápsula ===================== */
+.nwrap{position:relative}
+.notif{border-radius:99rem;border:0;padding:.9rem 2.2rem .9rem .9rem;gap:1.25rem;min-width:34rem;max-width:52rem;background:rgba(14,14,18,.93);
+  box-shadow:0 .9rem 2.5rem rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.14);animation:nIn2 .52s cubic-bezier(.2,.8,.25,1) both;transform-origin:left top}
+.notif.out{animation:nOut2 .3s ease-in both}
+.notif .ic{width:4.6rem;height:4.6rem;border-radius:50%;box-shadow:0 0 0 .25rem var(--nac,#fff)}
+.notif .ic.thumb{border-radius:1.1rem;box-shadow:none;width:8.6rem;height:4.84rem}
+.notif.wide{border-radius:1.9rem}
+.notif.sum{border-radius:1.9rem}
+.notif .ntag{display:block;font-size:.95rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--nac,#fff);opacity:1;margin-bottom:.1rem}
+.notif .nlife{left:1.9rem;right:1.9rem;bottom:.35rem;height:.25rem;border-radius:.25rem;background:var(--nac,var(--accent))}
+.notif .nact{background:rgba(255,255,255,.1);padding:.6rem 1.1rem;border-radius:99rem;margin-left:1.4rem}
+.nghost{position:absolute;inset:0;border-radius:99rem;background:rgba(14,14,18,.93);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);transform-origin:left top;z-index:-1;filter:brightness(.55)}
+.nghost.g2{filter:brightness(.35)}
+.nmore{position:absolute;right:-.6rem;top:-.6rem;z-index:2;background:#e60012;color:#fff;font-weight:800;font-size:1.1rem;padding:.2rem .75rem;border-radius:99rem;box-shadow:0 .25rem .8rem rgba(0,0,0,.4);animation:npop .3s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes nIn2{0%{transform:translateX(-110%) scale(.92);opacity:0}65%{transform:translateX(3%) scale(1.02);opacity:1}100%{transform:none;opacity:1}}
+@keyframes nOut2{to{transform:translateY(-.9rem) scale(.86);opacity:0}}
+@keyframes npop{0%{transform:scale(0)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
 </style>
 </head>
 <body>
@@ -1177,9 +1235,12 @@ const Snd = {
       catch (e) { console.warn("sonido", name, e); }
     }
   },
-  sample(name, rate = 1) {
+  sample(name, rate = 1, vol = 1, direct = false) {
     const c = this.ensure(), b = this.custom[name]; if (!c || !b) return false;
-    const s = c.createBufferSource(); s.buffer = b; s.playbackRate.value = rate; s.connect(this.bus); s.start();
+    const s = c.createBufferSource(); s.buffer = b; s.playbackRate.value = rate;
+    if (vol === 1 && !direct) s.connect(this.bus);
+    else { const g = c.createGain(); g.gain.value = vol; s.connect(g).connect(direct ? c.destination : this.bus); }   // logros: a su volumen, sin el compresor
+    s.start();
     return true;
   },
   whoosh(t, f0, f1, dur, v) {
@@ -1861,7 +1922,24 @@ function propsView(g) {
   };
   return {
     detail: true,
-    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", hero: "Elegir fondo", logo: "Elegir logo", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", compat: "Opciones", keepfocus: g.keepFocus ? "Desactivar" : "Activar", rename: "Cambiar", extart: "Elegir", args: "Cambiar", where: "Elegir otro", remove: "Quitar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
+    // beta 1.6: en «Logo», ◀ ▶ cambian el tamaño (de 10 en 10 %, de 50 a 150 %) y Y la posición
+    onLR(i, dir) {
+      if (!this.s[i] || this.s[i].k !== "logo") return play("bump");
+      const s = (logoLook(g).s ?? 100) + (dir === "right" ? 10 : -10);
+      if (s < 50 || s > 150) return bump(this.items()[i], dir);
+      setLogoLook(g, { s }); play("tick"); this.lookChanged();
+    },
+    onKey(k) {
+      if (k !== "y" || !this.s[this.i] || this.s[this.i].k !== "logo") return false;
+      const ps = LOGO_POS.map(x => x[1]), p = ps[(ps.indexOf(logoLook(g).p || "bl") + 1) % ps.length];
+      setLogoLook(g, { p }); play("select"); this.lookChanged(); return true;
+    },
+    lookChanged() {
+      const p = $(".ppane", this.el), l = logoLook(g); if (!p) return;
+      const st = $(".gpstage", p); if (st) applyLogoLook(st, g);
+      const a = $(".glsz", p), b = $(".glpos", p); if (a) a.textContent = (l.s ?? 100) + " %"; if (b) b.textContent = optLabel(LOGO_POS, l.p || "bl");
+    },
+    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; if (k === "logo") return [["B", "Atrás"], ["◀▶", "Tamaño"], ["Y", "Posición"], ["A", "Elegir logo"]]; const a = { ach: "Ver todos", art: "Elegir portada", hero: "Elegir fondo", logo: "Elegir logo", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", compat: "Opciones", keepfocus: g.keepFocus ? "Desactivar" : "Activar", rename: "Cambiar", extart: "Elegir", args: "Cambiar", where: "Elegir otro", remove: "Quitar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
     render(el) {
       this.s = sections();
       el.innerHTML = head(I.gear, g.name, "Opciones") + `<div class="props"><div class="pmenu">${this.s.map((s, i) => `<button class="lrow fi" data-i="${i}"><span class="meta"><b>${esc(s.label)}</b></span></button>`).join("")}</div><div class="ppane"></div></div>`;
@@ -1891,10 +1969,12 @@ function propsView(g) {
         p.innerHTML = `<h2>Portada</h2><div class="artprev"><img alt=""><p class="note">Presiona A para ver todas las portadas disponibles en SteamGridDB y elegir la que más te guste. ${settings.sgdbKey || Host.has ? "" : "Sin API key solo se alternan los colores de la portada de respaldo."}</p></div>`;
         Art.apply($("img", p), g);
       } else if (k === "hero" || k === "logo") {
-        p.innerHTML = `<h2>${k === "hero" ? "Fondo" : "Logo"}</h2><div class="gprev"><img class="gpbg" alt=""><span class="gplogo"></span></div><p class="note">${k === "hero"
+        const l = logoLook(g);
+        p.innerHTML = `<h2>${k === "hero" ? "Fondo" : "Logo"}</h2><div class="gprev"><div class="gpstage"><img class="gpbg" alt=""><div class="gshade"></div><div class="ginfo"><span class="gplogo"></span></div></div></div>
+          ${k === "logo" ? `<div class="glook"><span>Tamaño: <b class="glsz">${l.s ?? 100} %</b></span><span>Posición: <b class="glpos">${esc(optLabel(LOGO_POS, l.p || "bl"))}</b></span></div>` : ""}<p class="note">${k === "hero"
           ? "La imagen detrás del logo cuando entras o sales del juego. Presiona A para elegir entre los fondos de SteamGridDB, una imagen de tu PC o el arte original de Steam."
-          : "El logo que se ve en la pantalla del juego. Presiona A para elegir entre los logos de SteamGridDB o el de Steam, o dejar solo el nombre."}</p>`;
-        paintGameScreen(p, g);
+          : "◀ ▶ cambian el tamaño y Y la posición; la vista previa es igual a la pantalla del juego. A: elegir entre los logos de SteamGridDB o el de Steam, o dejar solo el nombre."}</p>`;
+        fitPreview(p); paintGameScreen(p, g);
       } else if (k === "install") {
         p.innerHTML = `<h2>Instalar</h2><p class="note">Steam descargará el juego. Verás el progreso sobre su ícono en el menú.</p>`;
       } else if (k === "controls") {
@@ -3102,6 +3182,9 @@ function settingsCats() {
         sw("Ocultar el puntero del mouse", "Como en una consola: no se ve en Scarlet ni en los juegos (sí en el Explorador y Ajustes de Windows)", () => settings.hideCursor !== false,
           v => { settings.hideCursor = v; document.documentElement.classList.toggle("showcursor", !v); Host.call("cursor.hide", { on: v }).catch(() => {}); }),
         { label: "Formato del reloj", desc: "Cómo se muestra la hora en la consola", val: () => settings.clock24 !== false ? "24 horas" : "12 horas (a.m./p.m.)", act() { settings.clock24 = settings.clock24 === false; tick(); } }]],
+      ["Pantalla del juego", [
+        { label: "Tamaño de los logos", desc: "El logo que sale al entrar o salir de un juego. Cada juego se puede ajustar aparte en sus opciones (X › Logo).",
+          val: () => optLabel(LOGO_SIZES, settings.logoSize ?? 100), act() { if (settings.logoSize == null) settings.logoSize = 100; pickOption("Tamaño de los logos", LOGO_SIZES, "logoSize"); } }]],
       ...(H ? [] : [["Televisión", [sw("Probar: modo TV", "Simula conectar la consola a una pantalla externa", () => document.documentElement.classList.contains("tv"), v => setTvMode(v))]]])] },
     { label: "Temas", secs: [
       [null, [theme("Claro", "light", "#fff"), theme("Oscuro", "dark", "#000"), theme("Automático (como Windows)", "auto", "linear-gradient(90deg,#fff 50%,#000 50%)")]]] },
@@ -3115,6 +3198,18 @@ function settingsCats() {
         opt("Amigos que empiezan a jugar", "Marca a tus mejores amigos con ★ en su perfil (Perfil › Lista de amigos)", NF_FRIENDS, "nFriendPlay")]],
       ["Durante el juego", [
         opt("Avisos encima del juego", "Solo importantes: batería baja, descargas y capturas. Lo que no veas te espera al volver al menú, en «Mientras jugabas».", NF_GAME, "nInGame")]],
+      ["Logros", [
+        { label: "Posición de los logros", desc: "Dónde salen los logros, en el menú y encima del juego", val: () => optLabel(ACH_POS, settings.achPos || "tl"),
+          act() { if (!settings.achPos) settings.achPos = "tl"; pickOption("Posición de los logros", ACH_POS, "achPos"); } },
+        ...["normal", "rare", "full"].map(k => ({ label: { normal: "Volumen: logro", rare: "Volumen: logro raro", full: "Volumen: juego al 100 %" }[k],
+          desc: "Qué tan fuerte suena ese logro (aparte del volumen de la consola)", val: () => volLabel(settings["achVol_" + k] ?? ACH_VOL[k]),
+          act() { if (settings["achVol_" + k] == null) settings["achVol_" + k] = ACH_VOL[k]; pickOption(this.label, ACH_VOLS, "achVol_" + k); } })),
+        { label: "Sonidos de logros", desc: "Los de Scarlet o los que importaste (por ejemplo, los de Xbox). Los importados se quedan solo en tu consola.",
+          val: () => settings.achSounds === "custom" ? "Personalizados" : "Scarlet", act() { settings.achSounds = settings.achSounds === "custom" ? "scarlet" : "custom"; if (settings.achSounds === "custom" && !achCustomCount()) toast("Primero importa tus sonidos de logros"); } },
+        ...(H ? [go("Importar sonidos de logros", "Busca en Descargas, Escritorio y Documentos archivos llamados scarlet_logro_normal, scarlet_logro_raro y scarlet_logro_100 (.wav, .mp3, .ogg)", () => importAchSounds(), () => achCustomCount() ? `${achCustomCount()} importados` : "")] : []),
+        go("Probar: logro", "Así se ve y se oye un logro", () => demoAchievement("normal")),
+        go("Probar: logro raro", "Lo tiene menos del 10 % de los jugadores", () => demoAchievement("rare")),
+        go("Probar: juego al 100 %", "Con el último logro que desbloqueaste", () => demoAchievement("full"))]],
       ["General", [sw("Sonido de notificación", "Un sonido corto cuando llega un aviso", () => settings.nSound !== false, v => settings.nSound = v)]]] },
     { label: "Energía", secs: [
       ["Ahorro de energía", [opt("Suspender automáticamente", "Suspende la consola tras un tiempo sin uso en el menú", SLEEP_OPTS, "sleepAfter")]],
@@ -3140,7 +3235,6 @@ function settingsCats() {
         go("Ajustes de Windows", "Red, pantalla, cuentas y más", () => openSystemApp(SYS.winsettings))]],
       ...(H ? [] : [["Pruebas", [
         { label: "Probar: amigo conectado", desc: "Notificación de amigos", val: () => "", act() { demoFriendOnline(true); } },
-        { label: "Probar: logro desbloqueado", desc: "Notificación de logros", val: () => "", act() { const g = games.find(hasAch); notifyAchievement(g, "Explorador"); } },
         { label: "Probar: captura guardada", desc: "Notificación de captura con miniatura", val: () => "", act() { demoCapture(); } },
         { label: "Probar: batería baja", desc: "Aviso de batería", val: () => "", act() { notifyBattery(.15); } },
         { label: "Probar: mando conectado", desc: "Aviso de mando", val: () => "", act() { notify({ icon: I.pad, title: "Mando conectado", text: "Mando Xbox inalámbrico" }); } },
@@ -3613,30 +3707,54 @@ function notify(o) {
     if (pref === "none" || (pref === "important" && !notifImportant(o))) { missed.push({ title: o.title, text: o.text }); return; }
     if (Host.has) {   // el menú está oculto: la app dibuja la notificación encima del juego (igual, pero sin acción)
       const t = o.thumb || {};
-      return Host.call("overlay.notify", { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving }).catch(() => {});
+      const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : ["", "#ffffff"]);
+      return Host.call("overlay.notify", { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
+        tag: tag[0], accent: tag[1] }).catch(() => {});
     }
   }
   if (o.key && notifCur && notifCur.key === o.key) return notifReplace(o);   // la misma (p. ej. "Guardando video…" → "Video guardado")
   const qi = o.key ? notifQ.findIndex(x => x.key === o.key) : -1;
   if (qi >= 0) notifQ[qi] = o; else notifQ.push(o);
   while (notifQ.length > 6) notifQ.shift();
-  if (!notifCur) notifNext();
+  notifStack();
+  if (!notifCur && !Ach.cur) notifNext();
 }
+/* beta 1.6: cápsula con un color y una etiqueta por tipo de aviso */
+const NOTIF_TAG = { friend: ["En línea", "#3ddc84"], friendplay: ["Jugando", "#3ddc84"], dl: ["Descarga", "#3fb3ff"], batt: ["Batería", "#ff5a5a"], cap: ["Captura", "#ffffff"], sum: ["Avisos", "#ffffff"], err: ["Aviso", "#f2c230"] };
 function notifHTML(o) {
   const t = o.thumb;
   const ic = t ? `<div class="ic thumb${t.saving ? " saving" : ""}">${t.src ? `<img alt="" src="${esc(t.src)}">` : ""}${t.video && !t.saving ? `<span class="pl"><b></b></span>${t.dur ? `<span class="du">${esc(t.dur)}</span>` : ""}` : ""}${t.saving ? `<span class="rec"><i></i></span>` : ""}</div>`
     : `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div>`;
   const act = o.act && mode === "ui" ? `<div class="nact"><span class="xbtn"></span>${esc(o.act.label)}</div>` : "";
-  return `${ic}<div class="ntx"><b>${esc(o.title)}${o.star ? '<i class="nstar">★</i>' : ""}</b>${o.lines ? `<ul>${o.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span>${esc(o.text)}</span>`}</div>${act}<div class="nlife"></div>`;
+  const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : null);
+  return `${ic}<div class="ntx">${tag ? `<span class="ntag">${esc(tag[0])}</span>` : ""}<b>${esc(o.title)}${o.star ? '<i class="nstar">★</i>' : ""}</b>${o.lines ? `<ul>${o.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span>${esc(o.text)}</span>`}</div>${act}<div class="nlife"></div>`;
 }
 function notifNext() {
+  if (Ach.cur) { notifCur = null; return; }                      // hay un logro en pantalla: esperan a que se vaya
+  if (Ach.q.length) { notifCur = null; return Ach.next(); }      // (beta 1.6) y los logros pendientes van primero
   const o = notifQ.shift(); if (!o) { notifCur = null; return; }
   const n = document.createElement("div"); n.className = "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "");
-  n.innerHTML = notifHTML(o);
-  const box = $("#notifs"); box.innerHTML = ""; box.append(n);
+  n.innerHTML = notifHTML(o); n.style.setProperty("--nac", (NOTIF_TAG[o.kind] || [0, o.tagColor || "#ffffff"])[1]);
+  const wrap = document.createElement("div"); wrap.className = "nwrap"; wrap.append(n);
+  const box = $("#notifs"); box.innerHTML = ""; box.append(wrap);
   if (settings.nSound !== false) play(o.sound || "notif");
   notifCur = Object.assign(o, { el: n });
   notifTime(o);
+  notifStack();
+}
+/* Las que esperan se asoman detrás, como cartas, con un globito +N. */
+function notifStack() {
+  const o = notifCur; if (!o || !o.el) return;
+  const wrap = o.el.parentNode; if (!wrap) return;
+  wrap.querySelectorAll(".nghost,.nmore").forEach(x => x.remove());
+  const n = notifQ.length; if (!n) return;
+  for (let i = Math.min(2, n); i >= 1; i--) {
+    const gh = document.createElement("div"); gh.className = "nghost" + (i === 2 ? " g2" : "");
+    gh.style.transform = `translate(${1.1 * i}rem,${1.6 * i}rem) scale(${(1 - .06 * i).toFixed(2)})`;
+    if (o.el.classList.contains("wide") || o.el.classList.contains("sum")) gh.style.borderRadius = "1.9rem";
+    wrap.prepend(gh);
+  }
+  const m = document.createElement("span"); m.className = "nmore"; m.textContent = "+" + n; wrap.append(m);
 }
 /* La línea de abajo y el tiempo que se queda; si llega otra detrás, esta se va un poco antes. */
 function notifTime(o) {
@@ -3656,7 +3774,8 @@ function notifReplace(o) {
 function notifDone(o) {
   if (notifCur !== o) return;
   o.el.classList.add("out"); notifCur = null;
-  setTimeout(() => { o.el.remove(); notifNext(); }, 300);
+  const wrap = o.el.parentNode; if (wrap) wrap.querySelectorAll(".nghost,.nmore").forEach(x => x.remove());
+  setTimeout(() => { (wrap && wrap.classList.contains("nwrap") ? wrap : o.el).remove(); notifNext(); }, 300);
 }
 /* Botón Xbox con una notificación con acción a la vista (en el menú): hace la acción. */
 function notifAction() {
@@ -3692,10 +3811,8 @@ function notifyFriend(f) {
   notify({ kind: f.game ? "friendplay" : "friend", star: best, sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
     act: { label: "Ver perfil", run: () => { const x = friends.find(y => y.name === f.name); if (x) openView(friendProfileView(x)); } } });
 }
-function notifyAchievement(g, name, d = {}) {
-  notify({ kind: "ach", icon: d.icon ? `<img alt="" src="${esc(d.icon)}">` : I.trophy, image: d.iconPath || "", letter: "★", bg: "#f2c230", fg: "#3a2c00", title: "Logro desbloqueado", text: g ? `${name} · ${g.name}` : name, sound: "achieve",
-    act: g && hasAch(g) ? { label: "Ver logros", run: () => openView(achView(g)) } : null });
-}
+/* beta 1.6: los logros tienen su propio aviso, como en Xbox (43-logros.js) */
+function notifyAchievement(g, name, d = {}) { showAchievement(g, name, d); }
 function notifyBattery(level) { notify({ kind: "batt", icon: I.battLow, title: "Batería baja", text: `Queda ${Math.round(level * 100)} %. Conecta el cargador.` }); }
 /* Capturas: miniatura de verdad (la foto, o un cuadro del video), con «Ver» que abre el Álbum en esa captura. */
 function notifyCapture(item, saving) {
@@ -3734,7 +3851,11 @@ function demoFriendOnline(force) {
 let battWarned = false;
 Events.on("friend.online", f => { const x = friends.find(y => y.name === f.name); if (x) Object.assign(x, f, { status: f.game ? "playing" : "online" }); else friends.push({ ...f, status: f.game ? "playing" : "online" }); notifyFriend(f); });
 Events.on("battery.low", d => notifyBattery(d.level));
-Events.on("achievement.unlocked", d => { const g = byId(d.appid); if (g && hasAch(g)) g.ach[0] = Math.min(g.ach[0] + 1, g.ach[1]); notifyAchievement(g, d.name, d); });
+Events.on("achievement.unlocked", d => {
+  const g = byId(d.appid);
+  if (g && hasAch(g)) g.ach[0] = d.unlocked ? Math.min(d.unlocked, g.ach[1]) : Math.min(g.ach[0] + 1, g.ach[1]);
+  notifyAchievement(g, d.name, d);
+});
 
 /* ================= descargas y actualizaciones ================= */
 /* "Descargando 40 %", "En cola"… (título del juego, propiedades y lectores de pantalla) */
@@ -4535,9 +4656,22 @@ function waitReady(g) {
   });
 }
 /* La pantalla del juego (al entrar o salir de él): su fondo y su logo, sin textos (beta 1.5). Si no hay logo, su nombre. */
+/* beta 1.6: tamaño y posición del logo — por juego (Opciones › Logo) y un tamaño general (Ajustes › Pantalla) */
+const LOGO_POS = [["Abajo a la izquierda", "bl"], ["Abajo al centro", "bc"], ["Al centro", "c"]];
+const logoLook = g => ((settings.logoLook || {})[g.appid]) || {};
+function setLogoLook(g, ch) {
+  const all = settings.logoLook = settings.logoLook || {}, cur = { s: 100, p: "bl", ...all[g.appid], ...ch };
+  if (cur.s === 100 && cur.p === "bl") delete all[g.appid]; else all[g.appid] = cur;
+  saveSettings();
+}
+function applyLogoLook(stage, g) {
+  const l = logoLook(g), s = (settings.logoSize ?? 100) / 100 * (l.s ?? 100) / 100;
+  stage.style.setProperty("--lsz", s.toFixed(3)); stage.dataset.lpos = l.p || "bl";
+}
 function paintGameScreen(box, g) {
   const sys = g.appid >= 990000 && g.appid <= 990999;
   const bg = box.querySelector("img"), lg = box.querySelector(".gplogo, #glogo");
+  applyLogoLook(box.querySelector(".gpstage") || box, g);
   if (sys) bg.removeAttribute("src"); else Art.apply(bg, g, "hero");
   const name = () => { lg.classList.remove("img"); lg.innerHTML = `<b>${esc(g.name)}</b>`; };
   name();
@@ -4729,6 +4863,14 @@ Events.on("guide.double", d => {
   if (mode === "game") goHome(); else if (mode === "ui") { play("select"); updateFocus(); }
 });
 
+/* La vista previa de la pantalla del juego: la pantalla real (100vw × 100vh) escalada al ancho del recuadro. */
+function fitPreview(root) {
+  const gp = root.querySelector(".gprev"); if (!gp) return;
+  gp.style.setProperty("--sar", `${innerWidth}/${innerHeight}`);
+  const st = gp.querySelector(".gpstage"), fit = () => { if (gp.clientWidth) st.style.transform = `scale(${(gp.clientWidth / innerWidth).toFixed(4)})`; };
+  fit(); requestAnimationFrame(fit);
+}
+const LOGO_SIZES = [50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150].map(v => [v === 100 ? "100 % (normal)" : v + " %", v]);
 /* ================= suspensión y pantalla de bloqueo ================= */
 const lock = { last: null, n: 0, t: 0, timer: 0 };
 function sleepConsole(kind) {
@@ -6057,6 +6199,227 @@ Events.on("friends.changed", list => { if (Array.isArray(list)) { friends.length
     if (last) setTimeout(() => { if (mode === "ui" && !state.running) { toast("Abriendo " + last.name); launchGame(last); } }, 2600);
   }
 })();
+/* ================= beta 1.6: logros como en Xbox =================
+   Tres avisos, recreados de los de Xbox y del largo exacto de su sonido:
+   - normal (2.8 s): disco verde con el botón Xbox → se voltea al trofeo → barra «Logro desbloqueado» → regresa.
+   - raro (6.0 s, lo tiene menos del 10 %): disco azul con el botón Xbox → se voltea a un diamante que gira → barra azul
+     con dos destellos → regresa al botón Xbox → se va.
+   - 100 % (7.8 s, «mítico»): punto verde → cristales que giran → barra verde → al golpe del sonido, el ícono del último
+     logro → se voltea al emblema (estrella y laurel) → «Juego completado al 100 %» → «Desbloqueaste los N logros».
+   Cada uno se dibuja con frame(t): la misma función sirve para animar, para las pruebas (Ach.seek) y es la que copia la
+   app (AchievementToast.cs) para dibujarlos encima de los juegos. Los juegos de Xbox usan su propio aviso: aquí no se tocan. */
+const ACH_MS = { normal: 2800, rare: 6000, full: 7800 };
+const ACH_VOL = { normal: 25, rare: 50, full: 75 };
+const ACH_SND = { normal: "achieve", rare: "achrare", full: "ach100" };
+const ACH_POS = [["Arriba a la izquierda", "tl"], ["Arriba al centro", "tc"], ["Arriba a la derecha", "tr"], ["Abajo a la izquierda", "bl"], ["Abajo al centro", "bc"], ["Abajo a la derecha", "br"]];
+const ACH_RARE = 10;
+const achKind = a => a.total > 0 && a.unlocked >= a.total ? "full" : a.percent != null && a.percent < ACH_RARE ? "rare" : "normal";
+const pctText = p => p == null ? "" : (p < 1 ? p.toFixed(1) : p < 10 ? p.toFixed(1) : Math.round(p)) + " %";
+
+/* ---- curvas y tiempos ---- */
+const AE = {
+  clamp: (x, a = 0, b = 1) => Math.min(b, Math.max(a, x)),
+  seg: (t, a, b) => AE.clamp((t - a) / (b - a)),
+  eo: x => 1 - Math.pow(1 - x, 3), ei: x => x * x * x,
+  eio: x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2,
+  back: x => { const c = 1.9; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); }
+};
+
+/* ---- diamante 3D (talla brillante sencilla): se proyecta y sombrea en cada cuadro ---- */
+const GEM3D = (() => { const n = 8, v = [], f = [];
+  const ring = (y, r, off) => Array.from({ length: n }, (_, i) => { const a = (i + off) / n * Math.PI * 2; return [Math.cos(a) * r, y, Math.sin(a) * r]; });
+  v.push(...ring(-.42, .55, .5), ...ring(0, 1, 0), [0, 1, 0]); const T = i => i % n, G = i => n + (i % n), C = 2 * n;
+  f.push(Array.from({ length: n }, (_, i) => T(i)).reverse());
+  for (let i = 0; i < n; i++) { f.push([T(i), G(i + 1), G(i)]); f.push([T(i), T(i + 1), G(i + 1)]); f.push([G(i), G(i + 1), C]); }
+  return { v, f }; })();
+function gemFaces(spin, pitch) {
+  const L = [-.4, -.8, .45], ln = Math.hypot(...L), cs = Math.cos(spin), sn = Math.sin(spin), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const P = GEM3D.v.map(([x, y, z]) => { const x1 = x * cs + z * sn, z1 = -x * sn + z * cs; return [x1, y * cp - z1 * sp, y * sp + z1 * cp]; });
+  return GEM3D.f.map(ix => { const q = ix.map(i => P[i]);
+    const u = [q[1][0] - q[0][0], q[1][1] - q[0][1], q[1][2] - q[0][2]], w = [q[2][0] - q[0][0], q[2][1] - q[0][1], q[2][2] - q[0][2]];
+    const nx = u[1] * w[2] - u[2] * w[1], ny = u[2] * w[0] - u[0] * w[2], nz = u[0] * w[1] - u[1] * w[0], nl = Math.hypot(nx, ny, nz) || 1;
+    return { q, nz: nz / nl, z: q.reduce((s, c) => s + c[2], 0) / q.length, b: Math.max(0, -(nx * L[0] + ny * L[1] + nz * L[2]) / nl / ln) }; })
+    .filter(f => f.nz < 0).sort((a, b) => b.z - a.z);
+}
+const gemColor = b => { const s = Math.pow(b, 10); return [Math.min(255, 60 + 170 * b + 30 * s) | 0, Math.min(255, 120 + 120 * b + 20 * s) | 0, Math.min(255, 215 + 40 * b) | 0]; };
+function gemSVG(spin, pitch) {
+  return gemFaces(spin, pitch).map(f => { const [r, g, b] = gemColor(f.b);
+    return `<polygon points="${f.q.map(c => c[0].toFixed(3) + "," + c[1].toFixed(3)).join(" ")}" fill="rgb(${r},${g},${b})" stroke="rgba(235,245,255,.7)" stroke-width=".03" stroke-linejoin="round"/>`; }).join("");
+}
+
+/* ---- emblema del 100 %: estrella de 4 puntas plateada con laurel ---- */
+const ACH_EMBLEM = (() => {
+  let leaves = ""; const r = 36;
+  for (const side of [-1, 1]) for (let i = 0; i < 6; i++) { const th = (side < 0 ? 100 + i * 17 : 80 - i * 17) * Math.PI / 180;
+    const x = 50 + r * Math.cos(th), y = 50 + r * Math.sin(th), rot = th * 180 / Math.PI + (side < 0 ? 90 : -90) - side * 18;
+    leaves += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="7.5" ry="3.2" transform="rotate(${rot.toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})" fill="url(#achLf)" stroke="#d6efd6" stroke-width=".6"/>`; }
+  return `<svg viewBox="0 0 100 100"><defs><linearGradient id="achSv" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#d7dde3"/><stop offset="1" stop-color="#8b959e"/></linearGradient>
+    <linearGradient id="achLf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#bfe6bf"/><stop offset="1" stop-color="#3f8f3f"/></linearGradient>
+    <radialGradient id="achDk" cx=".5" cy=".4" r=".6"><stop offset="0" stop-color="#3a3f44"/><stop offset="1" stop-color="#15181b"/></radialGradient></defs>
+    <circle cx="50" cy="50" r="47" fill="url(#achDk)" stroke="url(#achSv)" stroke-width="4"/>${leaves}
+    <path d="M50 14 L57 43 L86 50 L57 57 L50 86 L43 57 L14 50 L43 43 Z" fill="url(#achSv)" stroke="#fff" stroke-width=".8"/>
+    <path d="M50 14 L57 43 L50 50 Z M86 50 L57 57 L50 50 Z M50 86 L43 57 L50 50Z M14 50 L43 43 L50 50Z" fill="rgba(255,255,255,.55)"/></svg>`; })();
+const ACH_TROPHY = '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8M10 17h4"/></svg>';
+
+/* ---- estado de cada aviso en el tiempo t (segundos). pop: tamaño del disco; fl: volteo 0→1; w: barra 0→1; tx: textos ---- */
+const ACH_FRAMES = {
+  normal(t) {
+    const { seg, eo, ei, eio, back } = AE;
+    return { pop: t < 2.6 ? back(seg(t, .05, .32)) : 1 - eo(seg(t, 2.6, 2.8)), fl: eio(seg(t, .4, .7)) - eio(seg(t, 2.42, 2.6)),
+      w: eo(seg(t, .6, .95)) - ei(seg(t, 2.12, 2.42)), tx: [seg(t, .8, 1) - seg(t, 2.05, 2.15)] };
+  },
+  rare(t) {
+    const { seg, eo, ei, eio, back } = AE;
+    const sh = t < 3.95 ? seg(t, 2.85, 3.95) : seg(t, 4.0, 4.9);
+    return { pop: t < 5.6 ? back(seg(t, .03, .28)) : 1 - eo(seg(t, 5.65, 6.0)), fl: eio(seg(t, .83, 1.3)) - eio(seg(t, 5.42, 5.62)),
+      w: eo(seg(t, 1.37, 2.03)) - ei(seg(t, 4.95, 5.4)), tx: [seg(t, 1.85, 2.15) - seg(t, 4.8, 4.95)],
+      pitch: -1.45 + 1.1 * eio(seg(t, 1.3, 1.75)), spin: Math.max(0, t - 1) * 1.3, shine: sh > 0 && sh < 1 ? sh : -1 };
+  },
+  full(t) {
+    const { seg, eo, ei, eio, back } = AE;
+    const out = seg(t, 7.35, 7.8);
+    return {
+      pop: 1, fl: 0, w: eo(seg(t, 1.45, 1.9)) - ei(seg(t, 6.4, 6.9)),
+      tx: [seg(t, 1.65, 2) - seg(t, 3.2, 3.4), seg(t, 3.45, 3.75) - seg(t, 4.85, 5), seg(t, 5.05, 5.35) - seg(t, 6.25, 6.4)],
+      dot: (t < 6.9 ? .12 + .88 * eo(seg(t, 0, .55)) : 1 - .82 * eio(seg(t, 6.9, 7.35))) * (1 - out),
+      dotOp: t < 2 ? 1 - .7 * seg(t, .8, 1.2) : t < 6.85 ? 0 : 1 - out,
+      emb: t < .8 ? .35 * seg(t, .55, .8) : t < 1.95 ? .15 : t < 3.4 ? 0 : t < 7.2 ? 1 : 0,
+      embScale: t < 1.95 ? .8 : t < 6.9 ? 1 : 1 - eio(seg(t, 6.9, 7.2)), embTurn: t >= 3.4 && t < 3.7 ? (1 - seg(t, 3.4, 3.7)) * -90 : 0,
+      icon: t >= 1.95 && t < 3.55 ? 1 : 0, iconScale: t < 3.25 ? back(seg(t, 1.95, 2.25)) : 1, iconTurn: seg(t, 3.25, 3.55) * 90,
+      shards: t > .8 && t < 2.05 ? { k: seg(t, .8, 1.1), c: seg(t, 1.8, 2.05) } : null,
+      halo: t < 1.95 ? 0 : (seg(t, 1.95, 3) < .4 ? seg(t, 1.95, 3) / .4 : 1) * (1 - seg(t, 2.9, 3.7)), haloScale: .6 + .55 * eo(seg(t, 1.95, 3)),
+      rays: seg(t, 2, 2.6) * (1 - seg(t, 6.2, 6.8))
+    };
+  }
+};
+/* Tamaños (en rem): disco y largo de la barra. */
+const ACH_SIZE = { normal: { D: 7, W: 40 }, rare: { D: 7.7, W: 47 }, full: { D: 7.6, W: 40 } };
+
+function achHTML(a) {
+  const k = a.kind, { D, W } = ACH_SIZE[k], line = (b, s) => `<b>${esc(b)}</b><span>${esc(s)}</span>`;
+  const texts = k === "normal" ? [line("Logro desbloqueado", a.game ? `${a.name} · ${a.game}` : a.name)]
+    : k === "rare" ? [line("Logro raro desbloqueado", a.percent != null ? `${a.name} · ${pctText(a.percent)} lo tiene` : a.name)]
+    : [line(a.name, a.percent != null ? `Último logro · ${pctText(a.percent)} lo tiene` : "Último logro"),
+       `<span>Juego completado al 100 %</span><b>${esc(a.game || "")}</b>`,
+       `<span>Desbloqueaste los ${a.total} logros</span><span>del juego</span>`];
+  const disc = k === "full"
+    ? `<div class="adot"></div><div class="aemb">${ACH_EMBLEM}</div>
+       <div class="aicon">${a.icon ? `<img alt="" src="${esc(a.icon)}">` : `<i>${ACH_TROPHY}</i>`}</div>`
+    : `<div class="aflip"><div class="aface"><i class="axb"></i></div><div class="aface aback">${k === "rare" ? '<svg class="agem" viewBox="-1.25 -1.25 2.5 2.5"></svg>' : `<i>${ACH_TROPHY}</i>`}</div></div>`;
+  return `${k === "full" ? '<div class="ahalo"></div><div class="arays"></div>' : ""}
+    <div class="apill" style="width:${W}rem;left:${D / 2}rem">${k === "rare" ? '<i class="ashine"></i>' : ""}${texts.map((h, i) => `<div class="atx" data-i="${i}" style="left:${D / 2 + 1.7}rem">${h}</div>`).join("")}</div>
+    <div class="adisc" style="width:${D}rem;height:${D}rem">${disc}</div>${k === "full" ? `<svg class="ashards" viewBox="-60 -60 120 120" style="width:${D}rem;height:${D}rem"></svg>` : ""}`;
+}
+
+/* Dibuja el aviso a en el tiempo t (s). */
+function achPaint(el, a, t) {
+  const k = a.kind, f = ACH_FRAMES[k](t), { D, W } = ACH_SIZE[k], R = rem(), C = AE.clamp;
+  const q = s => el.querySelector(s);
+  // posición: el borde izquierdo, derecho o el centro se quedan fijos mientras la barra crece (como en Xbox)
+  const vis = Math.max(D, D / 2 + C(f.w) * W) * R, pos = settings.achPos || "tl", m = 2.4 * R;
+  const x = pos[1] === "l" ? m : pos[1] === "r" ? innerWidth - m - vis : (innerWidth - vis) / 2;
+  el.style.transform = `translate(${x.toFixed(1)}px,0)`;
+  el.style.top = pos[0] === "t" ? m + "px" : ""; el.style.bottom = pos[0] === "b" ? m + "px" : "";
+  const pill = q(".apill");
+  pill.style.clipPath = `inset(0 ${((1 - C(f.w)) * 100).toFixed(2)}% 0 0 round 99rem)`; pill.style.visibility = f.w > .001 ? "visible" : "hidden";
+  el.querySelectorAll(".atx").forEach((x, i) => x.style.opacity = C(f.tx[i] || 0));
+  const disc = q(".adisc"); disc.style.transform = `scale(${Math.max(0, f.pop)})`;
+  if (k !== "full") {
+    q(".aflip").style.transform = `rotateY(${(f.fl * 180).toFixed(1)}deg)`;
+    if (k === "rare") {
+      q(".agem").innerHTML = gemSVG(f.spin, f.pitch);
+      const s = q(".ashine"); s.style.display = f.shine < 0 ? "none" : ""; if (f.shine >= 0) s.style.transform = `translateX(${(-16 + f.shine * (W + 20)).toFixed(2)}rem)`;
+    }
+    return f;
+  }
+  const dot = q(".adot"); dot.style.transform = `scale(${f.dot.toFixed(3)})`; dot.style.opacity = f.dotOp;
+  const emb = q(".aemb"); emb.style.opacity = f.emb; emb.style.transform = `scale(${Math.max(0, f.embScale).toFixed(3)}) rotateY(${f.embTurn.toFixed(1)}deg)`;
+  const ic = q(".aicon"); ic.style.opacity = f.icon; ic.style.transform = `scale(${f.iconScale.toFixed(3)}) rotateY(${f.iconTurn.toFixed(1)}deg)`;
+  const halo = q(".ahalo"); halo.style.opacity = f.halo; halo.style.transform = `scale(${f.haloScale.toFixed(3)})`;
+  q(".arays").style.opacity = f.rays;
+  const sh = q(".ashards");
+  if (!f.shards) sh.innerHTML = "";
+  else { const { k: kk, c } = f.shards, Rr = 44 * AE.eo(kk) * (1 - AE.eio(c)) + 4; let h = "";
+    for (let i = 0; i < 11; i++) { const an = i / 11 * Math.PI * 2 + t * 2.2 + (i % 2) * .4, sp = t * (3 + i % 3) + i, fx = Math.cos(sp), sc = (.6 + .5 * AE.eo(kk)) * (1 - .6 * c);
+      const x2 = Math.cos(an) * Rr * (i % 3 === 0 ? .7 : 1), y2 = Math.sin(an) * Rr * .9, l = (150 + 105 * Math.abs(fx)) | 0;
+      h += `<g transform="translate(${x2.toFixed(1)} ${y2.toFixed(1)}) rotate(${(an * 57 + sp * 40).toFixed(0)}) scale(${(fx * sc).toFixed(3)} ${sc.toFixed(3)})"><polygon points="-14,-6 4,-16 16,2 -2,14" fill="rgb(${l},${l},${Math.min(255, l + 8)})" stroke="#fff" stroke-width="1.2"/><polygon points="-14,-6 4,-16 2,0" fill="rgba(255,255,255,.6)"/></g>`; }
+    sh.innerHTML = h; }
+  return f;
+}
+
+/* ---- cola: uno a la vez; mientras se ve un logro, las demás notificaciones esperan ---- */
+const Ach = {
+  q: [], cur: null,
+  get busy() { return !!this.cur; },
+  push(a) { this.q.push(a); while (this.q.length > 8) this.q.shift(); if (!this.cur && !notifCur) this.next(); },   // si hay una notificación a la vista, empieza al irse
+  next() {
+    const a = this.q.shift(); this.cur = a || null;
+    if (!a) { if (!notifCur) notifNext(); return; }
+    const ms = ACH_MS[a.kind];
+    achSound(a.kind);
+    rumble("achieve");
+    if (mode === "game" && !OVERLAY && Host.has) {   // el menú está oculto: la app lo dibuja encima del juego, igualito
+      Host.call("ach.show", { kind: a.kind, name: a.name, game: a.game || "", percent: a.percent, total: a.total || 0, image: a.iconPath || "", pos: settings.achPos || "tl" }).catch(() => {});
+      a.t = setTimeout(() => this.done(a), ms + 150);
+      return;
+    }
+    const el = document.createElement("div"); el.className = "ach k-" + a.kind; el.style.height = ACH_SIZE[a.kind].D + "rem"; el.innerHTML = achHTML(a);
+    document.body.append(el); a.el = el; a.start = performance.now();
+    const step = () => {
+      if (this.cur !== a || a.manual) return;
+      const t = (performance.now() - a.start) / 1000;
+      if (t >= ms / 1000) return this.done(a);
+      achPaint(el, a, t); a.raf = requestAnimationFrame(step);
+    };
+    achPaint(el, a, 0); a.raf = requestAnimationFrame(step);
+  },
+  done(a) { if (this.cur !== a) return; clearTimeout(a.t); cancelAnimationFrame(a.raf); if (a.el) a.el.remove(); this.cur = null; this.next(); },
+  /* pruebas: congela el aviso actual en el segundo t */
+  seek(t) { const a = this.cur; if (!a || !a.el) return null; a.manual = true; cancelAnimationFrame(a.raf); return achPaint(a.el, a, t); }
+};
+
+/* Sonido: el de Scarlet o el importado (Personalizados), al volumen de su tipo. */
+function achSound(kind) {
+  if (settings.nSound === false) return;
+  const key = ACH_SND[kind], vol = (settings["achVol_" + kind] ?? ACH_VOL[kind]) / 100;
+  if (vol <= 0) return;
+  const mine = settings.achSounds === "custom" && Snd.custom["x" + key] ? "x" + key : key;
+  if (Snd.custom[mine] && Snd.sample(mine, 1, vol, true)) return;
+  if (kind !== "normal" && Snd.custom.achieve && Snd.sample("achieve", 1, vol, true)) return;
+  play("achieve");
+}
+
+function showAchievement(g, name, d = {}) {
+  if (g && g.source === "xbox") return;   // los juegos de Xbox tienen su propio aviso de Windows
+  if (settings.nAch === false) return;
+  if (mode === "game" && !OVERLAY && (settings.nInGame || "all") === "none") { missed.push({ title: "Logro desbloqueado", text: g ? `${name} · ${g.name}` : name }); return; }
+  const a = { name, game: g ? g.name : d.game || "", percent: d.percent ?? null, icon: d.icon || "", iconPath: d.iconPath || "",
+    unlocked: d.unlocked || 0, total: d.total || 0, appid: g ? g.appid : 0 };
+  a.kind = d.kind || achKind(a);
+  if (a.kind === "full" && !a.total) a.total = g && g.ach ? g.ach[1] : 0;
+  Ach.push(a);
+}
+
+/* Probar desde Ajustes */
+function demoAchievement(kind) {
+  const g = games.find(x => hasAch(x) && x.source !== "xbox") || games[0];
+  const total = g && g.ach ? g.ach[1] : 40;
+  showAchievement(g, kind === "full" ? "Protocolo EVE" : kind === "rare" ? "Sin un rasguño" : "Primer paso",
+    { kind, percent: kind === "normal" ? 48.3 : 3.1, total, unlocked: kind === "full" ? total : 12 });
+}
+
+/* ---- Ajustes ---- */
+const ACH_VOLS = [["Apagado", 0], ["10 %", 10], ["20 %", 20], ["25 %", 25], ["30 %", 30], ["40 %", 40], ["50 %", 50], ["60 %", 60], ["70 %", 70], ["75 %", 75], ["80 %", 80], ["90 %", 90], ["100 %", 100]];
+const volLabel = v => v <= 0 ? "Apagado" : v + " %";
+const achCustomCount = () => Object.keys(Snd.custom).filter(k => /^xach/.test(k)).length;
+/* Tus sonidos (por ejemplo los de Xbox) se copian a los datos de Scarlet en tu consola; nunca van al repositorio. */
+async function importAchSounds() {
+  toast("Buscando tus sonidos de logros…");
+  const r = await Host.call("sounds.importAch").catch(e => ({ ok: false, error: e.message }));
+  if (r && r.ok) { settings.achSounds = "custom"; saveSettings(); toast(`Sonidos de logros importados (${r.count})`); }
+  else toast((r && r.error) || "No se pudieron importar");
+  const sv = views.find(x => x.isSettings); if (sv && sv.refresh) sv.refresh();
+}
 </script>
 </body>
 </html>

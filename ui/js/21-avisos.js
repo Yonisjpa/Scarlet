@@ -25,30 +25,54 @@ function notify(o) {
     if (pref === "none" || (pref === "important" && !notifImportant(o))) { missed.push({ title: o.title, text: o.text }); return; }
     if (Host.has) {   // el menú está oculto: la app dibuja la notificación encima del juego (igual, pero sin acción)
       const t = o.thumb || {};
-      return Host.call("overlay.notify", { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving }).catch(() => {});
+      const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : ["", "#ffffff"]);
+      return Host.call("overlay.notify", { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
+        tag: tag[0], accent: tag[1] }).catch(() => {});
     }
   }
   if (o.key && notifCur && notifCur.key === o.key) return notifReplace(o);   // la misma (p. ej. "Guardando video…" → "Video guardado")
   const qi = o.key ? notifQ.findIndex(x => x.key === o.key) : -1;
   if (qi >= 0) notifQ[qi] = o; else notifQ.push(o);
   while (notifQ.length > 6) notifQ.shift();
-  if (!notifCur) notifNext();
+  notifStack();
+  if (!notifCur && !Ach.cur) notifNext();
 }
+/* beta 1.6: cápsula con un color y una etiqueta por tipo de aviso */
+const NOTIF_TAG = { friend: ["En línea", "#3ddc84"], friendplay: ["Jugando", "#3ddc84"], dl: ["Descarga", "#3fb3ff"], batt: ["Batería", "#ff5a5a"], cap: ["Captura", "#ffffff"], sum: ["Avisos", "#ffffff"], err: ["Aviso", "#f2c230"] };
 function notifHTML(o) {
   const t = o.thumb;
   const ic = t ? `<div class="ic thumb${t.saving ? " saving" : ""}">${t.src ? `<img alt="" src="${esc(t.src)}">` : ""}${t.video && !t.saving ? `<span class="pl"><b></b></span>${t.dur ? `<span class="du">${esc(t.dur)}</span>` : ""}` : ""}${t.saving ? `<span class="rec"><i></i></span>` : ""}</div>`
     : `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div>`;
   const act = o.act && mode === "ui" ? `<div class="nact"><span class="xbtn"></span>${esc(o.act.label)}</div>` : "";
-  return `${ic}<div class="ntx"><b>${esc(o.title)}${o.star ? '<i class="nstar">★</i>' : ""}</b>${o.lines ? `<ul>${o.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span>${esc(o.text)}</span>`}</div>${act}<div class="nlife"></div>`;
+  const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : null);
+  return `${ic}<div class="ntx">${tag ? `<span class="ntag">${esc(tag[0])}</span>` : ""}<b>${esc(o.title)}${o.star ? '<i class="nstar">★</i>' : ""}</b>${o.lines ? `<ul>${o.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span>${esc(o.text)}</span>`}</div>${act}<div class="nlife"></div>`;
 }
 function notifNext() {
+  if (Ach.cur) { notifCur = null; return; }                      // hay un logro en pantalla: esperan a que se vaya
+  if (Ach.q.length) { notifCur = null; return Ach.next(); }      // (beta 1.6) y los logros pendientes van primero
   const o = notifQ.shift(); if (!o) { notifCur = null; return; }
   const n = document.createElement("div"); n.className = "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "");
-  n.innerHTML = notifHTML(o);
-  const box = $("#notifs"); box.innerHTML = ""; box.append(n);
+  n.innerHTML = notifHTML(o); n.style.setProperty("--nac", (NOTIF_TAG[o.kind] || [0, o.tagColor || "#ffffff"])[1]);
+  const wrap = document.createElement("div"); wrap.className = "nwrap"; wrap.append(n);
+  const box = $("#notifs"); box.innerHTML = ""; box.append(wrap);
   if (settings.nSound !== false) play(o.sound || "notif");
   notifCur = Object.assign(o, { el: n });
   notifTime(o);
+  notifStack();
+}
+/* Las que esperan se asoman detrás, como cartas, con un globito +N. */
+function notifStack() {
+  const o = notifCur; if (!o || !o.el) return;
+  const wrap = o.el.parentNode; if (!wrap) return;
+  wrap.querySelectorAll(".nghost,.nmore").forEach(x => x.remove());
+  const n = notifQ.length; if (!n) return;
+  for (let i = Math.min(2, n); i >= 1; i--) {
+    const gh = document.createElement("div"); gh.className = "nghost" + (i === 2 ? " g2" : "");
+    gh.style.transform = `translate(${1.1 * i}rem,${1.6 * i}rem) scale(${(1 - .06 * i).toFixed(2)})`;
+    if (o.el.classList.contains("wide") || o.el.classList.contains("sum")) gh.style.borderRadius = "1.9rem";
+    wrap.prepend(gh);
+  }
+  const m = document.createElement("span"); m.className = "nmore"; m.textContent = "+" + n; wrap.append(m);
 }
 /* La línea de abajo y el tiempo que se queda; si llega otra detrás, esta se va un poco antes. */
 function notifTime(o) {
@@ -68,7 +92,8 @@ function notifReplace(o) {
 function notifDone(o) {
   if (notifCur !== o) return;
   o.el.classList.add("out"); notifCur = null;
-  setTimeout(() => { o.el.remove(); notifNext(); }, 300);
+  const wrap = o.el.parentNode; if (wrap) wrap.querySelectorAll(".nghost,.nmore").forEach(x => x.remove());
+  setTimeout(() => { (wrap && wrap.classList.contains("nwrap") ? wrap : o.el).remove(); notifNext(); }, 300);
 }
 /* Botón Xbox con una notificación con acción a la vista (en el menú): hace la acción. */
 function notifAction() {
@@ -104,10 +129,8 @@ function notifyFriend(f) {
   notify({ kind: f.game ? "friendplay" : "friend", star: best, sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
     act: { label: "Ver perfil", run: () => { const x = friends.find(y => y.name === f.name); if (x) openView(friendProfileView(x)); } } });
 }
-function notifyAchievement(g, name, d = {}) {
-  notify({ kind: "ach", icon: d.icon ? `<img alt="" src="${esc(d.icon)}">` : I.trophy, image: d.iconPath || "", letter: "★", bg: "#f2c230", fg: "#3a2c00", title: "Logro desbloqueado", text: g ? `${name} · ${g.name}` : name, sound: "achieve",
-    act: g && hasAch(g) ? { label: "Ver logros", run: () => openView(achView(g)) } : null });
-}
+/* beta 1.6: los logros tienen su propio aviso, como en Xbox (43-logros.js) */
+function notifyAchievement(g, name, d = {}) { showAchievement(g, name, d); }
 function notifyBattery(level) { notify({ kind: "batt", icon: I.battLow, title: "Batería baja", text: `Queda ${Math.round(level * 100)} %. Conecta el cargador.` }); }
 /* Capturas: miniatura de verdad (la foto, o un cuadro del video), con «Ver» que abre el Álbum en esa captura. */
 function notifyCapture(item, saving) {
@@ -146,5 +169,9 @@ function demoFriendOnline(force) {
 let battWarned = false;
 Events.on("friend.online", f => { const x = friends.find(y => y.name === f.name); if (x) Object.assign(x, f, { status: f.game ? "playing" : "online" }); else friends.push({ ...f, status: f.game ? "playing" : "online" }); notifyFriend(f); });
 Events.on("battery.low", d => notifyBattery(d.level));
-Events.on("achievement.unlocked", d => { const g = byId(d.appid); if (g && hasAch(g)) g.ach[0] = Math.min(g.ach[0] + 1, g.ach[1]); notifyAchievement(g, d.name, d); });
+Events.on("achievement.unlocked", d => {
+  const g = byId(d.appid);
+  if (g && hasAch(g)) g.ach[0] = d.unlocked ? Math.min(d.unlocked, g.ach[1]) : Math.min(g.ach[0] + 1, g.ach[1]);
+  notifyAchievement(g, d.name, d);
+});
 

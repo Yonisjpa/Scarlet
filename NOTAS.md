@@ -1,3 +1,30 @@
+Novedades de la beta 1.6
+
+Logros como en Xbox (en el menú y encima del juego):
+- Logro: un disco verde con el botón Xbox se voltea al trofeo y sale la barra «Logro desbloqueado · nombre · juego».
+- Logro raro (lo tiene menos del 10 % de los jugadores): disco azul con el botón Xbox que se voltea a un diamante que gira; la barra azul dice el porcentaje y la cruzan dos destellos.
+- Juego al 100 %: un punto verde, cristales que giran y, al golpe del sonido, el ícono del último logro con su porcentaje (por ejemplo «Protocolo EVE · 3.1 %»); luego el emblema con estrella y laurel, «Juego completado al 100 %» y «Desbloqueaste los N logros». Es un solo aviso: el último logro ya no sale aparte.
+- Cada aviso dura exactamente lo que su sonido: 2.8 s, 6.0 s y 7.8 s.
+- Sonidos propios, con mucho grave, al 25 %, 50 % y 75 %.
+- Ajustes › Notificaciones › Logros: posición (6 lugares, arriba a la izquierda de fábrica), volumen de cada tipo, sonidos «Scarlet» o «Personalizados» y botones para probarlos.
+- Importar sonidos de logros: pon scarlet_logro_normal, scarlet_logro_raro o scarlet_logro_100 en Descargas y elige «Importar sonidos de logros». Se quedan solo en tu consola (nunca se suben a GitHub).
+- Los juegos de Xbox usan su propio aviso de Windows: Scarlet no muestra nada en ellos.
+- Mientras se ve un logro, las demás notificaciones esperan su turno.
+
+Notificaciones en cápsula:
+- Más redondas, con el ícono en círculo y un aro del color del aviso (amigos verde, descargas azul, batería rojo, capturas blanco) y una etiqueta arriba del título.
+- Entran deslizándose con un rebote y se van encogiéndose. Si llegan varias, se asoman detrás como cartas con un globito +N.
+- Encima del juego se ven igual (bordes suaves de verdad, sin recuadro).
+
+Logo de la pantalla del juego:
+- En las opciones del juego (X) › Logo: ◀ ▶ cambian el tamaño (de 50 a 150 %) y Y la posición (abajo a la izquierda, abajo al centro o al centro).
+- La vista previa ahora es la pantalla del juego de verdad, en chiquito (antes dibujaba el logo enorme).
+- Ajustes › Pantalla › Tamaño de los logos: el tamaño para todos los juegos. De fábrica el logo es un tercio más chico que antes.
+
+Por dentro:
+- La app sabe qué tan raro es cada logro (porcentaje de Steam, se guarda un día) y cuántos llevas al desbloquearlo.
+- 9 pruebas nuevas (logros, posición, sonidos, notificaciones apiladas, logo) y las de siempre ajustadas.
+
 Novedades de la beta 1.5
 
 La pantalla del juego (la que ves al entrar o salir de un juego):

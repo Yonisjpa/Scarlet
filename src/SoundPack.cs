@@ -124,6 +124,46 @@ static class SoundPack
         finally { try { if (Directory.Exists(tmp)) Directory.Delete(tmp, true); } catch { } }
     }
 
+    // ───── Sonidos de logros importados (beta 1.6) ─────
+    // Tus propios sonidos para los logros (por ejemplo los de Xbox): se copian aquí, en tu consola, y nunca van al
+    // repositorio. Viven aparte del paquete de sonidos, así importar uno no borra el otro.
+    public static string AchDir => Path.Combine(Paths.Local, "sounds-logros");
+    static readonly Dictionary<string, string> AchKeys = new(StringComparer.OrdinalIgnoreCase) { ["normal"] = "xachieve", ["raro"] = "xachrare", ["100"] = "xach100" };
+
+    public static Result ImportAch()
+    {
+        try
+        {
+            string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var roots = new[] { Path.Combine(home, "Downloads"), Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) }
+                .Where(r => !string.IsNullOrEmpty(r) && Directory.Exists(r)).Distinct(StringComparer.OrdinalIgnoreCase);
+            var opt = new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true };
+            var best = new Dictionary<string, (string path, DateTime when)>();
+            foreach (var r in roots)
+                try
+                {
+                    foreach (var f in Directory.EnumerateFiles(r, "scarlet_logro_*", opt))
+                    {
+                        var m = Regex.Match(Path.GetFileName(f), @"^scarlet_logro_(normal|raro|100)\.(wav|mp3|ogg|m4a)$", RegexOptions.IgnoreCase);
+                        if (!m.Success || new FileInfo(f).Length > 30_000_000) continue;
+                        string key = AchKeys[m.Groups[1].Value]; var when = File.GetLastWriteTimeUtc(f);
+                        if (!best.TryGetValue(key, out var b) || when > b.when) best[key] = (f, when);
+                    }
+                }
+                catch { }
+            if (best.Count == 0) return new Result(false, null, 0, "No encontré archivos scarlet_logro_normal, scarlet_logro_raro o scarlet_logro_100 en Descargas, Escritorio o Documentos.");
+            Directory.CreateDirectory(AchDir);
+            foreach (var (key, (src, _)) in best)
+            {
+                foreach (var old in Directory.EnumerateFiles(AchDir, key + ".*")) File.Delete(old);
+                File.Copy(src, Path.Combine(AchDir, key + Path.GetExtension(src).ToLowerInvariant()), true);
+            }
+            Log.Write($"sonidos de logros importados: {string.Join(", ", best.Select(b => b.Key + " ← " + b.Value.path))}");
+            return new Result(true, "logros", best.Count, null);
+        }
+        catch (Exception ex) { Log.Error("sonidos de logros (importar)", ex); return new Result(false, null, 0, "No se pudo importar: " + ex.Message); }
+    }
+
     /// <summary>El paquete más reciente (carpeta con pack.json o .zip que lo traiga) en Descargas, Escritorio o Documentos.</summary>
     static string Find()
     {

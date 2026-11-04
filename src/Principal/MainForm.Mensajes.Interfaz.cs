@@ -53,9 +53,13 @@ sealed partial class MainForm
                 else if (action == "hibernate") { BringUiToFront(); Emit("ui.hibernate", null); }
                 return true;
             }
+            case "ach.show":   // beta 1.6: el logro estilo Xbox, dibujado encima del juego
+                AchievementToast.Show(P.S(p, "kind"), P.S(p, "name"), P.S(p, "game"), p.TryGetProperty("percent", out var achPct) && achPct.ValueKind == JsonValueKind.Number ? (double?)achPct.GetDouble() : null,
+                    (int)P.L(p, "total"), P.S(p, "image"), P.S(p, "pos"));
+                return true;
             case "overlay.notify":
                 ToastForm.Pop(P.S(p, "title"), P.S(p, "text"), P.S(p, "letter"), P.S(p, "color"), P.S(p, "image"),
-                    wide: P.B(p, "wide"), video: P.B(p, "video"), dur: P.S(p, "dur"), saving: P.B(p, "saving"));
+                    wide: P.B(p, "wide"), video: P.B(p, "video"), dur: P.S(p, "dur"), saving: P.B(p, "saving"), tag: P.S(p, "tag"), accent: P.S(p, "accent"));
                 return true;
             // Menú rápido en vivo: cada dato por separado (si uno falla, los demás sí llegan); se pide cada 2 s.
             // Al abrir (full) se vuelve a leer todo desde cero; cada dato tiene un tiempo límite y, si no llega, la interfaz
@@ -102,6 +106,12 @@ sealed partial class MainForm
                 return r;
             }
             case "sounds.reset": SoundPack.Remove(); EmitAll("sounds.changed", SoundsList()); return true;
+            case "sounds.importAch":
+            {
+                var r = await Task.Run(SoundPack.ImportAch);
+                if (r.ok) EmitAll("sounds.changed", SoundsList());
+                return r;
+            }
             case "app.reload": steam.Reset(); web.CoreWebView2?.Reload(); return true;
             case "app.exit": BeginInvoke(new Action(Close)); return true;
             default: throw new NotSupportedException("Mensaje desconocido: " + type);

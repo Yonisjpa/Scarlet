@@ -147,14 +147,15 @@ async function run(name, fn) {
     const p = await page(); await clearNotifs(p);
     await ev(p, () => { const f = friends[0]; notifyFriend(f); notifyBattery(.15); notifyAchievement(games.find(hasAch), "Explorador"); });
     await p.waitForTimeout(300);
-    const one = await ev(p, () => [$$('#notifs .notif').length, notifQ.length, !!$('#notifs .nlife'), !!$('#notifs .xbtn')]);
+    // beta 1.6: el logro va en su propia cola (estilo Xbox) y sale cuando se va la notificación de ahora
+    const one = await ev(p, () => [$$('#notifs .notif').length, notifQ.length + Ach.q.length, !!$('#notifs .nlife'), !!$('#notifs .xbtn')]);
     await ev(p, () => window.__emit("quick.toggle")); await p.waitForTimeout(900);
-    const r = await ev(p, () => [QM.open, !!(topView() && /Nivel|Perfil|horas|Amigo/i.test(topView().el.textContent)), notifCur && notifCur.title]);
+    const r = await ev(p, () => [QM.open, !!(topView() && /Nivel|Perfil|horas|Amigo/i.test(topView().el.textContent)), Ach.cur ? Ach.cur.name : notifCur && notifCur.title]);
     await ev(p, () => closeAllViews());
     await clearNotifs(p);
     await ev(p, () => window.__emit("quick.toggle")); await p.waitForTimeout(500);
     const q = await ev(p, () => QM.open);
-    return one[0] === 1 && one[1] === 2 && one[2] && one[3] && !r[0] && r[1] && r[2] === 'Batería baja' && q ? { p } : { p, fail: JSON.stringify({ one, r, q }) };
+    return one[0] === 1 && one[1] === 2 && one[2] && one[3] && !r[0] && r[1] && r[2] === 'Explorador' && q ? { p } : { p, fail: JSON.stringify({ one, r, q }) };
   });
 
   await run('Notificaciones: Ajustes (apagadas, solo mejores amigos) y sin sonido', async () => {
@@ -172,12 +173,13 @@ async function run(name, fn) {
     await p.waitForFunction(() => mode === "game", null, { timeout: 15000 }); await p.waitForTimeout(300); await clearNotifs(p);
     await ev(p, () => { notifyFriend({ name: "NeoKaiser" }); notifyBattery(.1); notifyAchievement(games.find(hasAch), "Explorador"); });
     await p.waitForTimeout(300);
-    const ov = (await calls(p, 'overlay.notify')).map(x => x.title), miss = await ev(p, () => missed.length);
-    await ev(p, () => goHome()); await p.waitForTimeout(2600);
+    // beta 1.6: los logros cuentan como importantes: la app los dibuja encima del juego (ach.show)
+    const ov = (await calls(p, 'overlay.notify')).map(x => x.title), miss = await ev(p, () => missed.length), achs = (await calls(p, 'ach.show')).length;
+    await ev(p, () => goHome()); await p.waitForTimeout(3600);
     const sum = await ev(p, () => notifCur && [notifCur.title, notifCur.lines.join(' | ')]);
     await ev(p, () => window.__emit("quick.toggle")); await p.waitForTimeout(800);
     const view = await ev(p, () => topView() && topView().el.querySelector('.vhead').textContent);
-    return ov.join() === 'Batería baja' && miss === 2 && sum && sum[0] === 'Mientras jugabas' && /NeoKaiser/.test(sum[1]) && /Mientras jugabas/.test(view) ? { p } : { p, fail: JSON.stringify({ ov, miss, sum, view }) };
+    return ov.join() === 'Batería baja' && miss === 1 && achs === 1 && sum && sum[0] === 'Mientras jugabas' && /NeoKaiser/.test(sum[1]) && /Mientras jugabas/.test(view) ? { p } : { p, fail: JSON.stringify({ ov, miss, achs, sum, view }) };
   });
 
   await run('Capturas: «Guardando video…» → «Video guardado» con ▶ y duración; foto con «Ver» que abre el Álbum', async () => {

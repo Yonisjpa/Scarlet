@@ -42,14 +42,18 @@ body{touch-action:pan-y}
 #rowwrap{touch-action:none}
 /* ===================== beta 1.5: pantalla del juego (fondo y logo, sin textos) ===================== */
 #glogo,.gplogo{display:block}
-#glogo img,.gplogo img{display:block;max-width:min(46vw,62rem);max-height:22vh;width:auto;height:auto;object-fit:contain;object-position:left bottom;filter:drop-shadow(0 .4rem 1.6rem rgba(0,0,0,.55))}
-.gprev{position:relative;width:100%;max-width:62rem;aspect-ratio:16/9;border-radius:1.1rem;overflow:hidden;background:#000;margin:1.2rem 0 1.4rem}
-.gprev .gpbg{width:100%;height:100%;object-fit:cover;display:block}
-.gprev::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent 55%)}
-.gprev .gplogo{position:absolute;left:5%;bottom:7%;z-index:1;color:#fff}
-.gprev .gplogo b{font-size:2.6rem}
-.gprev .gplogo img{max-width:46%;max-height:30%}
-.gprev .gplogo.img img{max-width:100%;max-height:none;width:auto;height:min(8rem,100%)}
+/* beta 1.6: el tamaño (--lsz, 0.5–1.5 × el normal) y la posición (data-lpos) se eligen por juego; el normal es más chico que antes */
+#glogo img,.gplogo img{display:block;max-width:calc(32vw * var(--lsz,1));max-height:calc(15vh * var(--lsz,1));width:auto;height:auto;object-fit:contain;object-position:left bottom;filter:drop-shadow(0 .4rem 1.6rem rgba(0,0,0,.55))}
+[data-lpos="bc"]>.ginfo{left:50%;transform:translateX(-50%);align-items:center}
+[data-lpos="c"]>.ginfo{left:50%;top:50%;bottom:auto;transform:translate(-50%,-50%);align-items:center}
+[data-lpos="bc"] #glogo img,[data-lpos="bc"] .gplogo img{object-position:center bottom}
+[data-lpos="c"] #glogo img,[data-lpos="c"] .gplogo img{object-position:center}
+/* la vista previa es la pantalla del juego de verdad (mismo tamaño que la pantalla), escalada al recuadro */
+.gprev{position:relative;width:100%;max-width:50rem;aspect-ratio:var(--sar,16/9);border-radius:1.1rem;overflow:hidden;background:#000;margin:1.2rem 0 1rem}
+.gpstage{position:absolute;left:0;top:0;width:100vw;height:100vh;transform-origin:0 0;color:#fff}
+.gpstage>img{width:100%;height:100%;object-fit:cover;display:block}
+.glook{display:flex;gap:2.4rem;font-size:1.4rem;margin:0 0 1rem;opacity:.9}
+.glook b{font-weight:700}
 /* el selector de fondos y logos: tarjetas anchas; los logos sobre un fondo oscuro para que se lean */
 .apick-hero .grid,.apick-logo .grid{grid-template-columns:repeat(3,1fr)}
 .apick-hero .tile,.apick-logo .tile{aspect-ratio:16/9}
