@@ -20,8 +20,6 @@
 .gshade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent 55%)}
 .ginfo{position:absolute;left:4.6rem;bottom:4.2rem;color:#fff;display:flex;flex-direction:column;gap:.7rem}
 .ginfo b{font-size:5rem;line-height:1.05}
-.ginfo span{font-size:1.6rem;opacity:.85}
-.ginfo .gkeys{font-size:1.4rem;opacity:.65}
 @keyframes gOut{to{transform:scale(.9);opacity:0}}
 
 /* pantalla de carga con logos girando */

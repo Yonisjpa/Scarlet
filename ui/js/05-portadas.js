@@ -1,6 +1,9 @@
 /* ================= portadas (SteamGridDB + respaldo propio) ================= */
 const Art = {
   cache: store.get("artCache", {}),
+  /* Guardar la caché de portadas: antes se escribía completa por cada imagen (decenas de veces al arrancar); ahora una
+     sola vez cuando se calman los cambios (beta 1.5). */
+  save() { clearTimeout(this.saveT); this.saveT = setTimeout(() => store.set("artCache", this.cache), 400); },
   alt: store.get("artAlt", {}),
   placeholder(g, kind = "grid") {
     const n = this.alt[g.appid] || 0, h = (g.appid * 47 + n * 67) % 360, h2 = (h + 55) % 360;
@@ -24,12 +27,14 @@ const Art = {
     if (this.cache[k]) return this.cache[k];
     const j = await this.sgdb(`search/autocomplete/${encodeURIComponent(g.name)}`);
     const id = j && j.data && j.data[0] && j.data[0].id;
-    if (id) { this.cache[k] = id; store.set("artCache", this.cache); }
+    if (id) { this.cache[k] = id; this.save(); }
     return id;
   },
   pick: store.get("artPick", {}),
+  heroPick: store.get("heroPick", {}),   // beta 1.5: fondo de la pantalla del juego que elegiste
+  logoPick: store.get("logoPick", {}),   // beta 1.5: logo del juego que elegiste ("none" = solo el nombre)
   icons: new Set(),
-  steamUrl(g, kind = "grid") { return `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/${kind === "hero" ? "library_hero.jpg" : "library_600x900.jpg"}`; },
+  steamUrl(g, kind = "grid") { return `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/${kind === "hero" ? "library_hero.jpg" : kind === "logo" ? "logo.png" : "library_600x900.jpg"}`; },
   async local(url) { return Host.has ? Host.call("cache.image", { url }) : url; },
   /* todas las portadas de SteamGridDB para elegir: mode "square" | "all" */
   async options(g, mode, page) {
@@ -38,17 +43,48 @@ const Art = {
     // sin filtros de "humor" ni "epilepsia" (SteamGridDB los esconde por defecto); los íconos se piden aparte
     const q = ["nsfw=false", "humor=any", "epilepsy=any", "types=static,animated", "page=" + page];
     if (mode === "square") q.push("dimensions=512x512,1024x1024");
-    if (mode === "icons") q.push("mimes=image/png");
-    const j = await this.sgdb(`${mode === "icons" ? "icons" : "grids"}/${steam ? "steam" : "game"}/${id}?${q.join("&")}`);
+    if (mode === "icons" || mode === "logos") q.push("mimes=image/png");
+    const kind = { icons: "icons", heroes: "heroes", logos: "logos" }[mode] || "grids";
+    const j = await this.sgdb(`${kind}/${steam ? "steam" : "game"}/${id}?${q.join("&")}`);
     return ((j && j.data) || []).map(x => ({ url: x.url, thumb: x.thumb || x.url, w: x.width, h: x.height, author: x.author && x.author.name, anim: /webm|gif/i.test(x.mime || "") || /animated/i.test(x.style || "") }));
   },
-  async choose(g, url) {   // url de SteamGridDB, "steam" (arte oficial) o "none" (colores)
-    if (url) this.pick[g.appid] = url; else delete this.pick[g.appid];
-    store.set("artPick", this.pick);
+  async choose(g, url, what = "grid") {   // url de SteamGridDB, "steam" (arte oficial) o "none" (colores / sin logo)
+    const [map, name] = what === "hero" ? [this.heroPick, "heroPick"] : what === "logo" ? [this.logoPick, "logoPick"] : [this.pick, "artPick"];
+    if (url) map[g.appid] = url; else delete map[g.appid];
+    store.set(name, map);
+  },
+  /* Resuelve lo que elegiste (SteamGridDB o "steam") a una imagen guardada en la consola. */
+  async picked(g, p, kind) {
+    const key = `pick${kind === "grid" ? "" : ":" + kind}:${g.appid}:${p}`;
+    if (this.cache[key]) return this.cache[key];
+    try {
+      const url = /^https:\/\/files\.scarlet\//.test(p) ? p : await this.local(p === "steam" ? this.steamUrl(g, kind) : p);
+      if (url) { this.cache[key] = url; this.save(); return url; }
+    } catch (e) {}
+    return null;
+  },
+  /* Logo del juego para su pantalla (beta 1.5): el que elegiste, el primero de SteamGridDB o el de Steam; null = el nombre. */
+  async logo(g) {
+    if (g.kind === "app" || g.appid >= 990000 && g.appid < 991000) return null;
+    const p = this.logoPick[g.appid];
+    if (p === "none") return null;
+    if (p) { const u = await this.picked(g, p, "logo"); if (u) return u; }
+    const key = `logo:${g.appid}`;
+    if (this.cache[key]) return this.cache[key];
+    let url = null;
+    try { const l = await this.options(g, "logos", 0); if (l.length) url = await this.local(l[0].url); } catch (e) {}
+    if (!url && Host.has && (g.source || "steam") === "steam") url = await this.local(this.steamUrl(g, "logo")).catch(() => null);
+    if (url) { this.cache[key] = url; this.save(); }
+    return url;
   },
   async get(g, kind = "grid") {
     // juegos externos con su propia imagen (el ícono del programa o una imagen tuya)
     if (g.source === "ext" && g.art && !this.pick[g.appid]) { if (g.iconArt) this.icons.add(g.art); return kind === "grid" ? g.art : null; }
+    if (kind === "hero" && this.heroPick[g.appid]) {   // beta 1.5: el fondo que elegiste para la pantalla del juego
+      const hp = this.heroPick[g.appid];
+      if (hp === "none") return null;
+      const u = await this.picked(g, hp, "hero"); if (u) return u;
+    }
     const p = kind === "grid" && this.pick[g.appid];
     if (p === "none") return null;
     if (p === "xbox") return g.art || null;
@@ -59,7 +95,7 @@ const Art = {
       if (this.cache[key]) return this.cache[key];
       try {
         const url = await this.local(p === "steam" ? this.steamUrl(g) : p);
-        if (url) { this.cache[key] = url; store.set("artCache", this.cache); return url; }
+        if (url) { this.cache[key] = url; this.save(); return url; }
       } catch (e) {}
     }
     const n = this.alt[g.appid] || 0, key = `${kind}:${g.appid}:${n}${g.kind === "app" ? ":i" : ""}`;
@@ -68,7 +104,7 @@ const Art = {
       const wk = `web:${g.appid}`;
       if (this.cache[wk]) { this.icons.add(this.cache[wk]); return this.cache[wk]; }
       const wu = await Host.call("app.icon", { appid: g.appid }).catch(() => null);
-      if (wu) { this.cache[wk] = wu; store.set("artCache", this.cache); this.icons.add(wu); return wu; }
+      if (wu) { this.cache[wk] = wu; this.save(); this.icons.add(wu); return wu; }
     }
     if (this.cache[key]) return this.cache[key];
     if (!Host.has && !settings.sgdbKey) return null;
@@ -80,18 +116,18 @@ const Art = {
         const il = (ic && ic.data) || [], big = il.filter(x => (x.width || 0) >= 256);
         let iu = (big.length ? big : il).length ? (big.length ? big : il)[n % (big.length ? big : il).length].url : null;
         if (iu && Host.has) iu = await Host.call("cache.image", { url: iu });
-        if (iu) { this.cache[key] = iu; store.set("artCache", this.cache); return iu; }
+        if (iu) { this.cache[key] = iu; this.save(); return iu; }
       }
       const base = `${kind === "hero" ? "heroes" : "grids"}/${steam ? "steam" : "game"}/${id}`;
       const j = await this.sgdb(kind === "hero" ? base : base + "?dimensions=512x512,1024x1024");
       const list = (j && j.data) || []; let url = list.length && list[n % list.length].url;
       if (url && Host.has) url = await Host.call("cache.image", { url });
-      if (url) { this.cache[key] = url; store.set("artCache", this.cache); return url; }
+      if (url) { this.cache[key] = url; this.save(); return url; }
     } catch (e) { /* sin red, sin key o CORS: se intenta el respaldo */ }
     if (Host.has && (g.source || "steam") === "steam" && g.kind !== "app") {   // respaldo: arte oficial de Steam
       try {
         const url = await Host.call("cache.image", { url: `https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/${kind === "hero" ? "library_hero.jpg" : "library_600x900.jpg"}` });
-        if (url) { this.cache[key] = url; store.set("artCache", this.cache); return url; }
+        if (url) { this.cache[key] = url; this.save(); return url; }
       } catch (e) {}
     }
     return null;
@@ -110,9 +146,9 @@ const Art = {
   forget(u) {
     let changed = false;
     for (const k in this.cache) if (this.cache[k] === u) { delete this.cache[k]; changed = true; }
-    if (changed) store.set("artCache", this.cache);
+    if (changed) this.save();
   },
   next(g) { this.alt[g.appid] = (this.alt[g.appid] || 0) + 1; store.set("artAlt", this.alt); },
-  clear() { this.cache = {}; store.set("artCache", {}); }
+  clear() { clearTimeout(this.saveT); this.cache = {}; store.set("artCache", {}); }
 };
 

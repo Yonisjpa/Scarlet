@@ -1,3 +1,22 @@
+Novedades de la beta 1.5
+
+La pantalla del juego (la que ves al entrar o salir de un juego):
+- Ahora es solo el fondo y el logo del juego, sin textos. Ya no dice «simulación del prototipo» (era un texto de la demo que se colaba).
+- El logo es el PNG de SteamGridDB (el primero que tenga) o, si no hay, el que Steam ya guarda en tu PC; si tampoco hay, el nombre.
+- En las opciones del juego (X) hay dos filas nuevas, «Fondo» y «Logo», con vista previa:
+  · Fondo: los fondos de SteamGridDB, una imagen de tu PC o el arte original de Steam.
+  · Logo: los logos de SteamGridDB, el de Steam o «Sin logo» (solo el nombre).
+  Cada juego recuerda los suyos y se guardan en la consola para verse sin internet.
+- La pantalla negra de carga (al abrir un juego) no cambió.
+
+Ocultar juegos de verdad:
+- Un juego oculto ya no sale en ningún lado: ni en el Inicio, ni en la Biblioteca, ni en la búsqueda, ni en Logros. Se quitó la pestaña «Ocultos».
+- Para regresarlo: Ajustes › Gestión de datos › Juegos ocultos (con A vuelve a aparecer). También desde sus opciones (X) › «Mostrar otra vez».
+
+Por dentro:
+- La caché de portadas ya no se escribe completa por cada imagen al arrancar: se guarda una vez cuando se calman los cambios.
+- 3 pruebas nuevas (pantalla del juego, Fondo y Logo, ocultar) y todas las de siempre.
+
 Novedades de la beta 1.4
 
 Barra de abajo:

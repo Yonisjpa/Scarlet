@@ -24,14 +24,22 @@ function groupsView(g, onChange) {
 
 /* --- elegir portada entre todas las de SteamGridDB --- */
 const ART_MODES = [["square", "Cuadradas"], ["icons", "Íconos"], ["all", "Todas"]];
-function artPickerView(g, onChosen) {
+/* El mismo selector sirve para la portada (grid), el fondo (hero) y el logo (logo) de la pantalla del juego (beta 1.5). */
+const PICK = {
+  grid: { title: "Elegir portada", modes: ART_MODES, done: "Portada actualizada", none: "Colores (sin imagen)", map: () => Art.pick },
+  hero: { title: "Elegir fondo", modes: [["heroes", "Fondos"]], done: "Fondo actualizado", none: "Colores (sin imagen)", map: () => Art.heroPick },
+  logo: { title: "Elegir logo", modes: [["logos", "Logos"]], done: "Logo actualizado", none: "Sin logo (el nombre)", map: () => Art.logoPick }
+};
+function artPickerView(g, onChosen, what = "grid") {
+  const P = PICK[what], ART_MODES = P.modes;
   const steam = (g.source || "steam") === "steam" && g.kind !== "app";
   const media = (u, cls = "") => /\.(webm|mp4)(\?|$)/i.test(u) ? `<video class="${cls}" src="${esc(u)}" autoplay loop muted playsinline></video>` : `<img class="${cls}" alt="" loading="lazy" src="${esc(u)}">`;
   return {
-    cls: "apick", mode: 0, page: 0, list: [], done: false, loading: false, err: "",
-    hints() { return [["B", "Atrás"], ["Y", ART_MODES[(this.mode + 1) % ART_MODES.length][1]], ["A", "Usar esta"]]; },
+    mode: 0, page: 0, list: [], done: false, loading: false, err: "",
+    cls: "apick" + (what === "grid" ? "" : " apick-" + what),
+    hints() { return ART_MODES.length > 1 ? [["B", "Atrás"], ["Y", ART_MODES[(this.mode + 1) % ART_MODES.length][1]], ["A", "Usar esta"]] : [["B", "Atrás"], ["A", "Usar esta"]]; },
     render(el) {
-      el.innerHTML = head(I.album, "Elegir portada", g.name) + `<div class="tabs"><span class="chip">Y</span>${ART_MODES.map(([, l], i) => `<span class="tab${i === this.mode ? " on" : ""}">${l}</span>`).join("")}</div><div class="vbody"><div class="grid"></div></div>`;
+      el.innerHTML = head(I.album, P.title, g.name) + `<div class="tabs">${ART_MODES.length > 1 ? `<span class="chip" data-key="y">Y</span>` : ""}${ART_MODES.map(([, l], i) => `<span class="tab${i === this.mode ? " on" : ""}">${l}</span>`).join("")}</div><div class="vbody"><div class="grid"></div></div>`;
       this.reload();
     },
     reload() {
@@ -41,20 +49,22 @@ function artPickerView(g, onChosen) {
     },
     fixed() {
       const f = [];
-      if (steam) f.push({ url: "steam", thumb: Art.steamUrl(g), label: "Oficial de Steam", vert: true });
-      if (g.source === "xbox" && g.art) f.push({ url: "xbox", thumb: g.art, label: "Oficial de Xbox Store" });
-      f.push({ url: "none", thumb: Art.placeholder(g), label: "Colores (sin imagen)" });
+      if (steam) f.push({ url: "steam", thumb: Art.steamUrl(g, what), label: what === "logo" ? "Logo de Steam" : "Oficial de Steam", vert: what === "grid" });
+      if (what === "grid" && g.source === "xbox" && g.art) f.push({ url: "xbox", thumb: g.art, label: "Oficial de Xbox Store" });
+      if (what === "hero" && Host.has) f.push({ url: "file", thumb: Art.placeholder(g, "hero"), label: "Imagen de tu PC" });
+      f.push({ url: "none", thumb: what === "logo" ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 220"><text x="300" y="130" text-anchor="middle" font-family="Segoe UI,Arial" font-weight="700" font-size="64" fill="#fff">${xml(trunc(g.name, 18))}</text></svg>`) : Art.placeholder(g, what), label: P.none });
       return f;
     },
     tile(o, i, cur) {
       return `<button class="tile fi${o.vert || (o.w && o.h && o.h > o.w * 1.15) ? " vert" : ""}" data-i="${i}" style="--k:${i % 10}">${media(o.thumb)}${o.url === cur ? `<span class="ck">✓</span>` : ""}${o.anim ? `<span class="tag">Animada</span>` : o.label ? "" : o.w ? `<span class="tag">${o.w}×${o.h}</span>` : ""}<span class="cap">${esc(o.label || (o.author ? "por " + o.author : "SteamGridDB"))}</span></button>`;
     },
     status() {
-      return this.loading ? "Buscando portadas…" : this.err ? this.err : this.done ? (this.list.length ? `${this.list.length} ${this.list.length === 1 ? "imagen" : "imágenes"} de SteamGridDB` : "SteamGridDB no tiene portadas de este tipo para este juego. Prueba con Y.") : "";
+      const what2 = what === "logo" ? "logos" : what === "hero" ? "fondos" : "portadas";
+      return this.loading ? `Buscando ${what2}…` : this.err ? this.err : this.done ? (this.list.length ? `${this.list.length} ${this.list.length === 1 ? "imagen" : "imágenes"} de SteamGridDB` : `SteamGridDB no tiene ${what2}${ART_MODES.length > 1 ? " de este tipo" : ""} para este juego.${ART_MODES.length > 1 ? " Prueba con Y." : ""}`) : "";
     },
     /* dibuja todo (o solo agrega las nuevas, para que no parpadeen las que ya están) */
     draw(append) {
-      const grid = $(".grid", this.el), cur = Art.pick[g.appid] || "";
+      const grid = $(".grid", this.el), cur = P.map()[g.appid] || "";
       const all = [...this.fixed(), ...this.list], from = append ? (this.all || []).length : 0;
       this.all = all;
       if (!append) grid.innerHTML = `<p class="more"></p>`;
@@ -63,7 +73,7 @@ function artPickerView(g, onChosen) {
       more.textContent = this.status();
       fis(grid).slice(from).forEach(b => b.onclick = () => this.choose(this.all[+b.dataset.i]));
       // el arte oficial de Steam lo resuelve la app (los juegos nuevos ya no usan la dirección clásica)
-      if (!append && Host.has && steam) Host.call("cache.image", { url: Art.steamUrl(g) }).then(u => { const im = $(".tile img", grid); if (u && im) im.src = u; }).catch(() => {});
+      if (!append && Host.has && steam) Host.call("cache.image", { url: Art.steamUrl(g, what) }).then(u => { const im = $(".tile img", grid); if (u && im) im.src = u; else if (!u && im && what === "logo") im.closest(".tile").remove(); }).catch(() => {});
       if (topView() === this) updateFocus();
     },
     async more() {
@@ -88,9 +98,16 @@ function artPickerView(g, onChosen) {
     onFocus(i) { if (i >= (this.all || []).length - 10) this.more(); },
     async choose(o) {
       if (!o) return;
+      if (o.url === "file") {   // fondo: una imagen de tu PC (se copia a la consola)
+        return openView(fileBrowserView("Elegir una imagen", true, async path => {
+          const r = await Host.call("art.file", { path }).catch(e => ({ ok: false, error: e.message }));
+          if (!r || !r.ok) return alertDialog((r && r.error) || "No se pudo usar esa imagen");
+          this.choose({ url: r.url });
+        }));
+      }
       play("select");
-      await Art.choose(g, o.url);
-      toast("Portada actualizada");
+      await Art.choose(g, o.url, what);
+      toast(P.done);
       closeView(); renderHome();
       const lv = views.find(v => v.refresh && v.list && v.cols === 6); if (lv) lv.refresh(true);
       if (onChosen) onChosen();
@@ -120,12 +137,11 @@ function collections() {
   names.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
   const out = ["Todos", ...groupNames().filter(n => !names.includes(n)), ...names];
   if (games.some(g => g.kind === "app")) out.push("Aplicaciones");
-  if (games.some(isHidden)) out.push("Ocultos");
-  return out;
+  return out;   // beta 1.5: ya no hay pestaña «Ocultos»: lo oculto no sale en ningún lado (se recupera en Ajustes › Gestión de datos)
 }
 function libraryList(query = lib.query) {
   const cols = collections(), col = cols[clamp(lib.col, 0, cols.length - 1)], q = norm(query.trim());
-  let list = games.filter(g => col === "Ocultos" ? isHidden(g) : isHidden(g) ? false : col === "Todos" ? true : col === "Aplicaciones" ? g.kind === "app" : (g.cols || []).includes(col) || inGroup(g, col));
+  let list = games.filter(g => isHidden(g) ? false : col === "Todos" ? true : col === "Aplicaciones" ? g.kind === "app" : (g.cols || []).includes(col) || inGroup(g, col));
   if (q) list = list.filter(g => norm(g.name).includes(q));
   if (lib.sort === 1) list = [...list].sort((a, b) => a.name.localeCompare(b.name, "es"));
   else if (lib.sort === 2) list = [...list].sort((a, b) => (b.hours || 0) - (a.hours || 0));

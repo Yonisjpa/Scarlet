@@ -40,3 +40,19 @@
 /* El navegador no se queda con los gestos de lado (eran para la fila y la orilla); las listas siguen subiendo y bajando. */
 body{touch-action:pan-y}
 #rowwrap{touch-action:none}
+/* ===================== beta 1.5: pantalla del juego (fondo y logo, sin textos) ===================== */
+#glogo,.gplogo{display:block}
+#glogo img,.gplogo img{display:block;max-width:min(46vw,62rem);max-height:22vh;width:auto;height:auto;object-fit:contain;object-position:left bottom;filter:drop-shadow(0 .4rem 1.6rem rgba(0,0,0,.55))}
+.gprev{position:relative;width:100%;max-width:62rem;aspect-ratio:16/9;border-radius:1.1rem;overflow:hidden;background:#000;margin:1.2rem 0 1.4rem}
+.gprev .gpbg{width:100%;height:100%;object-fit:cover;display:block}
+.gprev::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.75),transparent 55%)}
+.gprev .gplogo{position:absolute;left:5%;bottom:7%;z-index:1;color:#fff}
+.gprev .gplogo b{font-size:2.6rem}
+.gprev .gplogo img{max-width:46%;max-height:30%}
+.gprev .gplogo.img img{max-width:100%;max-height:none;width:auto;height:min(8rem,100%)}
+/* el selector de fondos y logos: tarjetas anchas; los logos sobre un fondo oscuro para que se lean */
+.apick-hero .grid,.apick-logo .grid{grid-template-columns:repeat(3,1fr)}
+.apick-hero .tile,.apick-logo .tile{aspect-ratio:16/9}
+.apick-hero .tile img,.apick-hero .tile video{object-fit:cover}
+.apick-logo .tile{background:linear-gradient(135deg,#24324a,#3a2a52)}
+.apick-logo .tile img{object-fit:contain;padding:1.6rem}

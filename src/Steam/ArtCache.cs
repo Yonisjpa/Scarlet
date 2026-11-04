@@ -87,13 +87,23 @@ sealed class ArtCache
 
     static void TryDelete(string f) { try { File.Delete(f); } catch { } }
 
+    static readonly string[] ImageExts = { ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp" };
+    /// <summary>Una imagen tuya (fondo de la pantalla del juego): se copia a la caché para que se vea aunque la muevas.</summary>
+    public static string CopyOwn(string src, string prefix)
+    {
+        if (string.IsNullOrEmpty(src) || !File.Exists(src) || !ImageExts.Contains(Path.GetExtension(src).ToLowerInvariant())) return null;
+        string file = Path.Combine(Paths.Images, $"{prefix}_{Hash(src + File.GetLastWriteTimeUtc(src).Ticks)}{Path.GetExtension(src).ToLowerInvariant()}");
+        if (!File.Exists(file)) File.Copy(src, file, true);
+        return LocalUrl(file);
+    }
+
     static Match SteamArtMatch(string url) =>
-        Regex.Match(url, @"/steam/apps/(\d+)/(library_600x900|library_hero|header|capsule_616x353)\.jpg", RegexOptions.IgnoreCase);
+        Regex.Match(url, @"/steam/apps/(\d+)/(library_600x900|library_hero|header|capsule_616x353|logo)\.(jpg|png)", RegexOptions.IgnoreCase);
 
     /// <summary>Dirección actual del arte de un juego en la tienda de Steam (los juegos nuevos usan rutas con código).</summary>
     async Task<string> SteamStoreAssetAsync(long appid, string kind)
     {
-        string key = kind switch { "library_600x900" => "library_capsule", "library_hero" => "library_hero", "header" => "header", _ => "main_capsule" };
+        string key = kind switch { "library_600x900" => "library_capsule", "library_hero" => "library_hero", "header" => "header", "logo" => "library_logo", _ => "main_capsule" };
         string cacheFile = Path.Combine(Paths.Cache, $"assets_{appid}.json");
         string body = null;
         try
@@ -119,11 +129,11 @@ sealed class ArtCache
     /// <summary>Si la URL es el arte oficial de un juego de Steam, primero busca la copia que Steam ya guardó en tu equipo.</summary>
     string SteamLibraryArt(string url)
     {
-        var m = Regex.Match(url, @"/steam/apps/(\d+)/(library_600x900|library_hero)\.jpg", RegexOptions.IgnoreCase);
+        var m = Regex.Match(url, @"/steam/apps/(\d+)/(library_600x900|library_hero|logo)\.(jpg|png)", RegexOptions.IgnoreCase);
         if (!m.Success || steam.SteamPath == null) return null;
         string dir = Path.Combine(steam.SteamPath, "appcache", "librarycache");
-        string id = m.Groups[1].Value, kind = m.Groups[2].Value;
-        foreach (var c in new[] { Path.Combine(dir, id, kind + ".jpg"), Path.Combine(dir, $"{id}_{kind}.jpg") })
+        string id = m.Groups[1].Value, kind = m.Groups[2].Value, ext = kind == "logo" ? ".png" : ".jpg";   // el logo es PNG sin fondo (beta 1.5)
+        foreach (var c in new[] { Path.Combine(dir, id, kind + ext), Path.Combine(dir, $"{id}_{kind}{ext}") })
             if (File.Exists(c)) return c;
         try
         {
@@ -131,7 +141,7 @@ sealed class ArtCache
             if (Directory.Exists(sub))
             {
                 // Las versiones nuevas de Steam guardan "library_capsule" en subcarpetas con código.
-                var names = kind == "library_600x900" ? new[] { "library_600x900*.jpg", "library_capsule*.jpg" } : new[] { kind + "*.jpg" };
+                var names = kind == "library_600x900" ? new[] { "library_600x900*.jpg", "library_capsule*.jpg" } : new[] { kind + "*" + ext };
                 foreach (var pat in names)
                     if (Directory.EnumerateFiles(sub, pat, SearchOption.AllDirectories).FirstOrDefault() is string f) return f;
             }

@@ -89,7 +89,10 @@
     "install.eula": p => { if (!p.accept) return { s: "canceled" }; const e = Q.inst.eula; if (Array.isArray(e)) return e.shift() || { s: "started" }; return e || { s: "started" }; },
     "install.cancel": () => true,
     "install.enable": () => { if (Q.inst.enableRefuse) return { ok: false, error: Q.inst.enableRefuse }; setTimeout(() => { if (Q.inst.enableOk) Q.inst.seq = []; emit("install.enabled", { ok: Q.inst.enableOk, error: Q.inst.enableOk ? null : "Steam no abrió la conexión. Se usará la ventanita de Steam." }); }, Q.inst.enableMs); return { ok: true }; },
-    "sgdb": () => { throw new Error("sin key"); }, "cache.image": () => { throw new Error("offline"); }
+    // SteamGridDB y la caché de imágenes: sin red, salvo que la prueba lo pida (beta 1.5: fondos y logos)
+    "sgdb": p => { if (Q.sgdb && /^(logos|heroes)\//.test(p.path)) return { data: [1, 2, 3].map(i => ({ url: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='600' height='200'><text x='10' y='120' font-size='90' fill='white'>${p.path.split('/')[0]} ${i}</text></svg>`)}`, width: 600, height: 200 })) }; throw new Error("sin key"); },
+    "cache.image": p => { if (Q.cacheOk) return p.url; throw new Error("offline"); },
+    "art.file": p => ({ ok: true, url: "https://files.scarlet/f?p=" + encodeURIComponent(p.path) })
   };
   window.chrome = window.chrome || {};
   window.chrome.webview = {

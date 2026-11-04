@@ -19,9 +19,26 @@ function waitReady(g) {
     t = setTimeout(() => { off(); off2(); off3(); res(false); }, 90000);
   });
 }
-function showGame(g, sub) {
-  const gm = $("#game"); if (g.appid < 990000 || g.appid > 990999) Art.apply($("img", gm), g, "hero"); else $("img", gm).removeAttribute("src"); $("#gname").textContent = g.name;
-  $(".ginfo span", gm).textContent = sub || (g.kind === "app" ? "Aplicación abierta · simulación del prototipo" : "Juego en ejecución · simulación del prototipo");
+/* La pantalla del juego (al entrar o salir de él): su fondo y su logo, sin textos (beta 1.5). Si no hay logo, su nombre. */
+function paintGameScreen(box, g) {
+  const sys = g.appid >= 990000 && g.appid <= 990999;
+  const bg = box.querySelector("img"), lg = box.querySelector(".gplogo, #glogo");
+  if (sys) bg.removeAttribute("src"); else Art.apply(bg, g, "hero");
+  const name = () => { lg.classList.remove("img"); lg.innerHTML = `<b>${esc(g.name)}</b>`; };
+  name();
+  if (sys) return;
+  const want = g.appid; box.dataset.appid = want;
+  Art.logo(g).then(u => {
+    if (!u || box.dataset.appid != want) return;
+    const im = new Image();
+    im.onload = () => { if (box.dataset.appid != want) return; lg.classList.add("img"); lg.innerHTML = ""; lg.append(im); };
+    im.onerror = () => Art.forget(u);
+    im.alt = g.name; im.src = u;
+  }).catch(() => {});
+}
+function showGame(g) {
+  const gm = $("#game");
+  paintGameScreen(gm, g);
   gm.className = "show";
 }
 /* apps del sistema: la tienda y el chat de Steam se abren en Big Picture; Explorador y Ajustes como ventanas a pantalla completa */
@@ -41,7 +58,7 @@ async function openSystemApp(o, el) {
   await wait(280);
   const L = $("#launch"); L.classList.add("show"); await wait(380);
   (o.url === "armoury" ? Host.call("system.armoury") : Host.call("system.open", { uri: o.url })).catch(() => {});
-  state.overlay = o; showGame(o, o.sub + (Host.has ? "" : " · simulación del prototipo"));
+  state.overlay = o; showGame(o);
   L.classList.remove("show", "cwait"); await wait(380);
   mode = "game";
 }

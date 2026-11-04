@@ -49,7 +49,7 @@ Un toque al botón Xbox abre el menú rápido encima de cualquier juego.
 | | |
 |---|---|
 | 🎮 **Biblioteca** | Steam (instalados, tu cuenta y tus colecciones), Xbox Store / Game Pass y juegos externos (.exe, .lnk, .url: emuladores u otras tiendas). Portadas de SteamGridDB o las oficiales. |
-| ▶️ **Jugar** | Pantalla de carga hasta que el juego está en pantalla, «En uso» en su mosaico, horas jugadas; al volver al Inicio el juego se calla (y se pausa, si lo marcas en sus opciones). |
+| ▶️ **Jugar** | Pantalla de carga hasta que el juego está en pantalla, «En uso» en su mosaico, horas jugadas; al volver al Inicio el juego se calla (y se pausa, si lo marcas en sus opciones). Al entrar o salir de un juego ves su fondo y su logo, y los dos se eligen en sus opciones (X). |
 | ⚡ **Menú rápido** | Un toque al botón Xbox, encima de cualquier juego: la canción que suena (con los colores de su carátula), hibernar, brillo, volumen general y de cada app, modo avión, Wi-Fi y VPN. |
 | ☁️ **Nube de Steam** | Cuando un juego sube su partida, su mosaico lo muestra como descarga naranja; si otro juego tiene que esperar, la pantalla de carga lo dice. |
 | ⬇️ **Descargas** | Progreso en vivo, pausar, cancelar, instalar y desinstalar sin las ventanas de Steam. |

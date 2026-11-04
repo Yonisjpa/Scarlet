@@ -73,11 +73,12 @@ function propsView(g) {
     if (hasAch(g)) s.push({ k: "ach", label: "Logros" });
     if (g.source === "ext") s.push({ k: "rename", label: "Cambiar nombre" }, { k: "extart", label: "Ícono y portada" }, { k: "args", label: "Parámetros de arranque" }, { k: "where", label: "Archivo del juego" });
     else s.push({ k: "art", label: "Portada" });
+    if (g.kind !== "app") s.push({ k: "hero", label: "Fondo" }, { k: "logo", label: "Logo" });   // beta 1.5: la pantalla del juego
     if (!g.installed && g.source === "steam") s.push({ k: "install", label: "Instalar" });
     if (g.source === "steam" && g.kind !== "app") s.push({ k: "controls", label: "Controles (Steam Input)" });
     if (g.source === "steam" || (g.source === "xbox" && g.storeId)) s.push({ k: "store", label: "Ver en la tienda" });
     s.push({ k: "groups", label: "Grupos" });
-    s.push({ k: "hide", label: isHidden(g) ? "Mostrar en el Inicio" : "Ocultar" });
+    s.push({ k: "hide", label: isHidden(g) ? "Mostrar otra vez" : "Ocultar" });
     if (Host.has && g.kind !== "app") s.push({ k: "pause", label: "Pausar al ir al Inicio" });
     if (Host.has && g.kind !== "app") s.push({ k: "keepfocus", label: "Menú sin quitarle el foco" });
     if (Host.has && g.kind !== "app") s.push({ k: "compat", label: "Compatibilidad de pantalla" });
@@ -87,7 +88,7 @@ function propsView(g) {
   };
   return {
     detail: true,
-    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", compat: "Opciones", keepfocus: g.keepFocus ? "Desactivar" : "Activar", rename: "Cambiar", extart: "Elegir", args: "Cambiar", where: "Elegir otro", remove: "Quitar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
+    hints() { const k = this.s && this.s[this.i] && this.s[this.i].k; const a = { ach: "Ver todos", art: "Elegir portada", hero: "Elegir fondo", logo: "Elegir logo", store: "Abrir", close: "Cerrar", install: "Instalar", controls: "Configurar", groups: "Elegir", hide: isHidden(g) ? "Mostrar" : "Ocultar", pause: g.pause ? "Desactivar" : "Activar", compat: "Opciones", keepfocus: g.keepFocus ? "Desactivar" : "Activar", rename: "Cambiar", extart: "Elegir", args: "Cambiar", where: "Elegir otro", remove: "Quitar" }[k]; return [["B", "Atrás"], ...(a ? [["A", a]] : [])]; },
     render(el) {
       this.s = sections();
       el.innerHTML = head(I.gear, g.name, "Opciones") + `<div class="props"><div class="pmenu">${this.s.map((s, i) => `<button class="lrow fi" data-i="${i}"><span class="meta"><b>${esc(s.label)}</b></span></button>`).join("")}</div><div class="ppane"></div></div>`;
@@ -116,6 +117,11 @@ function propsView(g) {
       } else if (k === "art") {
         p.innerHTML = `<h2>Portada</h2><div class="artprev"><img alt=""><p class="note">Presiona A para ver todas las portadas disponibles en SteamGridDB y elegir la que más te guste. ${settings.sgdbKey || Host.has ? "" : "Sin API key solo se alternan los colores de la portada de respaldo."}</p></div>`;
         Art.apply($("img", p), g);
+      } else if (k === "hero" || k === "logo") {
+        p.innerHTML = `<h2>${k === "hero" ? "Fondo" : "Logo"}</h2><div class="gprev"><img class="gpbg" alt=""><span class="gplogo"></span></div><p class="note">${k === "hero"
+          ? "La imagen detrás del logo cuando entras o sales del juego. Presiona A para elegir entre los fondos de SteamGridDB, una imagen de tu PC o el arte original de Steam."
+          : "El logo que se ve en la pantalla del juego. Presiona A para elegir entre los logos de SteamGridDB o el de Steam, o dejar solo el nombre."}</p>`;
+        paintGameScreen(p, g);
       } else if (k === "install") {
         p.innerHTML = `<h2>Instalar</h2><p class="note">Steam descargará el juego. Verás el progreso sobre su ícono en el menú.</p>`;
       } else if (k === "controls") {
@@ -126,7 +132,7 @@ function propsView(g) {
         const mine = groupNames().filter(n => inGroup(g, n));
         p.innerHTML = `<h2>Grupos</h2><p class="note">Ordena tu biblioteca en grupos propios (por ejemplo "Terminados" o "Por jugar"). Aparecen como pestañas en la Biblioteca.</p><p class="note">${mine.length ? "Está en: " + esc(mine.join(", ")) : "No está en ningún grupo."}</p>`;
       } else if (k === "hide") {
-        p.innerHTML = isHidden(g) ? `<h2>Mostrar en el Inicio</h2><p class="note">Ahora está oculto: solo aparece en la pestaña "Ocultos" de la Biblioteca.</p>` : `<h2>Ocultar</h2><p class="note">Deja de aparecer en el Inicio y en la Biblioteca. Lo encuentras en la pestaña "Ocultos" para volver a mostrarlo.</p>`;
+        p.innerHTML = isHidden(g) ? `<h2>Mostrar otra vez</h2><p class="note">Está oculto: no aparece en el Inicio, la Biblioteca, la búsqueda ni Logros. Presiona A para que vuelva.</p>` : `<h2>Ocultar</h2><p class="note">Deja de aparecer en todos lados: Inicio, Biblioteca, búsqueda y Logros. Para que vuelva: Ajustes › Gestión de datos › Juegos ocultos.</p>`;
       } else if (k === "pause") {
         p.innerHTML = `<h2>Pausar al ir al Inicio</h2><p class="note"><b>${g.pause ? "Activado" : "Desactivado"}.</b> Como en la consola: al regresar al Inicio, el juego se congela (no gasta batería ni suena) y sigue justo donde estaba al volver. Viene activado en todos los juegos; desactívalo en juegos en línea o con antitrampas, donde congelarlos puede desconectarte o cerrarlos.</p>`;
       } else if (k === "keepfocus") {
@@ -157,6 +163,10 @@ function propsView(g) {
         if (!Host.has && !settings.sgdbKey) { Art.next(g); this.pane("art"); renderHome(); play("select"); }
         else openView(artPickerView(g, () => { if (this.cur === "art") this.pane("art"); }));
       }
+      else if (k === "hero" || k === "logo") {
+        if (!Host.has && !settings.sgdbKey) { play("bump"); return toast("Falta la API key de SteamGridDB (Ajustes › Cuentas y arranque)"); }
+        const kk = k; openView(artPickerView(g, () => { if (this.cur === kk) this.pane(kk); }, k));
+      }
       else if (k === "install") { closeView(); startInstall(g); }
       else if (k === "rename") openView(keyboardView(g.name, async name => { name = name.trim(); if (!name || name === g.name) return; if (await extUpdate(g, { name })) { toast("Ahora se llama " + name); this.render(this.el); this.cur = null; updateFocus(); } }, null, { title: "Nombre del juego", placeholder: "Nombre del juego…", max: 40, caps: true }));
       else if (k === "extart") extArtMenu(g, () => { if (this.cur === "extart") this.pane("extart"); });
@@ -168,7 +178,7 @@ function propsView(g) {
         const h = new Set(settings.hidden || []);
         if (h.has(g.appid)) h.delete(g.appid); else h.add(g.appid);
         settings.hidden = [...h]; saveSettings(); play("select");
-        toast(isHidden(g) ? `${g.name} se ocultó` : `${g.name} vuelve al Inicio`);
+        toast(isHidden(g) ? `${g.name} se ocultó` : `${g.name} vuelve a aparecer`);
         renderHome(); const lv = views.find(v => v.cols === 6 && v.refresh); if (lv) lv.refresh(true);
         this.render(this.el); updateFocus();
       }

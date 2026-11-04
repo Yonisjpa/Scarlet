@@ -71,6 +71,7 @@ function settingsCats() {
       ...(games.some(g => g.source === "ext") ? [["Tus juegos", games.filter(g => g.source === "ext").map(g => go(g.name, g.path || "", () => openView(propsView(g)), () => g.installed === false ? "No está" : ""))]] : [])] },
     { label: "Gestión de datos", secs: [
       ["Almacenamiento", [go("Gestión de datos", "Espacio en disco y desinstalar juegos", () => openView(storageView()))]],
+      ["Biblioteca", [go("Juegos ocultos", "Los que ocultaste no salen en ningún lado; aquí los vuelves a mostrar", () => openView(hiddenView()), () => { const n = games.filter(isHidden).length; return n ? String(n) : "Ninguno"; })]],
       ["Caché", [{ label: "Borrar caché de portadas", desc: "Vuelve a descargar las imágenes", val: () => "", act() { Art.clear(); renderHome(); toast("Caché de portadas borrada"); } }]]] },
     { label: "Sistema", secs: [
       ["Menú rápido", [sw("Fondo transparente", "El fondo del menú rápido al 50 % para seguir viendo el juego detrás. Los textos y las barras no cambian.", () => settings.quickGlass !== false, v => { settings.quickGlass = v; applyGlass(); }),
@@ -103,6 +104,7 @@ function settingsView() {
   };
   return {
     isSettings: true, side: "L", ci: 0, ri: 0,
+    onReturn() { this.refresh(); },   // al regresar de otra pantalla, los valores al día (p. ej. cuántos juegos ocultos)
     syncFromIndex() { if (this.side === "R") this.ri = this.i; },
     hints() {
       if (this.side === "L") return [["B", "Atrás"], ["A", "Aceptar"]];

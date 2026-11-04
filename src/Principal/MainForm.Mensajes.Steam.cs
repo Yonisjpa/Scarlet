@@ -62,6 +62,12 @@ sealed partial class MainForm
             // ── Imágenes
             case "sgdb": return await art.SgdbAsync(P.S(p, "path"));
             case "cache.image": return await art.CacheAsync(P.S(p, "url"));
+            // Fondo de la pantalla del juego con una imagen tuya (beta 1.5)
+            case "art.file":
+            {
+                string url = await Task.Run(() => ArtCache.CopyOwn(P.S(p, "path"), "fondo"));
+                return url == null ? new { ok = false, error = "No se pudo usar esa imagen" } : (object)new { ok = true, url };
+            }
             // ── Instalar directo con Steam (sin sus ventanas)
             case "install.prepare": return await InstallPrepare(P.L(p, "appid"));
             case "install.folder": return await InstallFolder(P.L(p, "appid"), (int)P.L(p, "folder"));

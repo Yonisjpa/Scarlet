@@ -140,7 +140,7 @@ function achHubView() {
   return {
     hints: [["B", "Atrás"], ["A", "Ver logros"]],
     render(el) {
-      const list = games.filter(hasAch), tot = list.reduce((s, g) => s + g.ach[0], 0);
+      const list = games.filter(g => hasAch(g) && !isHidden(g)), tot = list.reduce((s, g) => s + g.ach[0], 0);
       el.innerHTML = head(I.trophy, "Logros", `${tot} desbloqueados`) + `<div class="vbody"></div>`;
       const body = $(".vbody", el);
       list.forEach(g => {
