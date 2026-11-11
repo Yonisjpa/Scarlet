@@ -4075,7 +4075,8 @@ Events.on("game.failed", () => $("#launch").classList.remove("cwait"));
 /* El botón Xbox abrió Big Picture: es un ajuste de Steam. Se avisa una vez dónde apagarlo. */
 Events.on("steam.guidebp", d => {
   if (d && d.changed) return notify({ kind: "err", icon: I.gear, title: "Se apagó un ajuste de Steam", text: "El botón Xbox ya no abrirá Big Picture", key: "guidebp" });
-  if (store.get("guidebpTold")) return; store.set("guidebpTold", 1);
+  // 1.6.1: si Big Picture se reabre solo (pasa al encender), se vuelve a explicar cómo quitarlo, aunque ya se hubiera dicho
+  if (store.get("guidebpTold") && !(d && d.loop)) return; store.set("guidebpTold", 1);
   notify({ kind: "err", icon: I.gear, title: "El botón Xbox abrió Big Picture", text: "En Steam › Ajustes › Mando, apaga «El botón Guía enfoca Steam»", important: true, key: "guidebp" });
 });
 Events.on("cloud.ask", d => { const g = d && byId(d.appid); notify({ kind: "err", icon: I.cloud, bg: "#f08a24", title: "Steam necesita que elijas", text: `${g ? g.name + " · " : ""}partidas en la nube`, important: true }); });
@@ -4790,6 +4791,15 @@ async function openAlongside(g, el) {
 Events.on("app.closed", d => { if (d && d.appid == state.side) { state.side = null; if (mode !== "boot") renderHome(); } });
 async function resumeGame(el) {
   const g = runningGame(); if (!g || mode !== "ui") return;
+  // 1.6.1: si el juego ya se cerró (por ejemplo, justo al ir al Inicio) la interfaz todavía lo mostraba como «Jugando»
+  // y al volver se quedaba esperando un juego que ya no existe. Se pregunta primero a la app.
+  if (Host.has) {
+    const gs = await Host.call("game.state").catch(() => null);
+    if (gs && gs.appid !== g.appid) {
+      goneAt[g.appid] = Date.now(); state.running = null; renderHome();
+      toast(`${g.name} ya se había cerrado`); return;
+    }
+  }
   mode = "launching"; play("select");
   if (el && el.isConnected) echo(el);
   await wait(260);
@@ -4838,6 +4848,7 @@ Events.on("game.hung", async d => {
   if (v === "kill") { Host.call("game.kill").catch(() => {}); toast(`Se cerró ${name}`); }
   else { Host.call("game.wait").catch(() => {}); const g = runningGame(); if (g) { showGame(g); mode = "game"; } }
 });
+Events.on("game.closingPrev", d => { const g = d && byId(d.appid); toast(`${g ? g.name : "El juego"} todavía se está cerrando; se abre en cuanto termine`); });
 Events.on("game.exited", d => {
   resumeAfterPlay();
   if (d && d.appid) goneAt[d.appid] = Date.now();

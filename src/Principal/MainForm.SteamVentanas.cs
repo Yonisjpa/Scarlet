@@ -81,10 +81,31 @@ sealed partial class MainForm
     /// Steam abierto sin internet pregunta "¿Iniciar en modo sin conexión?". Esa ventanita NO se esconde (si se escondía,
     /// Steam se quedaba esperando y ningún juego abría): se deja al frente y se avisa qué tocar.
     /// </summary>
+    readonly DateTime bornAt = DateTime.Now;
+    bool offlineWaited, offlineWaitArmed;
+
     bool OfflinePrompt(IntPtr h)
     {
         if (NetCheck.Internet || h == IntPtr.Zero) return false;
         if (offlinePrompts.Contains(h)) return true;
+        // 1.6.1: recién encendida, el Wi-Fi tarda 2–5 s en conectarse: Steam preguntaba «sin conexión» y su ventana tapaba
+        // a Scarlet un instante. Se espera ~8 s; si sigue sin internet, entonces sí se muestra.
+        if (DateTime.Now - bornAt < TimeSpan.FromSeconds(40) && !offlineWaited)
+        {
+            if (!offlineWaitArmed)
+            {
+                offlineWaitArmed = true;
+                Log.Write("sin internet al encender: se esperan unos segundos antes de mostrar el aviso de Steam");
+                _ = Task.Delay(8000).ContinueWith(_ => Ui(() =>
+                {
+                    offlineWaited = true;
+                    if (NetCheck.Internet) { Log.Write("ya hay internet: el aviso de Steam no hizo falta"); return; }
+                    foreach (var w in hiddenSteam.ToList())
+                        if (Native.IsWindow(w) && OfflinePrompt(w)) { Native.ShowWindowAsync(w, 5 /* SW_SHOW */); Native.ForceForeground(w); }
+                }));
+            }
+            return false;
+        }
         if (SteamUptime() > TimeSpan.FromMinutes(3)) return false;
         string exe = Path.GetFileName(Native.WindowProcessPath(h, out _) ?? "");
         if (!exe.Equals("steamwebhelper.exe", StringComparison.OrdinalIgnoreCase) && !exe.Equals("steam.exe", StringComparison.OrdinalIgnoreCase)) return false;
@@ -168,6 +189,9 @@ sealed partial class MainForm
 
     DateTime lastBpClose = DateTime.MinValue;
     bool guideFocusTried;
+    readonly List<DateTime> bpCloses = new();
+    DateTime bpHideUntil = DateTime.MinValue;
+    bool bpLoopTold;
 
     /// <summary>
     /// Big Picture escondido seguía corriendo detrás (con sus sonidos al navegar). Si tú no lo abriste (tienda, chat),
@@ -177,19 +201,37 @@ sealed partial class MainForm
     {
         if (steamUiAllowed || DateTime.Now - lastBpClose < TimeSpan.FromSeconds(4)) return;
         if (tracker != null && tracker.LaunchSeconds > 0 && tracker.LaunchSeconds < 25) return;   // Steam está arrancando un juego
-        bool found = false;
+        IntPtr bp = IntPtr.Zero;
         try
         {
             Native.EnumWindows((h, lp) =>
             {
                 if (Native.Title(h).IndexOf("Big Picture", StringComparison.OrdinalIgnoreCase) < 0) return true;
                 string exe = Path.GetFileName(Native.WindowProcessPath(h, out _) ?? "");
-                if (exe.Equals("steamwebhelper.exe", StringComparison.OrdinalIgnoreCase) || exe.Equals("steam.exe", StringComparison.OrdinalIgnoreCase)) { found = true; return false; }
+                if (exe.Equals("steamwebhelper.exe", StringComparison.OrdinalIgnoreCase) || exe.Equals("steam.exe", StringComparison.OrdinalIgnoreCase)) { bp = h; return false; }
                 return true;
             }, IntPtr.Zero);
         }
         catch { }
-        if (!found) return;
+        if (bp == IntPtr.Zero) return;
+        // 1.6.1: al encender, Steam volvía a abrir Big Picture cada vez que se cerraba (cada ~6 s): la pantalla
+        // parpadeaba. Si se reabre 2 veces en un minuto, se deja abierto pero escondido y Scarlet se queda al frente;
+        // se vuelve a intentar cerrarlo pasado un minuto y medio.
+        bpCloses.RemoveAll(t => DateTime.Now - t > TimeSpan.FromSeconds(60));
+        if (DateTime.Now < bpHideUntil || bpCloses.Count >= 2)
+        {
+            if (DateTime.Now >= bpHideUntil)
+            {
+                bpHideUntil = DateTime.Now.AddSeconds(90); bpCloses.Clear();
+                Log.Write("Big Picture se vuelve a abrir solo: se deja escondido en vez de cerrarlo (1:30 min)");
+                if (!bpLoopTold) { bpLoopTold = true; Emit("steam.guidebp", new { changed = false, loop = true }); }
+            }
+            if (Native.IsWindowVisible(bp)) { Native.ShowWindowAsync(bp, 0 /* SW_HIDE */); hiddenSteam.Add(bp); }
+            if ((tracker == null || !tracker.Active) && Native.GetForegroundWindow() != Handle) ShowUi();
+            lastBpClose = DateTime.Now;
+            return;
+        }
+        bpCloses.Add(DateTime.Now);
         lastBpClose = DateTime.Now;
         // ¿Lo abrió el botón Xbox? Steam tiene «El botón Guía enfoca Steam» prendido: se intenta apagar y se avisa una vez.
         bool byGuide = guideClock.ElapsedMilliseconds - lastGuideAt < 4000;

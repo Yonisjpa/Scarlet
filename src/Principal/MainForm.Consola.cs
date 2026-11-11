@@ -108,6 +108,9 @@ sealed partial class MainForm
             var b = Screen.PrimaryScreen.Bounds;
             IntPtr root = Native.RootAt(new Point(b.Left + b.Width / 2, b.Top + b.Height / 2));
             if (root == IntPtr.Zero || Native.IsWindowEnabled(root)) { lastBlocked = IntPtr.Zero; return; }
+            // 1.6.1: las ventanitas invisibles del teclado de Windows («Default IME», «MSCTFIME UI») siempre están
+            // «deshabilitadas»; no son un aviso esperando respuesta (al encender se confundían con uno).
+            if (Native.ClassName(root) is "IME" or "MSCTFIME UI") { lastBlocked = IntPtr.Zero; return; }
             IntPtr popup = Native.BlockingPopup(root);
             bool visible = popup != IntPtr.Zero && Native.IsWindowVisible(popup);
             if (root != lastBlocked)

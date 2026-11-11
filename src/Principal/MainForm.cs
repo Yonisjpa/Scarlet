@@ -256,7 +256,18 @@ sealed partial class MainForm : Form
         // Si saliste de Scarlet por otro lado (selector de ventanas, Alt+Tab), lo que estaba silenciado vuelve a sonar.
         var front = Native.GetForegroundWindow();
         bool sideFront = IsSideApp(front);   // la app que abriste junto al juego (Apple Music, YouTube): el juego sigue callado
-        if (front != Handle && !(quick != null && front == quick.Handle) && !sideFront)
+        bool snapBack = front != Handle && GameFreezer.IsFrozen && tracker != null && IsGameWindow(front)
+            && DateTime.Now - homeAt < TimeSpan.FromSeconds(6) && homeRetries < 3;
+        if (snapBack)
+        {
+            // 1.6.1: acabas de ir al Inicio y el juego se puso al frente solo (no lo pediste): Scarlet regresa al frente
+            // y el juego sigue en pausa. Antes se reanudaba y te regresaba al juego.
+            homeRetries++;
+            Log.Write($"el juego se puso al frente solo justo después de ir al Inicio: Scarlet regresa al frente ({homeRetries})");
+            TopMost = true; Native.ForceForeground(Handle); web.Focus();
+            _ = Task.Delay(400).ContinueWith(_ => Ui(() => TopMost = false));
+        }
+        else if (front != Handle && !(quick != null && front == quick.Handle) && !sideFront)
         {
             AudioFocus.RestoreAll();
             if (GameFreezer.IsFrozen && tracker != null && IsGameWindow(front) && GameFreezer.Resume()) playStart = DateTime.UtcNow;

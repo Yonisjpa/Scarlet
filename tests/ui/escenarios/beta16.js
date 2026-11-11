@@ -188,6 +188,29 @@ const spySound = p => ev(p, () => {
     return ok ? { p } : { p, fail: JSON.stringify({ hints, r, min, game, gv }) };
   });
 
+  // ───── 1.6.1 ─────
+  await run('1.6.1: volver a un juego que ya se cerró no se queda esperando: se avisa y se quita el «Jugando»', async () => {
+    const p = await page();
+    await ev(p, () => launchGame(games.find(g => g.name === "Stellar Blade"))); await p.waitForTimeout(2600);
+    await ev(p, () => goHome()); await p.waitForTimeout(800);
+    await ev(p, () => { window.__qa.running = 0; });            // el juego se cerró y la interfaz no se enteró
+    const before = await ev(p, () => !!state.running);
+    await ev(p, () => resumeGame()); await p.waitForTimeout(600);
+    const r = await ev(p, () => [mode, state.running, ($('#toast') || {}).textContent || '', !$('#game').classList.contains('show')]);
+    const ok = before && r[0] === 'ui' && !r[1] && /ya se había cerrado/.test(r[2]) && r[3];
+    return ok ? { p } : { p, fail: JSON.stringify({ before, r }) };
+  });
+
+  await run('1.6.1: si Big Picture se reabre solo, se vuelve a explicar cómo quitarlo aunque ya se hubiera dicho', async () => {
+    const p = await page();
+    await ev(p, () => { store.set("guidebpTold", 1); window.__emit("steam.guidebp", { changed: false }); });
+    await p.waitForTimeout(300);
+    const quiet = await ev(p, () => $$('#notifs .notif').length);
+    await ev(p, () => window.__emit("steam.guidebp", { changed: false, loop: true })); await p.waitForTimeout(600);
+    const t = await ev(p, () => ($('#notifs .notif') || {}).textContent || '');
+    return quiet === 0 && /Guía enfoca Steam/.test(t) ? { p } : { p, fail: JSON.stringify({ quiet, t }) };
+  });
+
   await browser.close();
   const bad = results.filter(r => !r.ok);
   console.log(`\n${results.length - bad.length}/${results.length} escenarios OK`);

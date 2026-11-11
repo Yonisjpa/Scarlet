@@ -154,6 +154,15 @@ async function openAlongside(g, el) {
 Events.on("app.closed", d => { if (d && d.appid == state.side) { state.side = null; if (mode !== "boot") renderHome(); } });
 async function resumeGame(el) {
   const g = runningGame(); if (!g || mode !== "ui") return;
+  // 1.6.1: si el juego ya se cerró (por ejemplo, justo al ir al Inicio) la interfaz todavía lo mostraba como «Jugando»
+  // y al volver se quedaba esperando un juego que ya no existe. Se pregunta primero a la app.
+  if (Host.has) {
+    const gs = await Host.call("game.state").catch(() => null);
+    if (gs && gs.appid !== g.appid) {
+      goneAt[g.appid] = Date.now(); state.running = null; renderHome();
+      toast(`${g.name} ya se había cerrado`); return;
+    }
+  }
   mode = "launching"; play("select");
   if (el && el.isConnected) echo(el);
   await wait(260);
@@ -202,6 +211,7 @@ Events.on("game.hung", async d => {
   if (v === "kill") { Host.call("game.kill").catch(() => {}); toast(`Se cerró ${name}`); }
   else { Host.call("game.wait").catch(() => {}); const g = runningGame(); if (g) { showGame(g); mode = "game"; } }
 });
+Events.on("game.closingPrev", d => { const g = d && byId(d.appid); toast(`${g ? g.name : "El juego"} todavía se está cerrando; se abre en cuanto termine`); });
 Events.on("game.exited", d => {
   resumeAfterPlay();
   if (d && d.appid) goneAt[d.appid] = Date.now();

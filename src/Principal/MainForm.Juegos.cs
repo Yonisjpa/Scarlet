@@ -32,6 +32,17 @@ sealed partial class MainForm
         AudioFocus.RestoreAll();
         TopMost = true;   // la pantalla de carga tapa las ventanitas que abren algunos juegos al arrancar
         ShowUi();
+        // 1.6.1: si el juego se acaba de cerrar y su proceso sigue terminando (guardando, subiendo a la nube), lanzarlo
+        // otra vez dejaba a Steam atorado sin abrir nada. Se espera a que termine (hasta 20 s).
+        if (source != "app" && source != "ext" && source != "xbox" && cfg.GameExes.TryGetValue(appid.ToString(), out var prevExe) && !string.IsNullOrEmpty(prevExe))
+        {
+            string pname = Path.GetFileNameWithoutExtension(prevExe);
+            for (int i = 0; i < 40 && ExeRunning(pname); i++)
+            {
+                if (i == 0) { Log.Write($"{appid}: su partida anterior todavía se está cerrando; se espera antes de abrirlo"); Emit("game.closingPrev", new { appid }); }
+                await Task.Delay(500);
+            }
+        }
         if (source == "app")
         {
             var a = apps.FirstOrDefault(x => x.AppId == appid) ?? throw new InvalidOperationException("No encontré esa app en apps.json");
@@ -124,6 +135,12 @@ sealed partial class MainForm
                 if (quick.ShowOver(fg, keep)) { xin.ForwardKeys = true; if (!keep) WarnExclusive(); }
             }
         }
+    }
+
+    static bool ExeRunning(string name)
+    {
+        try { var ps = Process.GetProcessesByName(name); bool any = ps.Length > 0; foreach (var p in ps) p.Dispose(); return any; }
+        catch { return false; }
     }
 
     void OnGameExited(long appid)

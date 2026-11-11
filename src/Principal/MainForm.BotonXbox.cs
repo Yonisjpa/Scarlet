@@ -105,8 +105,12 @@ sealed partial class MainForm
     /// Trae la interfaz al frente. Si el juego no suelta la pantalla (le pasa a algunos en pantalla completa exclusiva),
     /// se minimiza el juego, igual que haría Alt+Tab; al volver se restaura solo.
     /// </summary>
+    DateTime homeAt = DateTime.MinValue;   // cuándo fuiste al Inicio (el juego no debe reanudarse solo justo después)
+    int homeRetries;
+
     async void BringUiToFront(bool mute = true)
     {
+        homeAt = DateTime.Now; homeRetries = 0;
         IntPtr game = Native.GetForegroundWindow();
         if (quick != null && game == quick.Handle) game = quick.ReturnTo;
         // Silenciar el juego: por su proceso (aunque al frente estuviera el menú rápido); la música sigue sonando.

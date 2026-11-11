@@ -26,7 +26,8 @@ Events.on("game.failed", () => $("#launch").classList.remove("cwait"));
 /* El botón Xbox abrió Big Picture: es un ajuste de Steam. Se avisa una vez dónde apagarlo. */
 Events.on("steam.guidebp", d => {
   if (d && d.changed) return notify({ kind: "err", icon: I.gear, title: "Se apagó un ajuste de Steam", text: "El botón Xbox ya no abrirá Big Picture", key: "guidebp" });
-  if (store.get("guidebpTold")) return; store.set("guidebpTold", 1);
+  // 1.6.1: si Big Picture se reabre solo (pasa al encender), se vuelve a explicar cómo quitarlo, aunque ya se hubiera dicho
+  if (store.get("guidebpTold") && !(d && d.loop)) return; store.set("guidebpTold", 1);
   notify({ kind: "err", icon: I.gear, title: "El botón Xbox abrió Big Picture", text: "En Steam › Ajustes › Mando, apaga «El botón Guía enfoca Steam»", important: true, key: "guidebp" });
 });
 Events.on("cloud.ask", d => { const g = d && byId(d.appid); notify({ kind: "err", icon: I.cloud, bg: "#f08a24", title: "Steam necesita que elijas", text: `${g ? g.name + " · " : ""}partidas en la nube`, important: true }); });
