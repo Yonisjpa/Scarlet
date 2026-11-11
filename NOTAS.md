@@ -1,3 +1,15 @@
+Novedades de la beta 1.6.1 (arreglos)
+
+Al encender la consola:
+- Steam volvía a abrir Big Picture cada vez que Scarlet lo cerraba (cada ~6 s): la pantalla parpadeaba en gris. Ahora, si se reabre solo, se deja escondido y Scarlet se queda al frente; y se vuelve a avisar cómo apagar en Steam «El botón Guía enfoca Steam».
+- Recién encendida, el Wi-Fi tarda unos segundos: el aviso de Steam «sin conexión» ya no tapa a Scarlet si el internet llega en menos de 8 s.
+- El botón Xbox ya no se ignora al arrancar: Scarlet confundía una ventanita invisible del teclado de Windows con un aviso que esperaba respuesta.
+
+Al ir al Inicio:
+- Si el juego se pone al frente solo justo después de ir al Inicio, Scarlet regresa al frente y el juego sigue en pausa (antes se reanudaba y te regresaba al juego).
+- Volver a un juego que ya se había cerrado ya no se queda esperando: se avisa y se quita el «Jugando».
+- Si abres un juego cuya partida anterior todavía se está cerrando, Scarlet espera a que termine (Steam se quedaba atorado).
+
 Novedades de la beta 1.6
 
 Logros como en Xbox (en el menú y encima del juego):
