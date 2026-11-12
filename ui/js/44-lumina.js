@@ -15,13 +15,13 @@ const Lumina = (() => {
 
   const on = () => settings.lumina === true;
   const canRefract = () => typeof CSS !== "undefined" && CSS.supports && (CSS.supports("backdrop-filter", "url(#a)") || CSS.supports("-webkit-backdrop-filter", "url(#a)"));
-  const refracting = () => on() && settings.luminaRefract !== false && canRefract();
+  const refracting = () => on() && !OVERLAY && settings.luminaRefract !== false && canRefract();
 
   function ensure() {
     if (lens) return;
     lens = document.createElement("div"); lens.id = "lumi"; lens.setAttribute("aria-hidden", "true");
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("width", "0"); svg.setAttribute("height", "0"); svg.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
+    svg.setAttribute("class", "lumi-svg"); svg.setAttribute("width", "0"); svg.setAttribute("height", "0"); svg.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
     svg.innerHTML = `<filter id="lumi-f" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
       <feImage x="0" y="0" width="8" height="8" preserveAspectRatio="none" result="m"/>
       <feDisplacementMap in="SourceGraphic" in2="m" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter>`;
@@ -31,11 +31,14 @@ const Lumina = (() => {
 
   /* El mapa: gris neutro en el centro (no mueve nada) y, hacia el borde, cada punto toma la imagen de más adentro,
      siguiendo la forma redondeada. Se dibuja a media resolución y se guarda por tamaño. */
+  /* (1.7.1) Qué tanto dobla, según el tamaño de lo enfocado: en una portada, todo; en la foto de perfil o un ícono chico,
+     casi nada (antes la foto se veía como ojo de pez). 1 = tamaño completo, a partir de ~260 px de lado a 1080p. */
+  const lensFit = (w, h) => Math.max(.12, Math.min(1, Math.min(w, h) / (26 * rem())));
   function buildMap(w, h, r) {
-    const sc = .5, cw = Math.max(8, Math.round(w * sc)), ch = Math.max(8, Math.round(h * sc));
+    const sc = .5, cw = Math.max(8, Math.round(w * sc)), ch = Math.max(8, Math.round(h * sc)), fit = lensFit(w, h);
     const c = document.createElement("canvas"); c.width = cw; c.height = ch;
     const ctx = c.getContext("2d"), img = ctx.createImageData(cw, ch), d = img.data;
-    const rim = Math.min(RIM * sc * (rem() / 10), cw / 2, ch / 2), rr = Math.min(r * sc, cw / 2, ch / 2), hx = cw / 2 - rr, hy = ch / 2 - rr;
+    const rim = Math.min(RIM * sc * (rem() / 10) * fit, cw / 2, ch / 2), rr = Math.min(r * sc, cw / 2, ch / 2), hx = cw / 2 - rr, hy = ch / 2 - rr;
     for (let y = 0, i = 0; y < ch; y++) for (let x = 0; x < cw; x++, i += 4) {
       const px = x + .5 - cw / 2, py = y + .5 - ch / 2, qx = Math.abs(px) - hx, qy = Math.abs(py) - hy;
       const ox = Math.max(qx, 0), oy = Math.max(qy, 0), len = Math.hypot(ox, oy);
@@ -56,7 +59,8 @@ const Lumina = (() => {
     let url = maps.get(key);
     if (!url) { url = buildMap(w, h, r); maps.set(key, url); if (maps.size > 24) maps.delete(maps.keys().next().value); }
     const im = new Image(); im.src = url;          // se pone cuando ya está lista: así nunca se ve un cuadro sin mapa
-    const put = () => { if (mapKey === key && feImg) { feImg.setAttribute("href", url); feDisp.setAttribute("scale", String(2 * BEND * (rem() / 10))); } };
+    const bend = 2 * BEND * (rem() / 10) * Math.pow(lensFit(w, h), 1.5);
+    const put = () => { if (mapKey === key && feImg) { feImg.setAttribute("href", url); feDisp.setAttribute("scale", String(bend)); } };
     if (im.decode) im.decode().then(put, put); else im.onload = put;
   }
 
@@ -127,9 +131,17 @@ const Lumina = (() => {
     const T = rectOf(n);
     if (Math.abs(T.l - S.l) > 1 || Math.abs(T.t - S.t) > 1 || Math.abs(T.r - S.r) > 1 || Math.abs(T.b - S.b) > 1) kick(600);
   }
+  /* (1.7.1) Encima del juego el menú es una ventana aparte: con Lúmina el panel flota redondeado, así que la ventana (y su
+     fondo al 50 %) toman esa misma forma. Si no, detrás se veía el rectángulo de siempre. */
+  function shape() {
+    if (!OVERLAY || !Host.has) return;
+    const dpr = window.devicePixelRatio || 1;
+    Host.call("quick.shape", on() ? { inset: Math.round(1.8 * rem() * dpr), radius: Math.round(3.4 * rem() * dpr) } : { off: true }).catch(() => {});
+  }
   function apply() {
     const o = on();
     root.toggleAttribute("data-lumina", o);
+    shape();
     if (!o) {
       delete root.dataset.lens; clearInterval(watch); watch = 0; if (raf) cancelAnimationFrame(raf); raf = 0; el = null;
       if (lens) lens.style.opacity = "0";
@@ -142,7 +154,14 @@ const Lumina = (() => {
     kick();
   }
   addEventListener("scroll", () => kick(500), { capture: true, passive: true });
-  addEventListener("resize", () => { maps.clear(); mapKey = ""; el = null; kick(); });
+  addEventListener("resize", () => { maps.clear(); mapKey = ""; el = null; kick(); shape(); });
+  /* El menú encima del juego es otra página: cuando cambias el tema o Lúmina en Ajustes, se entera aquí. */
+  if (OVERLAY) addEventListener("storage", e => {
+    if (e.key !== "scarlet.settings") return;
+    const s = store.get("settings", {});
+    for (const k of ["theme", "lumina", "luminaRefract"]) if (k in s) settings[k] = s[k]; else delete settings[k];
+    applyTheme(); apply();
+  });
   return { apply, kick, on, canRefract, get el() { return lens; }, get target() { return el; } };
 })();
 luminaKick = () => Lumina.kick();

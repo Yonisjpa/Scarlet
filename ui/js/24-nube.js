@@ -11,8 +11,8 @@ Events.on("cloud.done", d => {
   if (!d || !state.cloud[d.appid]) return;
   delete state.cloud[d.appid]; renderHome(); refreshLibrary();
   const g = byId(d.appid);
-  notify(d.ok ? { kind: "dl", key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "Partida guardada en la nube", text: g ? g.name : "Steam Cloud" }
-    : { kind: "err", key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "No se pudo sincronizar la nube", text: `${g ? g.name + ": " : ""}Steam lo intentará de nuevo` });
+  notify(d.ok ? { kind: "dl", cloud: true, game: g, key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "Partida guardada en la nube", text: g ? g.name : "Steam Cloud" }
+    : { kind: "err", cloud: true, game: g, key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "No se pudo sincronizar la nube", text: `${g ? g.name + ": " : ""}Steam lo intentará de nuevo` });
 });
 /* El juego que abres espera la nube de Steam (normalmente la partida que otro juego aún sube): se avisa en la carga. */
 Events.on("game.cloudwait", d => {
@@ -60,7 +60,7 @@ Events.on("download.progress", d => {
   // Steam detuvo la descarga por un problema (sin espacio, sin conexión…): se avisa una vez.
   if (now.st === "error" && errShown[d.appid] !== now.err) {
     errShown[d.appid] = now.err;
-    notify({ kind: "err", icon: I.cloud, title: "Descarga detenida", text: `${g ? g.name : "Un juego"}: ${now.errText || "Steam no pudo seguir."}`, sound: "error" });
+    notify({ kind: "err", game: g, icon: I.cloud, title: "Descarga detenida", text: `${g ? g.name : "Un juego"}: ${now.errText || "Steam no pudo seguir."}`, sound: "error" });
   } else if (now.st !== "error") delete errShown[d.appid];
   if (!prev || prev.st !== now.st) { renderHome(); refreshLibrary(); } else paintDownloads();
   const v = topView(); if (v && v.isDownload && v.appid == d.appid) v.paint();

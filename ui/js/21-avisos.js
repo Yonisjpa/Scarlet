@@ -26,8 +26,10 @@ function notify(o) {
     if (Host.has) {   // el menú está oculto: la app dibuja la notificación encima del juego (igual, pero sin acción)
       const t = o.thumb || {};
       const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : ["", "#ffffff"]);
-      return Host.call("overlay.notify", { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
-        tag: tag[0], accent: tag[1] }).catch(() => {});
+      const msg = { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
+        tag: tag[0], accent: tag[1] };
+      if (settings.lumina === true) Object.assign(msg, notifB(o, tag));
+      return Host.call("overlay.notify", msg).catch(() => {});
     }
   }
   if (o.key && notifCur && notifCur.key === o.key) return notifReplace(o);   // la misma (p. ej. "Guardando video…" → "Video guardado")
@@ -37,16 +39,55 @@ function notify(o) {
   notifStack();
   if (!notifCur && !Ach.cur) notifNext();
 }
+/* (1.7.1) Lo que necesita la app para dibujar el aviso estilo Lúmina (B) encima del juego: colores del bloque y de la
+   tira, portada (archivo en disco), porcentaje de batería… */
+const filePathOf = u => { try { return u && u.startsWith("https://files.scarlet/") ? new URL(u).searchParams.get("p") || "" : ""; } catch { return ""; } };
+const BATT_B = { "b-low": ["#ffb02e", "#ffb02e", "#e09a1c"], "b-crit": ["#ff4d4d", "#ff4d4d", "#ff5f5f"], "b-chg": ["#62a2f5", "#b087f7", ""] };
+function notifB(o, tag) {
+  const lb = notifLumi(o), gr = notifGrad(o), G = gr && NOTIF_GRAD[gr], art = filePathOf(notifArt(o));
+  const line = lb ? BATT_B[lb.cls].slice(0, 2) : G ? G.slice(0, 2) : CURSOR_GRAD;
+  const block = o.bg ? [o.bg, o.bg] : lb ? BATT_B[lb.cls].slice(0, 2) : G ? G.slice(0, 2) : CURSOR_GRAD;
+  const glyph = lb ? (lb.cls === "b-chg" ? "chg" : "batt") : { nube: "☁", dl: "↓", cap: "▣", err: "!" }[gr] || "";
+  return {
+    style: "b", light: document.documentElement.dataset.theme === "light", image: o.image || art,
+    title: lb ? lb.title : o.title, text: lb ? lb.text : o.text,
+    tag: lb ? lb.tag : G && G[3] && !(o.kind === "friend" || o.kind === "friendplay") ? G[3] : tag[0],
+    accent: lb ? BATT_B[lb.cls][2] || tag[1] : G ? G[2] : tag[1] === "#ffffff" ? "" : tag[1],
+    blockA: block[0], blockB: block[1], lineA: line[0], lineB: line[1], pct: lb ? lb.pct + " %" : "", level: lb ? lb.pct / 100 : -1,
+    crit: !!(lb && lb.cls === "b-crit"), glyph: o.letter ? "" : glyph
+  };
+}
 /* beta 1.6: cápsula con un color y una etiqueta por tipo de aviso */
 const NOTIF_TAG = { friend: ["En línea", "#3ddc84"], friendplay: ["Jugando", "#3ddc84"], dl: ["Descarga", "#3fb3ff"], batt: ["Batería", "#ff5a5a"], cap: ["Captura", "#ffffff"], sum: ["Avisos", "#ffffff"], err: ["Aviso", "#f2c230"] };
+/* (1.7.1) Lúmina: cada tipo de aviso tiene su tira de color (y su etiqueta del mismo color); los de un juego llevan su
+   portada en el bloque de la izquierda. [inicio, fin, color de la etiqueta, etiqueta] */
+const NOTIF_GRAD = {
+  nube: ["#ff6a00", "#ffd43b", "#ff8a1f", "Nube"], dl: ["#0274fc", "#3ad7ff", "#2f9bff", "Descarga"], amigo: ["#12b76a", "#8ef0c4", "#25c27a", ""],
+  cap: ["#8b95a5", "#ffffff", "#9aa4b2", "Captura"], err: ["#ff3b5c", "#ff9a3c", "#ff5a5a", "Aviso"]
+};
+const CURSOR_GRAD = ["#62a2f5", "#b087f7"];
+function notifGrad(o) {
+  if (o.kind === "batt" || o.lines) return null;
+  if (o.grad) return o.grad;
+  if (o.kind === "err") return "err";
+  if (o.cloud) return "nube";
+  if (o.kind === "dl") return "dl";
+  if (o.kind === "friend" || o.kind === "friendplay") return "amigo";
+  if (o.kind === "cap") return "cap";
+  return null;
+}
+const notifArt = o => settings.lumina === true && o.game && !o.thumb ? Art.now(o.game) : null;
 const notifLumi = o => settings.lumina === true && typeof o.batt === "number" ? luminaBatt(o) : null;
-const notifCls = o => { const lb = notifLumi(o); return "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "") + (lb ? " batt " + lb.cls : ""); };
+const notifCls = o => { const lb = notifLumi(o), gr = settings.lumina === true ? notifGrad(o) : null; return "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "") + (lb ? " batt " + lb.cls : "") + (gr ? " g-" + gr : ""); };
 function notifHTML(o) {
   const t = o.thumb;
   const ic = t ? `<div class="ic thumb${t.saving ? " saving" : ""}">${t.src ? `<img alt="" src="${esc(t.src)}">` : ""}${t.video && !t.saving ? `<span class="pl"><b></b></span>${t.dur ? `<span class="du">${esc(t.dur)}</span>` : ""}` : ""}${t.saving ? `<span class="rec"><i></i></span>` : ""}</div>`
+    : notifArt(o) ? `<div class="ic game"><img alt="" src="${esc(notifArt(o))}"></div>`
     : `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div>`;
   const act = o.act && mode === "ui" ? `<div class="nact"><span class="xbtn"></span>${esc(o.act.label)}</div>` : "";
-  const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : null);
+  const tag0 = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : null);
+  const gr = settings.lumina === true && notifGrad(o), gl = gr && NOTIF_GRAD[gr] && NOTIF_GRAD[gr][3];
+  const tag = gl && !(o.kind === "friend" || o.kind === "friendplay") ? [gl] : tag0;   // (1.7.1) «Nube» en vez de «Descarga»…
   const lb = notifLumi(o);   // (beta 1.7) con Lúmina, la batería lleva su porcentaje en grande y el nivel abajo
   if (lb) return `${ic}<div class="ntx"><span class="ntag">${esc(lb.tag)}</span><b>${esc(lb.title)}</b><span>${esc(lb.text)}</span></div><span class="npct">${lb.pct} %</span><div class="nlvl"><i style="width:${lb.pct}%"></i></div><div class="nlife"></div>`;
   return `${ic}<div class="ntx">${tag ? `<span class="ntag">${esc(tag[0])}</span>` : ""}<b>${esc(o.title)}${o.star ? '<i class="nstar">★</i>' : ""}</b>${o.lines ? `<ul>${o.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span>${esc(o.text)}</span>`}</div>${act}<div class="nlife"></div>`;
@@ -130,7 +171,7 @@ function missedView() {
 const isBest = name => (settings.bestFriends || []).includes(name);
 function notifyFriend(f) {
   const best = isBest(f.name);
-  notify({ kind: f.game ? "friendplay" : "friend", star: best, sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
+  notify({ kind: f.game ? "friendplay" : "friend", game: f.game ? games.find(x => x.name === f.game) : null, star: best, sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
     act: { label: "Ver perfil", run: () => { const x = friends.find(y => y.name === f.name); if (x) openView(friendProfileView(x)); } } });
 }
 /* beta 1.6: los logros tienen su propio aviso, como en Xbox (43-logros.js) */
@@ -141,7 +182,7 @@ function notifyCapture(item, saving) {
   const video = item.type === "video", game = item.game && item.game !== "Sistema" ? item.game : "";
   const src = item.thumb || (video ? "" : item.url);
   if (saving) return notify({ key: "cap:" + item.path, kind: "cap", thumb: { src, video: true, saving: true }, title: "Guardando video…", text: "Últimos 30 segundos" + (game ? " · " + game : ""), sound: "recstop" });
-  notify({ key: "cap:" + item.path, kind: "cap", image: item.thumbPath || (video ? "" : item.path || ""), letter: "▣", sound: video ? "notif" : "capture",
+  notify({ key: "cap:" + item.path, kind: "cap", game: game ? games.find(x => x.name === game) : null, image: item.thumbPath || (video ? "" : item.path || ""), letter: "▣", sound: video ? "notif" : "capture",
     thumb: { src, video, dur: item.duration ? mmss(item.duration) : "" },
     title: video ? "Video guardado" : "Captura guardada", text: video ? `Últimos ${item.duration ? Math.round(item.duration) : 30} segundos${game ? " · " + game : ""}` : `${game ? game + " · " : ""}en el Álbum`,
     act: { label: "Ver", run: () => openAlbumAt(item) } });

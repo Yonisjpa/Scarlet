@@ -120,6 +120,64 @@ const hugs = b => b.op === '1' && [0, 1].every(i => Math.abs(b.f[i] - b.g - b.l[
     return d >= 0 && d < 60 && l > 200 && again.attr && again.th === 'light' ? { p } : { p, fail: JSON.stringify({ d, l, fd, again }) };
   });
 
+  // ───── 1.7.1 ─────
+  const clean = p => ev(p, () => { $('#notifs').innerHTML = ''; notifQ.length = 0; if (notifCur) clearTimeout(notifCur.t); notifCur = null; });
+  const SBART = () => { const g = games.find(x => x.appid === 3489700); Art.cache[`grid:${g.appid}:${Art.alt[g.appid] || 0}`] = "https://files.scarlet/f?p=" + encodeURIComponent("C:\\Scarlet\\art\\sb.png"); return g; };
+
+  await run('1.7.1: con Lúmina, «Partida guardada en la nube» lleva la portada del juego, etiqueta «Nube» y tira naranja→amarillo; apagado, igual que antes', async () => {
+    const p = await page({ vp: { width: 1920, height: 1080 } });
+    const one = () => ev(p, SB => { const g = games.find(x => x.appid === 3489700); state.cloud[g.appid] = { st: "sync" }; window.__emit("cloud.done", { appid: g.appid, ok: true });
+      const n = $('#notifs .notif'); return { cls: n.className, img: ($('.ic.game img', n) || {}).src || '', tag: ($('.ntag', n) || {}).textContent, line: getComputedStyle($('.nlife', n)).backgroundImage, tagc: getComputedStyle($('.ntag', n)).color }; });
+    await clean(p); await ev(p, `(${SBART})()`);
+    const off = await one();
+    await clean(p); await lumiOn(p); await ev(p, `(${SBART})()`);
+    const on = await one();
+    const ok = off.cls === 'notif' && !off.img && off.tag === 'Descarga'
+      && /g-nube/.test(on.cls) && /files\.scarlet/.test(on.img) && on.tag === 'Nube' && /255, 106, 0/.test(on.line) && /255, 212, 59/.test(on.line) && on.tagc === 'rgb(255, 138, 31)';
+    return ok ? { p } : { p, fail: JSON.stringify({ off, on }) };
+  });
+
+  await run('1.7.1: jugando con Lúmina, la app recibe el estilo B (colores, portada en disco, batería); sin Lúmina, el aviso de siempre', async () => {
+    const p = await page();
+    await ev(p, () => { settings.nInGame = "all"; launchGame(games.find(g => g.appid === 3489700)); });
+    await p.waitForFunction(() => mode === "game", null, { timeout: 15000 }); await p.waitForTimeout(300);
+    await ev(p, `(${SBART})()`);
+    await ev(p, () => { window.__qa.log.length = 0; const g = games.find(x => x.appid === 3489700); state.cloud[g.appid] = { st: "sync" }; window.__emit("cloud.done", { appid: g.appid, ok: true }); });
+    const classic = (await calls(p, 'overlay.notify')).pop();
+    await ev(p, () => { settings.lumina = true; Lumina.apply(); window.__qa.log.length = 0; const g = games.find(x => x.appid === 3489700); state.cloud[g.appid] = { st: "sync" }; window.__emit("cloud.done", { appid: g.appid, ok: true }); notifyBattery(.08); });
+    const [cloud, batt] = await calls(p, 'overlay.notify');
+    const ok = classic && !classic.style && classic.tag === 'Descarga'
+      && cloud.style === 'b' && cloud.tag === 'Nube' && cloud.lineA === '#ff6a00' && cloud.lineB === '#ffd43b' && cloud.image === 'C:\\Scarlet\\art\\sb.png' && cloud.level === -1
+      && batt.style === 'b' && batt.pct === '8 %' && batt.crit === true && batt.glyph === 'batt' && Math.abs(batt.level - .08) < 1e-9 && batt.title === 'Guarda tu partida';
+    await ev(p, () => { settings.lumina = false; saveSettings(); });
+    return ok ? { p } : { p, fail: JSON.stringify({ classic, cloud, batt }) };
+  });
+
+  await run('1.7.1: el menú del botón Xbox encima del juego muestra el cursor, pide su forma redondeada y se entera si apagas Lúmina', async () => {
+    const p = await page({ q: '?overlay=quick', wait: 1500, vp: { width: 712, height: 1080 } });
+    await ev(p, () => { settings.lumina = true; saveSettings(); Lumina.apply(); openQuick(); }); await p.waitForTimeout(900); await keys(p, ['down']); await p.waitForTimeout(1400);
+    const a = await ev(p, () => ({ d: getComputedStyle($('#lumi')).display, op: getComputedStyle($('#lumi')).opacity, lens: document.documentElement.dataset.lens,
+      shape: window.__qa.log.filter(x => x.type === 'quick.shape').map(x => x.payload).pop(), q: $('#quick').getBoundingClientRect().left, W: innerWidth, r: rem() }));
+    const b = await boxes(p);
+    await ev(p, () => { const s = store.get("settings", {}); s.lumina = false; localStorage.setItem("scarlet.settings", JSON.stringify(s)); dispatchEvent(new StorageEvent("storage", { key: "scarlet.settings" })); });
+    await p.waitForTimeout(400);
+    const c = await ev(p, () => ({ attr: document.documentElement.hasAttribute('data-lumina'), shape: window.__qa.log.filter(x => x.type === 'quick.shape').map(x => x.payload).pop() }));
+    const ok = a.d === 'block' && a.op === '1' && a.lens === 'on' && a.shape && a.shape.inset > 10 && a.shape.radius > a.shape.inset && Math.abs(a.q - 1.8 * a.r) < 2 && hugs(b)
+      && !c.attr && c.shape && c.shape.off === true;
+    return ok ? { p } : { p, fail: JSON.stringify({ a, b, c }) };
+  });
+
+  await run('1.7.1: la lente dobla poco en la foto de perfil y mucho en una portada; la perilla del brillo al 100 % no se sale', async () => {
+    const p = await page({ vp: { width: 1920, height: 1080 } }); await lumiOn(p);
+    const tile = +(await ev(p, () => $('#lumi-f feDisplacementMap').getAttribute('scale')));
+    await keys(p, ['up']); await p.waitForTimeout(1500);
+    const av = await ev(p, () => [($('.focused') || {}).className, +$('#lumi-f feDisplacementMap').getAttribute('scale')]);
+    await ev(p, () => { sys.brightness = 100; openQuick(); }); await p.waitForTimeout(1200);
+    const k = await ev(p, () => { const r = $$('#quick .qrow').find(x => $('.nqbar', x)); const u = $('.nqbar u', r).getBoundingClientRect(), rr = r.getBoundingClientRect(); return [u.right, rr.right, u.left, rr.left]; });
+    const ok = tile > 30 && /avatar/.test(av[0]) && av[1] < tile / 3 && k[0] <= k[1] - 4 && k[2] >= k[3];
+    return ok ? { p, note: `curvatura: portada ${tile.toFixed(0)}, foto ${av[1].toFixed(1)}` } : { p, fail: JSON.stringify({ tile, av, k }) };
+  });
+
   await browser.close();
   const bad = results.filter(r => !r.ok);
   console.log(`\n${results.length - bad.length}/${results.length} escenarios OK`);

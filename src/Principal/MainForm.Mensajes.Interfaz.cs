@@ -41,6 +41,10 @@ sealed partial class MainForm
             }
             // ── Ventana y notificaciones
             case "ui.show": ShowUi(); return true;
+            // 1.7.1: con Lúmina el panel flota redondeado; la ventana encima del juego (y su fondo) toman esa forma
+            case "quick.shape":
+                quick?.SetShape(P.B(p, "off") ? 0 : (int)P.L(p, "inset"), (int)P.L(p, "radius"));
+                return true;
             case "quick.close": quick?.HideNow(true, P.S(p, "why")); return true;
             case "quick.shown": quick?.Ack(); return true;
             case "quick.action":
@@ -59,7 +63,8 @@ sealed partial class MainForm
                 return true;
             case "overlay.notify":
                 ToastForm.Pop(P.S(p, "title"), P.S(p, "text"), P.S(p, "letter"), P.S(p, "color"), P.S(p, "image"),
-                    wide: P.B(p, "wide"), video: P.B(p, "video"), dur: P.S(p, "dur"), saving: P.B(p, "saving"), tag: P.S(p, "tag"), accent: P.S(p, "accent"));
+                    wide: P.B(p, "wide"), video: P.B(p, "video"), dur: P.S(p, "dur"), saving: P.B(p, "saving"), tag: P.S(p, "tag"), accent: P.S(p, "accent"),
+                    b: P.S(p, "style") == "b" ? ToastForm.StyleB.From(p) : null);   // 1.7.1: con Lúmina, el estilo B
                 return true;
             // Menú rápido en vivo: cada dato por separado (si uno falla, los demás sí llegan); se pide cada 2 s.
             // Al abrir (full) se vuelve a leer todo desde cero; cada dato tiene un tiempo límite y, si no llega, la interfaz

@@ -24,7 +24,7 @@
     "ext.update": p => { const g = (Q.ext || []).find(x => x.appid === p.appid); if (!g) return { ok: false, error: "no" }; Object.assign(g, p); return { ok: true }; },
     "ext.remove": p => { Q.ext = (Q.ext || []).filter(x => x.appid !== p.appid); return true; },
     "ext.art": p => ({ ok: true, url: p.mode === "clear" ? null : "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%23f80'/%3E%3C/svg%3E", icon: p.mode === "icon" }),
-    "quick.glass": () => true, "quick.tint": () => true,
+    "quick.glass": () => true, "quick.tint": () => true, "quick.shape": () => true,
     "steam.friends": () => [{ name: "NeoKaiser", steamid: "1", status: "playing", game: "ELDEN RING", avatar: "" }, { name: "Luna", steamid: "2", status: "offline", last: "hace 3 h" }],
     "steam.friendProfile": () => ({ level: 12, common: [{ appid: 1245620, name: "ELDEN RING", mine: 131, theirs: 80 }], recent: [{ appid: 1245620, name: "ELDEN RING", weeks2: 6.5, total: 80 }], lastSeen: "1 nov 2026, 21:10" }),
     "steam.achievements": () => ({ unlocked: 18, total: 38, list: [{ name: "Primeros pasos", desc: "Termina el tutorial", unlocked: true, date: "12 oct 2026" }, { name: "Explorador", desc: "Descubre 10 zonas", unlocked: false }] }),

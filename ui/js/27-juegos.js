@@ -122,12 +122,12 @@ async function launchGame(g, el, opt = {}) {
     launchAfter.add(g.appid);
     if (!state.downloads[g.appid]) state.downloads[g.appid] = { p: 0, kind: "Actualizando", st: "pending" };
     renderHome(); openView(downloadView(g));
-    notify({ icon: I.cloud, title: "Primero se actualiza", text: `Steam está actualizando ${g.name}. Se abrirá cuando termine.` });
+    notify({ game: g, icon: I.cloud, title: "Primero se actualiza", text: `Steam está actualizando ${g.name}. Se abrirá cuando termine.` });
     return;
   }
   if (!ok) {
     L.classList.remove("logo", "show"); mode = "ui";
-    notify({ icon: I.power, title: "No se pudo iniciar", text: g.name, sound: "error" });
+    notify({ grad: "err", game: g, icon: I.power, title: "No se pudo iniciar", text: g.name, sound: "error" });
     return;
   }
   games.splice(games.indexOf(g), 1); games.unshift(g); g.last = "ahora"; g.lastTs = Math.floor(Date.now() / 1000);
@@ -148,7 +148,7 @@ async function openAlongside(g, el) {
   await wait(300);
   state.side = g.appid; renderHome();
   try { await Host.call("app.open", { appid: g.appid, source: g.source }); }
-  catch (e) { state.side = null; renderHome(); notify({ icon: I.power, title: "No se pudo abrir", text: g.name, sound: "error" }); }
+  catch (e) { state.side = null; renderHome(); notify({ grad: "err", game: g, icon: I.power, title: "No se pudo abrir", text: g.name, sound: "error" }); }
   mode = "ui"; updateFocus();
 }
 Events.on("app.closed", d => { if (d && d.appid == state.side) { state.side = null; if (mode !== "boot") renderHome(); } });

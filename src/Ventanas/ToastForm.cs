@@ -22,6 +22,16 @@ sealed class ToastForm : LayeredWindow
     readonly Color badge, accent;
     readonly Image image;
     readonly bool wide, video, saving;
+    readonly StyleB b;   // 1.7.1: con Lúmina, bloque de color a la izquierda y cuerpo de cristal (null = la cápsula de siempre)
+
+    /// <summary>Lo que define al aviso estilo Lúmina (B): colores del bloque y de la tira, tema, batería…</summary>
+    public sealed record StyleB(bool Light, Color BlockA, Color BlockB, Color LineA, Color LineB, string Pct, double Level, bool Crit, string Glyph)
+    {
+        public static StyleB From(JsonElement p) => new(P.B(p, "light"), ParseColor(P.S(p, "blockA")), ParseColor(P.S(p, "blockB")),
+            ParseColor(P.S(p, "lineA")), ParseColor(P.S(p, "lineB")), P.S(p, "pct") ?? "", P.S(p, "level") == null ? -1 : P.D(p, "level"), P.B(p, "crit"), P.S(p, "glyph") ?? "");
+    }
+    const float HB = 104, RB = 24;   // estilo B a 1080p: alto y radio
+    float HH => b != null ? HB : H;
     readonly System.Windows.Forms.Timer anim = new() { Interval = 15 };
     readonly Stopwatch clock = new();
     double outAt = -1;
@@ -31,8 +41,9 @@ sealed class ToastForm : LayeredWindow
     const float H = 92, PAD = 40;
     readonly float bodyW;
 
-    ToastForm(string title, string text, string letter, Color badge, Image image, bool wide, bool video, string dur, bool saving, string tag, Color accent)
+    ToastForm(string title, string text, string letter, Color badge, Image image, bool wide, bool video, string dur, bool saving, string tag, Color accent, StyleB b = null)
     {
+        this.b = b;
         this.title = title ?? ""; this.text = text ?? ""; this.letter = letter ?? ""; this.badge = badge; this.image = image;
         this.wide = wide; this.video = video; this.dur = dur ?? ""; this.saving = saving; this.tag = (tag ?? "").ToUpperInvariant(); this.accent = accent;
         bodyW = Measure();
@@ -49,6 +60,12 @@ sealed class ToastForm : LayeredWindow
             using var tf = new Font("Segoe UI Semibold", 22, FontStyle.Regular, GraphicsUnit.Pixel);
             using var sf = new Font("Segoe UI", 18, FontStyle.Regular, GraphicsUnit.Pixel);
             float textW = Math.Max(g.MeasureString(title, tf).Width, g.MeasureString(text, sf).Width);
+            if (b != null)
+            {
+                using var pf = new Font("Segoe UI", 34, FontStyle.Bold, GraphicsUnit.Pixel);
+                float pw = b.Pct.Length > 0 ? g.MeasureString(b.Pct, pf).Width + 24 : 0;
+                return Math.Clamp((wide ? 170 : HB) + 20 + textW + pw + 30, 560, 780);
+            }
             float iconW = wide ? 138 : 74;
             return Math.Clamp(14 + iconW + 20 + textW + 36, 520, 760);
         }
@@ -58,7 +75,7 @@ sealed class ToastForm : LayeredWindow
     void Start()
     {
         float k = K;
-        int w = (int)Math.Ceiling((bodyW + PAD * 2 + 40) * k), h = (int)Math.Ceiling((H + PAD * 2 + 50) * k);
+        int w = (int)Math.Ceiling((bodyW + PAD * 2 + 40) * k), h = (int)Math.Ceiling((HH + PAD * 2 + 50) * k);
         canvas = new Bitmap(w, h, PixelFormat.Format32bppArgb);
         Size = new Size(w, h);
         var b = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
@@ -109,15 +126,17 @@ sealed class ToastForm : LayeredWindow
                 {
                     var st0 = g.Save();
                     g.TranslateTransform(PAD + 18 * i, PAD + 26 * i); g.ScaleTransform(1 - .06f * i, 1 - .06f * i);
-                    using (var path = Shape(new RectangleF(0, 0, bodyW, H)))
-                    using (var bb = new SolidBrush(Color.FromArgb((int)(237 * op), (int)(14 * (i == 1 ? .55 : .35)), (int)(14 * (i == 1 ? .55 : .35)), (int)(18 * (i == 1 ? .55 : .35)))))
+                    using (var path = Shape(new RectangleF(0, 0, bodyW, HH)))
+                    using (var bb = new SolidBrush(b != null
+                        ? (b.Light ? Color.FromArgb((int)((i == 1 ? 200 : 140) * op), 236, 236, 240) : Color.FromArgb((int)((i == 1 ? 200 : 140) * op), 34, 34, 38))
+                        : Color.FromArgb((int)(237 * op), (int)(14 * (i == 1 ? .55 : .35)), (int)(14 * (i == 1 ? .55 : .35)), (int)(18 * (i == 1 ? .55 : .35)))))
                         g.FillPath(bb, path);
                     g.Restore(st0);
                 }
                 var st = g.Save();
                 g.TranslateTransform(PAD + dx, PAD + dy);
                 g.ScaleTransform(sc, sc);
-                DrawBody(g, (float)life, op);
+                if (b != null) DrawBodyB(g, (float)life, op); else DrawBody(g, (float)life, op);
                 g.Restore(st);
                 if (waiting.Count > 0 && outAt < 0)
                 {
@@ -125,7 +144,10 @@ sealed class ToastForm : LayeredWindow
                     using var mf = new Font("Segoe UI", 17, FontStyle.Bold, GraphicsUnit.Pixel);
                     var ms = g.MeasureString(more, mf);
                     var mr = new RectangleF(PAD + dx + bodyW - ms.Width + 4, PAD - 10, ms.Width + 16, 26);
-                    using (var mp = Shape(mr)) using (var mb = new SolidBrush(Color.FromArgb((int)(255 * op), 230, 0, 18))) g.FillPath(mb, mp);
+                    using (var mp = Capsule(mr))
+                    using (Brush mb = b != null ? new LinearGradientBrush(mr, Color.FromArgb((int)(255 * op), 2, 116, 252), Color.FromArgb((int)(255 * op), 176, 135, 247), 0f)
+                                                : new SolidBrush(Color.FromArgb((int)(255 * op), 230, 0, 18)))
+                        g.FillPath(mb, mp);
                     using var mt = new SolidBrush(Color.FromArgb((int)(255 * op), 255, 255, 255));
                     using var fmt = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
                     g.DrawString(more, mf, mt, mr, fmt);
@@ -139,6 +161,7 @@ sealed class ToastForm : LayeredWindow
     /// <summary>Cápsula (o, con miniatura ancha, rectángulo muy redondeado).</summary>
     GraphicsPath Shape(RectangleF r)
     {
+        if (b != null) return RoundRect(r, RB);
         if (!wide) return Capsule(r);
         float d = 60; var p = new GraphicsPath();
         p.AddArc(r.X, r.Y, d, d, 180, 90); p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
@@ -230,6 +253,107 @@ sealed class ToastForm : LayeredWindow
                 g.FillPath(lb, lp);   // la línea que se va acabando
     }
 
+    /// <summary>
+    /// 1.7.1, estilo Lúmina (B): cuerpo de cristal (claro u oscuro, según el tema), bloque a la izquierda con la portada del
+    /// juego o un degradado y su ícono, etiqueta del color del aviso, título y texto, el porcentaje en grande (batería) y una
+    /// tira de color abajo que se va acabando (o que marca el nivel de la batería).
+    /// </summary>
+    void DrawBodyB(Graphics g, float life, float op)
+    {
+        var body = new RectangleF(0, 0, bodyW, HB);
+        Color fg = b.Light ? Color.FromArgb(22, 22, 26) : Color.White;
+        // brillo rojo que late (batería crítica)
+        if (b.Crit)
+        {
+            float pulse = (float)(.55 + .45 * Math.Sin(clock.Elapsed.TotalMilliseconds / 1400.0 * Math.PI * 2));
+            for (int i = 4; i >= 1; i--)
+                using (var gp = RoundRect(new RectangleF(-i * 5, -i * 5, bodyW + i * 10, HB + i * 10), RB + i * 5))
+                using (var gb = new SolidBrush(Color.FromArgb((int)(22 * pulse * op), 255, 77, 77))) g.FillPath(gb, gp);
+        }
+        using (var shadow = RoundRect(new RectangleF(4, 12, bodyW - 8, HB), RB))
+        using (var sb = new SolidBrush(Color.FromArgb((int)((b.Light ? 40 : 80) * op), 0, 0, 0))) g.FillPath(sb, shadow);
+        using var path = RoundRect(body, RB);
+        var s0 = g.Save();
+        g.SetClip(path, CombineMode.Intersect);
+        using (var bg = new SolidBrush(b.Light ? Color.FromArgb((int)(236 * op), 248, 248, 250) : Color.FromArgb((int)(232 * op), 40, 40, 44))) g.FillRectangle(bg, body);
+        using (var hi = new LinearGradientBrush(new RectangleF(0, 0, bodyW, HB * .45f), Color.FromArgb((int)((b.Light ? 150 : 34) * op), 255, 255, 255), Color.FromArgb(0, 255, 255, 255), 90f))
+            g.FillRectangle(hi, 0, 0, bodyW, HB * .45f);
+        // bloque
+        float bw = wide ? 170 : HB;
+        var block = new RectangleF(0, 0, bw, HB);
+        if (image != null)
+        {
+            g.DrawImage(image, Cover(image.Size, block));
+            if (saving) using (var dim = new SolidBrush(Color.FromArgb((int)(110 * op), 0, 0, 0))) g.FillRectangle(dim, block);
+            if (video && !saving)
+            {
+                float r = 14, cx = block.X + block.Width / 2, cy = block.Y + block.Height / 2;
+                using (var c = new SolidBrush(Color.FromArgb((int)(150 * op), 0, 0, 0))) g.FillEllipse(c, cx - r, cy - r, r * 2, r * 2);
+                using var wb = new SolidBrush(A(Color.White, op));
+                g.FillPolygon(wb, new[] { new PointF(cx - 5, cy - 7), new PointF(cx - 5, cy + 7), new PointF(cx + 8, cy) });
+            }
+        }
+        else
+        {
+            using (var bb = new LinearGradientBrush(new RectangleF(0, 0, bw + 1, HB + 1), A(b.BlockA, op), A(b.BlockB, op), 60f)) g.FillRectangle(bb, block);
+            bool darkInk = (b.BlockA.R * .3 + b.BlockA.G * .59 + b.BlockA.B * .11) > 170;
+            var ink = A(darkInk ? Color.FromArgb(43, 29, 0) : Color.White, op);
+            float cx = block.X + block.Width / 2, cy = block.Y + block.Height / 2;
+            if (b.Glyph == "batt" || b.Glyph == "chg")
+            {
+                using var pen = new Pen(ink, 3.2f) { LineJoin = LineJoin.Round };
+                var br = new RectangleF(cx - 22, cy - 12, 40, 24);
+                using (var bp = RoundRect(br, 6)) g.DrawPath(pen, bp);
+                using (var nub = new SolidBrush(ink)) g.FillRectangle(nub, br.Right + 2, cy - 5, 4, 10);
+                if (b.Glyph == "chg")
+                    using (var bolt = new SolidBrush(ink))
+                        g.FillPolygon(bolt, new[] { new PointF(cx + 1, cy - 9), new PointF(cx - 8, cy + 2), new PointF(cx - 1, cy + 2), new PointF(cx - 4, cy + 10), new PointF(cx + 6, cy - 2), new PointF(cx - 1, cy - 2) });
+            }
+            else
+            {
+                string gl = b.Glyph.Length > 0 ? b.Glyph : letter;
+                using var f = new Font(b.Glyph.Length > 0 ? "Segoe UI Symbol" : "Segoe UI", b.Glyph.Length > 0 ? 40 : 38, FontStyle.Bold, GraphicsUnit.Pixel);
+                using var fmt = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                using var ib = new SolidBrush(ink);
+                g.DrawString(gl, f, ib, block, fmt);
+            }
+        }
+        using (var sep = new Pen(Color.FromArgb((int)(60 * op), 255, 255, 255), 1)) g.DrawLine(sep, bw, 0, bw, HB);
+        // tira de abajo: con batería, el nivel; si no, el tiempo que le queda
+        float lx = bw, lw = bodyW - bw, lh = 5, ly = HB - lh;
+        if (b.Level >= 0) using (var tr = new SolidBrush(Color.FromArgb((int)(56 * op), 127, 127, 127))) g.FillRectangle(tr, lx, ly, lw, lh);
+        float frac = (float)(b.Level >= 0 ? Math.Clamp(b.Level, 0, 1) : saving ? 0 : life);
+        if (frac > 0)
+            using (var lb = new LinearGradientBrush(new RectangleF(lx, ly, lw + 1, lh), A(b.LineA, op), A(b.LineB, op), 0f))
+                g.FillRectangle(lb, lx, ly, lw * frac, lh);
+        g.Restore(s0);
+        using (var edge = new Pen(b.Crit ? A(Color.FromArgb(255, 77, 77), op) : b.Light ? Color.FromArgb((int)(20 * op), 0, 0, 0) : Color.FromArgb((int)(40 * op), 255, 255, 255), b.Crit ? 2.2f : 1.2f))
+            g.DrawPath(edge, path);
+
+        // textos
+        float x = bw + 20, right = bodyW - 24;
+        using var pf = new Font("Segoe UI", 34, FontStyle.Bold, GraphicsUnit.Pixel);
+        if (b.Pct.Length > 0)
+        {
+            var ps = g.MeasureString(b.Pct, pf);
+            using var pb = new SolidBrush(A(fg, op));
+            g.DrawString(b.Pct, pf, pb, right - ps.Width + 6, (HB - ps.Height) / 2 - 2);
+            right -= ps.Width + 18;
+        }
+        float w = right - x;
+        using var tgf = new Font("Segoe UI", 13, FontStyle.Bold, GraphicsUnit.Pixel);
+        using var tf = new Font("Segoe UI Semibold", 23, FontStyle.Regular, GraphicsUnit.Pixel);
+        using var sf = new Font("Segoe UI", 18, FontStyle.Regular, GraphicsUnit.Pixel);
+        using var one = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
+        using var tb = new SolidBrush(A(accent, op));
+        using var main = new SolidBrush(A(fg, op));
+        using var sub = new SolidBrush(Color.FromArgb((int)(215 * op), fg.R, fg.G, fg.B));
+        float y = tag.Length > 0 ? 14 : 22;
+        if (tag.Length > 0) { g.DrawString(tag, tgf, tb, new RectangleF(x, y, w, 18), one); y += 18; }
+        g.DrawString(title, tf, main, new RectangleF(x, y, w, 32), one);
+        g.DrawString(text, sf, sub, new RectangleF(x, y + 31, w, 26), one);
+    }
+
     static GraphicsPath RoundRect(RectangleF r, float radius)
     {
         float d = radius * 2; var p = new GraphicsPath();
@@ -269,7 +393,7 @@ sealed class ToastForm : LayeredWindow
 
     /// <summary>Muestra una notificación. Debe llamarse en el hilo de la ventana principal.</summary>
     public static void Pop(string title, string text, string letter, string color, string imagePath,
-        bool wide = false, bool video = false, string dur = null, bool saving = false, string tag = null, string accent = null)
+        bool wide = false, bool video = false, string dur = null, bool saving = false, string tag = null, string accent = null, StyleB b = null)
     {
         Image img = null;
         try
@@ -278,7 +402,7 @@ sealed class ToastForm : LayeredWindow
             {
                 using var fs = File.OpenRead(imagePath);
                 using var src = Image.FromStream(fs);
-                int w = wide ? 320 : 160, h = Math.Max(1, (int)((double)w * src.Height / src.Width));
+                int w = wide ? 320 : b != null ? 220 : 160, h = Math.Max(1, (int)((double)w * src.Height / src.Width));
                 img = new Bitmap(src, new Size(w, h));
             }
         }
@@ -287,7 +411,7 @@ sealed class ToastForm : LayeredWindow
         // "Guardando video…" → "Video guardado": la nueva reemplaza a la que sigue en pantalla.
         if (!saving && video) foreach (var s in live.Where(x => x.saving).ToList()) s.closing = true;
         var t = new ToastForm(title, text, string.IsNullOrEmpty(letter) ? "•" : letter, ParseColor(color), img, wide, video, dur, saving,
-            tag, string.IsNullOrEmpty(accent) ? Color.FromArgb(34, 214, 227) : ParseColor(accent));
+            tag, string.IsNullOrEmpty(accent) ? (b != null ? (b.Light ? Color.FromArgb(90, 90, 100) : Color.FromArgb(200, 200, 210)) : Color.FromArgb(34, 214, 227)) : ParseColor(accent), b);
         waiting.Enqueue(t);
         while (waiting.Count > 5) waiting.Dequeue().Dispose();
         ShowNext();

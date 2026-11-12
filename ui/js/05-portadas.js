@@ -77,6 +77,18 @@ const Art = {
     if (url) { this.cache[key] = url; this.save(); }
     return url;
   },
+  /* (1.7.1) La portada cuadrada que ya está guardada, al instante (para los avisos); null si todavía no hay. */
+  now(g) {
+    if (!g) return null;
+    const p = this.pick[g.appid], n = this.alt[g.appid] || 0;
+    if (g.source === "ext" && g.art && !p) return g.art;
+    if (p === "none") return null;
+    if (p === "xbox") return g.art || null;
+    if (!p && g.source === "xbox" && g.art) return g.art;
+    if (p && this.cache[`pick:${g.appid}:${p}`]) return this.cache[`pick:${g.appid}:${p}`];
+    if (g.source === "app" && !n && this.cache[`web:${g.appid}`]) return this.cache[`web:${g.appid}`];
+    return this.cache[`grid:${g.appid}:${n}${g.kind === "app" ? ":i" : ""}`] || null;
+  },
   async get(g, kind = "grid") {
     // juegos externos con su propia imagen (el ícono del programa o una imagen tuya)
     if (g.source === "ext" && g.art && !this.pick[g.appid]) { if (g.iconArt) this.icons.add(g.art); return kind === "grid" ? g.art : null; }

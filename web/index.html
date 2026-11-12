@@ -1230,6 +1230,33 @@ body{touch-action:pan-y}
 #lumi::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:var(--ringw);background:conic-gradient(from var(--ringa),var(--ringstops));
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);animation:ring 6s linear infinite}
 #lumi::before{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.35) 50%,transparent 65%);background-size:300% 100%;background-position:var(--gl,150%) 0;opacity:var(--go,0)}
+
+/* ----- (1.7.1) Menú del botón Xbox encima de un juego ----- */
+/* Es una página aparte que esconde todo menos el menú: el cursor de cristal también debe verse ahí. */
+:root[data-lumina][data-lens].overlay body>#lumi{display:block!important}
+:root.overlay body>svg.lumi-svg{display:block!important}
+/* El panel flota con el mismo margen por los cuatro lados (la ventana toma esta forma) y sin sombra hacia afuera:
+   afuera del panel la ventana es transparente y la sombra se veía como una mancha. */
+:root[data-lumina].overlay #quick,:root[data-lumina].overlay #quick.ns{left:1.8rem;right:1.8rem;width:auto!important;
+  box-shadow:inset 0 2px 0 var(--lm-hi),inset 0 -1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge)}
+/* La perilla de las barras ya no se sale de su fila al 0 % ni al 100 % */
+:root[data-lumina] .nqbar{margin:0 2.2rem 0 1.4rem}
+/* La franja de Dolby Atmos: una cápsula como las demás filas */
+:root[data-lumina] #quick.ns .qdolby{margin:.2rem 0 .9rem;padding:.75rem 0;border-radius:99rem;background:var(--lm-fill)!important;box-shadow:inset 0 1px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge)}
+/* Tema claro: el botón Xbox de «Jugar», «Ver»… se veía blanco sobre blanco */
+:root[data-lumina][data-theme="light"] .notif .nact .xbtn{background:#1b1b1f}
+/* ----- (1.7.1) Avisos: portada del juego en el bloque y una tira de color por tipo ----- */
+:root[data-lumina] .notif .ic.game{background:#111;padding:0;overflow:hidden}
+:root[data-lumina] .notif .ic.game img{width:100%;height:100%;object-fit:cover;display:block;border-radius:0}
+:root[data-lumina] .notif.g-nube{--g1:#ff6a00;--g2:#ffd43b;--gt:#ff8a1f}
+:root[data-lumina] .notif.g-dl{--g1:#0274fc;--g2:#3ad7ff;--gt:#2f9bff}
+:root[data-lumina] .notif.g-amigo{--g1:#12b76a;--g2:#8ef0c4;--gt:#25c27a}
+:root[data-lumina] .notif.g-cap{--g1:#8b95a5;--g2:#ffffff;--gt:#9aa4b2}
+:root[data-lumina] .notif.g-err{--g1:#ff3b5c;--g2:#ff9a3c;--gt:#ff5a5a}
+:root[data-lumina] .notif[class*=" g-"] .nlife{background:linear-gradient(90deg,var(--g1),var(--g2))}
+:root[data-lumina] .notif[class*=" g-"] .ntag{color:var(--gt)}
+:root[data-lumina] .notif[class*=" g-"] .ic:not(.game):not(.thumb){background:linear-gradient(160deg,var(--g1),var(--g2))}
+:root[data-lumina][data-theme="light"] .notif.g-cap .ntag{color:#6b7584}
 </style>
 </head>
 <body>
@@ -1634,6 +1661,18 @@ const Art = {
     if (!url && Host.has && (g.source || "steam") === "steam") url = await this.local(this.steamUrl(g, "logo")).catch(() => null);
     if (url) { this.cache[key] = url; this.save(); }
     return url;
+  },
+  /* (1.7.1) La portada cuadrada que ya está guardada, al instante (para los avisos); null si todavía no hay. */
+  now(g) {
+    if (!g) return null;
+    const p = this.pick[g.appid], n = this.alt[g.appid] || 0;
+    if (g.source === "ext" && g.art && !p) return g.art;
+    if (p === "none") return null;
+    if (p === "xbox") return g.art || null;
+    if (!p && g.source === "xbox" && g.art) return g.art;
+    if (p && this.cache[`pick:${g.appid}:${p}`]) return this.cache[`pick:${g.appid}:${p}`];
+    if (g.source === "app" && !n && this.cache[`web:${g.appid}`]) return this.cache[`web:${g.appid}`];
+    return this.cache[`grid:${g.appid}:${n}${g.kind === "app" ? ":i" : ""}`] || null;
   },
   async get(g, kind = "grid") {
     // juegos externos con su propia imagen (el ícono del programa o una imagen tuya)
@@ -2501,7 +2540,7 @@ function fakeWifi(op, a = {}) {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "1.7.0";
+let APP_VERSION = "1.7.1";
 const verName = v => (/^0\./.test(String(v)) ? "alpha " : "beta ") + v;
 const updState = { available: false, latest: null };
 function updateView() {
@@ -3865,8 +3904,10 @@ function notify(o) {
     if (Host.has) {   // el menú está oculto: la app dibuja la notificación encima del juego (igual, pero sin acción)
       const t = o.thumb || {};
       const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : ["", "#ffffff"]);
-      return Host.call("overlay.notify", { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
-        tag: tag[0], accent: tag[1] }).catch(() => {});
+      const msg = { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
+        tag: tag[0], accent: tag[1] };
+      if (settings.lumina === true) Object.assign(msg, notifB(o, tag));
+      return Host.call("overlay.notify", msg).catch(() => {});
     }
   }
   if (o.key && notifCur && notifCur.key === o.key) return notifReplace(o);   // la misma (p. ej. "Guardando video…" → "Video guardado")
@@ -3876,16 +3917,55 @@ function notify(o) {
   notifStack();
   if (!notifCur && !Ach.cur) notifNext();
 }
+/* (1.7.1) Lo que necesita la app para dibujar el aviso estilo Lúmina (B) encima del juego: colores del bloque y de la
+   tira, portada (archivo en disco), porcentaje de batería… */
+const filePathOf = u => { try { return u && u.startsWith("https://files.scarlet/") ? new URL(u).searchParams.get("p") || "" : ""; } catch { return ""; } };
+const BATT_B = { "b-low": ["#ffb02e", "#ffb02e", "#e09a1c"], "b-crit": ["#ff4d4d", "#ff4d4d", "#ff5f5f"], "b-chg": ["#62a2f5", "#b087f7", ""] };
+function notifB(o, tag) {
+  const lb = notifLumi(o), gr = notifGrad(o), G = gr && NOTIF_GRAD[gr], art = filePathOf(notifArt(o));
+  const line = lb ? BATT_B[lb.cls].slice(0, 2) : G ? G.slice(0, 2) : CURSOR_GRAD;
+  const block = o.bg ? [o.bg, o.bg] : lb ? BATT_B[lb.cls].slice(0, 2) : G ? G.slice(0, 2) : CURSOR_GRAD;
+  const glyph = lb ? (lb.cls === "b-chg" ? "chg" : "batt") : { nube: "☁", dl: "↓", cap: "▣", err: "!" }[gr] || "";
+  return {
+    style: "b", light: document.documentElement.dataset.theme === "light", image: o.image || art,
+    title: lb ? lb.title : o.title, text: lb ? lb.text : o.text,
+    tag: lb ? lb.tag : G && G[3] && !(o.kind === "friend" || o.kind === "friendplay") ? G[3] : tag[0],
+    accent: lb ? BATT_B[lb.cls][2] || tag[1] : G ? G[2] : tag[1] === "#ffffff" ? "" : tag[1],
+    blockA: block[0], blockB: block[1], lineA: line[0], lineB: line[1], pct: lb ? lb.pct + " %" : "", level: lb ? lb.pct / 100 : -1,
+    crit: !!(lb && lb.cls === "b-crit"), glyph: o.letter ? "" : glyph
+  };
+}
 /* beta 1.6: cápsula con un color y una etiqueta por tipo de aviso */
 const NOTIF_TAG = { friend: ["En línea", "#3ddc84"], friendplay: ["Jugando", "#3ddc84"], dl: ["Descarga", "#3fb3ff"], batt: ["Batería", "#ff5a5a"], cap: ["Captura", "#ffffff"], sum: ["Avisos", "#ffffff"], err: ["Aviso", "#f2c230"] };
+/* (1.7.1) Lúmina: cada tipo de aviso tiene su tira de color (y su etiqueta del mismo color); los de un juego llevan su
+   portada en el bloque de la izquierda. [inicio, fin, color de la etiqueta, etiqueta] */
+const NOTIF_GRAD = {
+  nube: ["#ff6a00", "#ffd43b", "#ff8a1f", "Nube"], dl: ["#0274fc", "#3ad7ff", "#2f9bff", "Descarga"], amigo: ["#12b76a", "#8ef0c4", "#25c27a", ""],
+  cap: ["#8b95a5", "#ffffff", "#9aa4b2", "Captura"], err: ["#ff3b5c", "#ff9a3c", "#ff5a5a", "Aviso"]
+};
+const CURSOR_GRAD = ["#62a2f5", "#b087f7"];
+function notifGrad(o) {
+  if (o.kind === "batt" || o.lines) return null;
+  if (o.grad) return o.grad;
+  if (o.kind === "err") return "err";
+  if (o.cloud) return "nube";
+  if (o.kind === "dl") return "dl";
+  if (o.kind === "friend" || o.kind === "friendplay") return "amigo";
+  if (o.kind === "cap") return "cap";
+  return null;
+}
+const notifArt = o => settings.lumina === true && o.game && !o.thumb ? Art.now(o.game) : null;
 const notifLumi = o => settings.lumina === true && typeof o.batt === "number" ? luminaBatt(o) : null;
-const notifCls = o => { const lb = notifLumi(o); return "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "") + (lb ? " batt " + lb.cls : ""); };
+const notifCls = o => { const lb = notifLumi(o), gr = settings.lumina === true ? notifGrad(o) : null; return "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "") + (lb ? " batt " + lb.cls : "") + (gr ? " g-" + gr : ""); };
 function notifHTML(o) {
   const t = o.thumb;
   const ic = t ? `<div class="ic thumb${t.saving ? " saving" : ""}">${t.src ? `<img alt="" src="${esc(t.src)}">` : ""}${t.video && !t.saving ? `<span class="pl"><b></b></span>${t.dur ? `<span class="du">${esc(t.dur)}</span>` : ""}` : ""}${t.saving ? `<span class="rec"><i></i></span>` : ""}</div>`
+    : notifArt(o) ? `<div class="ic game"><img alt="" src="${esc(notifArt(o))}"></div>`
     : `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div>`;
   const act = o.act && mode === "ui" ? `<div class="nact"><span class="xbtn"></span>${esc(o.act.label)}</div>` : "";
-  const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : null);
+  const tag0 = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : null);
+  const gr = settings.lumina === true && notifGrad(o), gl = gr && NOTIF_GRAD[gr] && NOTIF_GRAD[gr][3];
+  const tag = gl && !(o.kind === "friend" || o.kind === "friendplay") ? [gl] : tag0;   // (1.7.1) «Nube» en vez de «Descarga»…
   const lb = notifLumi(o);   // (beta 1.7) con Lúmina, la batería lleva su porcentaje en grande y el nivel abajo
   if (lb) return `${ic}<div class="ntx"><span class="ntag">${esc(lb.tag)}</span><b>${esc(lb.title)}</b><span>${esc(lb.text)}</span></div><span class="npct">${lb.pct} %</span><div class="nlvl"><i style="width:${lb.pct}%"></i></div><div class="nlife"></div>`;
   return `${ic}<div class="ntx">${tag ? `<span class="ntag">${esc(tag[0])}</span>` : ""}<b>${esc(o.title)}${o.star ? '<i class="nstar">★</i>' : ""}</b>${o.lines ? `<ul>${o.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span>${esc(o.text)}</span>`}</div>${act}<div class="nlife"></div>`;
@@ -3969,7 +4049,7 @@ function missedView() {
 const isBest = name => (settings.bestFriends || []).includes(name);
 function notifyFriend(f) {
   const best = isBest(f.name);
-  notify({ kind: f.game ? "friendplay" : "friend", star: best, sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
+  notify({ kind: f.game ? "friendplay" : "friend", game: f.game ? games.find(x => x.name === f.game) : null, star: best, sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
     act: { label: "Ver perfil", run: () => { const x = friends.find(y => y.name === f.name); if (x) openView(friendProfileView(x)); } } });
 }
 /* beta 1.6: los logros tienen su propio aviso, como en Xbox (43-logros.js) */
@@ -3980,7 +4060,7 @@ function notifyCapture(item, saving) {
   const video = item.type === "video", game = item.game && item.game !== "Sistema" ? item.game : "";
   const src = item.thumb || (video ? "" : item.url);
   if (saving) return notify({ key: "cap:" + item.path, kind: "cap", thumb: { src, video: true, saving: true }, title: "Guardando video…", text: "Últimos 30 segundos" + (game ? " · " + game : ""), sound: "recstop" });
-  notify({ key: "cap:" + item.path, kind: "cap", image: item.thumbPath || (video ? "" : item.path || ""), letter: "▣", sound: video ? "notif" : "capture",
+  notify({ key: "cap:" + item.path, kind: "cap", game: game ? games.find(x => x.name === game) : null, image: item.thumbPath || (video ? "" : item.path || ""), letter: "▣", sound: video ? "notif" : "capture",
     thumb: { src, video, dur: item.duration ? mmss(item.duration) : "" },
     title: video ? "Video guardado" : "Captura guardada", text: video ? `Últimos ${item.duration ? Math.round(item.duration) : 30} segundos${game ? " · " + game : ""}` : `${game ? game + " · " : ""}en el Álbum`,
     act: { label: "Ver", run: () => openAlbumAt(item) } });
@@ -4064,7 +4144,7 @@ function finishDownload(appid, info = {}) {
     clearTimeout(doneBatchT);
     doneBatchT = setTimeout(() => {
       const b = doneBatch; doneBatch = [];
-      if (b.length === 1) { const g1 = b[0].g; notify({ kind: "dl", icon: I.cloud, title: b[0].fresh ? "Descarga completada" : "Actualización completada", text: g1.name, act: { label: "Jugar", run: () => { if (mode === "ui" && !state.running) { closeAllViews(); launchGame(g1); } } } }); }
+      if (b.length === 1) { const g1 = b[0].g; notify({ kind: "dl", game: g1, icon: I.cloud, title: b[0].fresh ? "Descarga completada" : "Actualización completada", text: g1.name, act: { label: "Jugar", run: () => { if (mode === "ui" && !state.running) { closeAllViews(); launchGame(g1); } } } }); }
       else if (b.length > 1) notify({ kind: "dl", icon: I.cloud, title: b.every(x => !x.fresh) ? `${b.length} juegos actualizados` : `${b.length} descargas completadas`, text: b.map(x => x.g.name).join(", ") });
     }, 1500);
   }, fresh ? 6000 : 1500) };
@@ -4221,8 +4301,8 @@ Events.on("cloud.done", d => {
   if (!d || !state.cloud[d.appid]) return;
   delete state.cloud[d.appid]; renderHome(); refreshLibrary();
   const g = byId(d.appid);
-  notify(d.ok ? { kind: "dl", key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "Partida guardada en la nube", text: g ? g.name : "Steam Cloud" }
-    : { kind: "err", key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "No se pudo sincronizar la nube", text: `${g ? g.name + ": " : ""}Steam lo intentará de nuevo` });
+  notify(d.ok ? { kind: "dl", cloud: true, game: g, key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "Partida guardada en la nube", text: g ? g.name : "Steam Cloud" }
+    : { kind: "err", cloud: true, game: g, key: "cloud:" + d.appid, icon: I.cloud, bg: "#f08a24", title: "No se pudo sincronizar la nube", text: `${g ? g.name + ": " : ""}Steam lo intentará de nuevo` });
 });
 /* El juego que abres espera la nube de Steam (normalmente la partida que otro juego aún sube): se avisa en la carga. */
 Events.on("game.cloudwait", d => {
@@ -4270,7 +4350,7 @@ Events.on("download.progress", d => {
   // Steam detuvo la descarga por un problema (sin espacio, sin conexión…): se avisa una vez.
   if (now.st === "error" && errShown[d.appid] !== now.err) {
     errShown[d.appid] = now.err;
-    notify({ kind: "err", icon: I.cloud, title: "Descarga detenida", text: `${g ? g.name : "Un juego"}: ${now.errText || "Steam no pudo seguir."}`, sound: "error" });
+    notify({ kind: "err", game: g, icon: I.cloud, title: "Descarga detenida", text: `${g ? g.name : "Un juego"}: ${now.errText || "Steam no pudo seguir."}`, sound: "error" });
   } else if (now.st !== "error") delete errShown[d.appid];
   if (!prev || prev.st !== now.st) { renderHome(); refreshLibrary(); } else paintDownloads();
   const v = topView(); if (v && v.isDownload && v.appid == d.appid) v.paint();
@@ -4395,7 +4475,7 @@ async function cancelDownload(g, quiet) {
 /* Desinstalar: Scarlet ya preguntó, así que Steam lo hace sin su ventanita. "Desinstalado" sale cuando de verdad se borró. */
 const uninstalling = new Map();
 async function uninstallGame(g, after) {
-  if (!Host.has) { g.installed = false; renderHome(); if (after) after(); return notify({ icon: I.cloud, title: "Desinstalado", text: `${g.name} · ${fmtSize(gameSize(g))} liberados` }); }
+  if (!Host.has) { g.installed = false; renderHome(); if (after) after(); return notify({ game: g, icon: I.cloud, title: "Desinstalado", text: `${g.name} · ${fmtSize(gameSize(g))} liberados` }); }
   const size = gameSize(g);
   const r = await Host.call("game.uninstall", { appid: g.appid, source: g.source }).catch(e => ({ ok: false, error: e.message }));
   if (!r || !r.ok) return alertDialog(`No se pudo desinstalar ${g.name}.\n${(r && r.error) || ""}`);
@@ -4406,12 +4486,12 @@ async function uninstallGame(g, after) {
 }
 Events.on("game.uninstalled", d => {
   const u = uninstalling.get(d.appid), g = byId(d.appid); if (!g) return;
-  if (d.pending) return notify({ key: "unin:" + g.appid, icon: I.cloud, title: "Desinstalando", text: `Steam se reinicia unos segundos para terminar de borrar ${g.name}.` });
+  if (d.pending) return notify({ key: "unin:" + g.appid, game: g, icon: I.cloud, title: "Desinstalando", text: `Steam se reinicia unos segundos para terminar de borrar ${g.name}.` });
   uninstalling.delete(d.appid);
   if (d.ok) {
     g.installed = false; delete state.downloads[g.appid]; delete state.updates[g.appid]; unpin(g.appid);
     const size = d.freed > 0 ? d.freed / 1073741824 : u ? u.size : 0;
-    notify({ key: "unin:" + g.appid, icon: I.cloud, title: "Desinstalado", text: `${g.name}${size > 0 ? " · " + fmtSize(size) + " liberados" : ""}` });
+    notify({ key: "unin:" + g.appid, game: g, icon: I.cloud, title: "Desinstalado", text: `${g.name}${size > 0 ? " · " + fmtSize(size) + " liberados" : ""}` });
   } else alertDialog(`No se pudo desinstalar ${g.name}.\nIntenta desde Steam.`);
   renderHome(); refreshLibrary(); if (u && u.after) u.after();
 });
@@ -4920,12 +5000,12 @@ async function launchGame(g, el, opt = {}) {
     launchAfter.add(g.appid);
     if (!state.downloads[g.appid]) state.downloads[g.appid] = { p: 0, kind: "Actualizando", st: "pending" };
     renderHome(); openView(downloadView(g));
-    notify({ icon: I.cloud, title: "Primero se actualiza", text: `Steam está actualizando ${g.name}. Se abrirá cuando termine.` });
+    notify({ game: g, icon: I.cloud, title: "Primero se actualiza", text: `Steam está actualizando ${g.name}. Se abrirá cuando termine.` });
     return;
   }
   if (!ok) {
     L.classList.remove("logo", "show"); mode = "ui";
-    notify({ icon: I.power, title: "No se pudo iniciar", text: g.name, sound: "error" });
+    notify({ grad: "err", game: g, icon: I.power, title: "No se pudo iniciar", text: g.name, sound: "error" });
     return;
   }
   games.splice(games.indexOf(g), 1); games.unshift(g); g.last = "ahora"; g.lastTs = Math.floor(Date.now() / 1000);
@@ -4946,7 +5026,7 @@ async function openAlongside(g, el) {
   await wait(300);
   state.side = g.appid; renderHome();
   try { await Host.call("app.open", { appid: g.appid, source: g.source }); }
-  catch (e) { state.side = null; renderHome(); notify({ icon: I.power, title: "No se pudo abrir", text: g.name, sound: "error" }); }
+  catch (e) { state.side = null; renderHome(); notify({ grad: "err", game: g, icon: I.power, title: "No se pudo abrir", text: g.name, sound: "error" }); }
   mode = "ui"; updateFocus();
 }
 Events.on("app.closed", d => { if (d && d.appid == state.side) { state.side = null; if (mode !== "boot") renderHome(); } });
@@ -6609,13 +6689,13 @@ const Lumina = (() => {
 
   const on = () => settings.lumina === true;
   const canRefract = () => typeof CSS !== "undefined" && CSS.supports && (CSS.supports("backdrop-filter", "url(#a)") || CSS.supports("-webkit-backdrop-filter", "url(#a)"));
-  const refracting = () => on() && settings.luminaRefract !== false && canRefract();
+  const refracting = () => on() && !OVERLAY && settings.luminaRefract !== false && canRefract();
 
   function ensure() {
     if (lens) return;
     lens = document.createElement("div"); lens.id = "lumi"; lens.setAttribute("aria-hidden", "true");
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("width", "0"); svg.setAttribute("height", "0"); svg.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
+    svg.setAttribute("class", "lumi-svg"); svg.setAttribute("width", "0"); svg.setAttribute("height", "0"); svg.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
     svg.innerHTML = `<filter id="lumi-f" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
       <feImage x="0" y="0" width="8" height="8" preserveAspectRatio="none" result="m"/>
       <feDisplacementMap in="SourceGraphic" in2="m" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter>`;
@@ -6625,11 +6705,14 @@ const Lumina = (() => {
 
   /* El mapa: gris neutro en el centro (no mueve nada) y, hacia el borde, cada punto toma la imagen de más adentro,
      siguiendo la forma redondeada. Se dibuja a media resolución y se guarda por tamaño. */
+  /* (1.7.1) Qué tanto dobla, según el tamaño de lo enfocado: en una portada, todo; en la foto de perfil o un ícono chico,
+     casi nada (antes la foto se veía como ojo de pez). 1 = tamaño completo, a partir de ~260 px de lado a 1080p. */
+  const lensFit = (w, h) => Math.max(.12, Math.min(1, Math.min(w, h) / (26 * rem())));
   function buildMap(w, h, r) {
-    const sc = .5, cw = Math.max(8, Math.round(w * sc)), ch = Math.max(8, Math.round(h * sc));
+    const sc = .5, cw = Math.max(8, Math.round(w * sc)), ch = Math.max(8, Math.round(h * sc)), fit = lensFit(w, h);
     const c = document.createElement("canvas"); c.width = cw; c.height = ch;
     const ctx = c.getContext("2d"), img = ctx.createImageData(cw, ch), d = img.data;
-    const rim = Math.min(RIM * sc * (rem() / 10), cw / 2, ch / 2), rr = Math.min(r * sc, cw / 2, ch / 2), hx = cw / 2 - rr, hy = ch / 2 - rr;
+    const rim = Math.min(RIM * sc * (rem() / 10) * fit, cw / 2, ch / 2), rr = Math.min(r * sc, cw / 2, ch / 2), hx = cw / 2 - rr, hy = ch / 2 - rr;
     for (let y = 0, i = 0; y < ch; y++) for (let x = 0; x < cw; x++, i += 4) {
       const px = x + .5 - cw / 2, py = y + .5 - ch / 2, qx = Math.abs(px) - hx, qy = Math.abs(py) - hy;
       const ox = Math.max(qx, 0), oy = Math.max(qy, 0), len = Math.hypot(ox, oy);
@@ -6650,7 +6733,8 @@ const Lumina = (() => {
     let url = maps.get(key);
     if (!url) { url = buildMap(w, h, r); maps.set(key, url); if (maps.size > 24) maps.delete(maps.keys().next().value); }
     const im = new Image(); im.src = url;          // se pone cuando ya está lista: así nunca se ve un cuadro sin mapa
-    const put = () => { if (mapKey === key && feImg) { feImg.setAttribute("href", url); feDisp.setAttribute("scale", String(2 * BEND * (rem() / 10))); } };
+    const bend = 2 * BEND * (rem() / 10) * Math.pow(lensFit(w, h), 1.5);
+    const put = () => { if (mapKey === key && feImg) { feImg.setAttribute("href", url); feDisp.setAttribute("scale", String(bend)); } };
     if (im.decode) im.decode().then(put, put); else im.onload = put;
   }
 
@@ -6721,9 +6805,17 @@ const Lumina = (() => {
     const T = rectOf(n);
     if (Math.abs(T.l - S.l) > 1 || Math.abs(T.t - S.t) > 1 || Math.abs(T.r - S.r) > 1 || Math.abs(T.b - S.b) > 1) kick(600);
   }
+  /* (1.7.1) Encima del juego el menú es una ventana aparte: con Lúmina el panel flota redondeado, así que la ventana (y su
+     fondo al 50 %) toman esa misma forma. Si no, detrás se veía el rectángulo de siempre. */
+  function shape() {
+    if (!OVERLAY || !Host.has) return;
+    const dpr = window.devicePixelRatio || 1;
+    Host.call("quick.shape", on() ? { inset: Math.round(1.8 * rem() * dpr), radius: Math.round(3.4 * rem() * dpr) } : { off: true }).catch(() => {});
+  }
   function apply() {
     const o = on();
     root.toggleAttribute("data-lumina", o);
+    shape();
     if (!o) {
       delete root.dataset.lens; clearInterval(watch); watch = 0; if (raf) cancelAnimationFrame(raf); raf = 0; el = null;
       if (lens) lens.style.opacity = "0";
@@ -6736,7 +6828,14 @@ const Lumina = (() => {
     kick();
   }
   addEventListener("scroll", () => kick(500), { capture: true, passive: true });
-  addEventListener("resize", () => { maps.clear(); mapKey = ""; el = null; kick(); });
+  addEventListener("resize", () => { maps.clear(); mapKey = ""; el = null; kick(); shape(); });
+  /* El menú encima del juego es otra página: cuando cambias el tema o Lúmina en Ajustes, se entera aquí. */
+  if (OVERLAY) addEventListener("storage", e => {
+    if (e.key !== "scarlet.settings") return;
+    const s = store.get("settings", {});
+    for (const k of ["theme", "lumina", "luminaRefract"]) if (k in s) settings[k] = s[k]; else delete settings[k];
+    applyTheme(); apply();
+  });
   return { apply, kick, on, canRefract, get el() { return lens; }, get target() { return el; } };
 })();
 luminaKick = () => Lumina.kick();

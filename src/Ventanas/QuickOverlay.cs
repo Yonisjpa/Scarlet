@@ -49,6 +49,7 @@ sealed class QuickOverlay : Form
         if (on)
         {
             back ??= new GlassBack();
+            if (shapeInset > 0) back.SetShape(shapeInset, shapeRadius, want.IsEmpty ? Size : want.Size);
             BackColor = Key; TransparencyKey = Key;
             web.DefaultBackgroundColor = Color.Transparent;
             Owner = back;   // siempre justo encima de su fondo
@@ -61,6 +62,47 @@ sealed class QuickOverlay : Form
         }
         Post("quick.glass", on);
         Log.Write("menú rápido: fondo " + (on ? "50 % transparente" : "sólido"));
+    }
+
+    // ───── Forma redondeada (1.7.1, Lúmina) ─────
+    // Con Lúmina el panel flota con margen y esquinas redondas. La página no puede recortar su ventana, así que la ventana
+    // (y su fondo al 50 %) toman esa forma; si no, detrás del panel se veía el rectángulo del menú de siempre.
+    int shapeInset, shapeRadius;
+
+    public void SetShape(int inset, int radius)
+    {
+        shapeInset = Math.Max(0, inset); shapeRadius = Math.Max(0, radius);
+        ApplyShape();
+        Log.Write(shapeInset > 0 ? $"menú rápido: forma redondeada ({shapeInset} px, radio {shapeRadius} px)" : "menú rápido: forma de siempre");
+    }
+
+    /// <summary>Rectángulo redondeado dentro de w×h, a «inset» de cada orilla (null = sin forma).</summary>
+    internal static System.Drawing.Region RoundedRegion(int w, int h, int inset, int radius)
+    {
+        if (inset <= 0 || w <= inset * 2 || h <= inset * 2) return null;
+        var r = new Rectangle(inset, inset, w - inset * 2, h - inset * 2);
+        int d = Math.Min(radius * 2, Math.Min(r.Width, r.Height));
+        using var path = new System.Drawing.Drawing2D.GraphicsPath();
+        if (d <= 0) path.AddRectangle(r);
+        else
+        {
+            path.AddArc(r.X, r.Y, d, d, 180, 90); path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90); path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+        }
+        return new System.Drawing.Region(path);
+    }
+
+    void ApplyShape()
+    {
+        try
+        {
+            var old = Region;
+            Region = RoundedRegion(want.IsEmpty ? Width : want.Width, want.IsEmpty ? Height : want.Height, shapeInset, shapeRadius);
+            old?.Dispose();
+            back?.SetShape(shapeInset, shapeRadius, want.IsEmpty ? null : want.Size);
+        }
+        catch (Exception ex) { Log.Error("menú rápido (forma)", ex); }
     }
 
     /// <summary>Los colores del fondo: el del tema, o los de la carátula cuando suena música (null = color del menú).</summary>
@@ -100,6 +142,7 @@ sealed class QuickOverlay : Form
         if (IsHandleCreated) Native.SetWindowPos(Handle, new IntPtr(-1) /* TOPMOST */, want.X, want.Y, want.Width, want.Height, 0x0010 /* NOACTIVATE */);
         else Bounds = want;
         if (back != null && IsOpen) back.Place(want);
+        if (shapeInset > 0) ApplyShape();
     }
 
     /// <summary>Si algo intenta agrandar o mover el panel (cambio de escala de Windows, el juego), se queda en su lugar.</summary>
@@ -436,10 +479,23 @@ sealed class GlassBack : Form
         }
     }
 
+    int shapeInset, shapeRadius;
+
     public void Place(Rectangle r)
     {
-        if (!IsHandleCreated) { Bounds = r; return; }
-        Native.SetWindowPos(Handle, new IntPtr(-1), r.X, r.Y, r.Width, r.Height, 0x0010 /* NOACTIVATE */);
+        if (!IsHandleCreated) Bounds = r;
+        else Native.SetWindowPos(Handle, new IntPtr(-1), r.X, r.Y, r.Width, r.Height, 0x0010 /* NOACTIVATE */);
+        if (shapeInset > 0) SetShape(shapeInset, shapeRadius, r.Size);
+    }
+
+    /// <summary>(1.7.1) La misma forma redondeada que el panel (Lúmina); 0 = rectángulo de siempre.</summary>
+    public void SetShape(int inset, int radius, Size? size = null)
+    {
+        shapeInset = inset; shapeRadius = radius;
+        var sz = size ?? Size;
+        var old = Region;
+        Region = QuickOverlay.RoundedRegion(sz.Width, sz.Height, inset, radius);
+        old?.Dispose();
     }
 
     public void FadeTo(double o)

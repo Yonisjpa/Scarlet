@@ -147,3 +147,30 @@
 #lumi::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:var(--ringw);background:conic-gradient(from var(--ringa),var(--ringstops));
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);animation:ring 6s linear infinite}
 #lumi::before{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.35) 50%,transparent 65%);background-size:300% 100%;background-position:var(--gl,150%) 0;opacity:var(--go,0)}
+
+/* ----- (1.7.1) Menú del botón Xbox encima de un juego ----- */
+/* Es una página aparte que esconde todo menos el menú: el cursor de cristal también debe verse ahí. */
+:root[data-lumina][data-lens].overlay body>#lumi{display:block!important}
+:root.overlay body>svg.lumi-svg{display:block!important}
+/* El panel flota con el mismo margen por los cuatro lados (la ventana toma esta forma) y sin sombra hacia afuera:
+   afuera del panel la ventana es transparente y la sombra se veía como una mancha. */
+:root[data-lumina].overlay #quick,:root[data-lumina].overlay #quick.ns{left:1.8rem;right:1.8rem;width:auto!important;
+  box-shadow:inset 0 2px 0 var(--lm-hi),inset 0 -1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge)}
+/* La perilla de las barras ya no se sale de su fila al 0 % ni al 100 % */
+:root[data-lumina] .nqbar{margin:0 2.2rem 0 1.4rem}
+/* La franja de Dolby Atmos: una cápsula como las demás filas */
+:root[data-lumina] #quick.ns .qdolby{margin:.2rem 0 .9rem;padding:.75rem 0;border-radius:99rem;background:var(--lm-fill)!important;box-shadow:inset 0 1px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge)}
+/* Tema claro: el botón Xbox de «Jugar», «Ver»… se veía blanco sobre blanco */
+:root[data-lumina][data-theme="light"] .notif .nact .xbtn{background:#1b1b1f}
+/* ----- (1.7.1) Avisos: portada del juego en el bloque y una tira de color por tipo ----- */
+:root[data-lumina] .notif .ic.game{background:#111;padding:0;overflow:hidden}
+:root[data-lumina] .notif .ic.game img{width:100%;height:100%;object-fit:cover;display:block;border-radius:0}
+:root[data-lumina] .notif.g-nube{--g1:#ff6a00;--g2:#ffd43b;--gt:#ff8a1f}
+:root[data-lumina] .notif.g-dl{--g1:#0274fc;--g2:#3ad7ff;--gt:#2f9bff}
+:root[data-lumina] .notif.g-amigo{--g1:#12b76a;--g2:#8ef0c4;--gt:#25c27a}
+:root[data-lumina] .notif.g-cap{--g1:#8b95a5;--g2:#ffffff;--gt:#9aa4b2}
+:root[data-lumina] .notif.g-err{--g1:#ff3b5c;--g2:#ff9a3c;--gt:#ff5a5a}
+:root[data-lumina] .notif[class*=" g-"] .nlife{background:linear-gradient(90deg,var(--g1),var(--g2))}
+:root[data-lumina] .notif[class*=" g-"] .ntag{color:var(--gt)}
+:root[data-lumina] .notif[class*=" g-"] .ic:not(.game):not(.thumb){background:linear-gradient(160deg,var(--g1),var(--g2))}
+:root[data-lumina][data-theme="light"] .notif.g-cap .ntag{color:#6b7584}

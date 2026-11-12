@@ -101,7 +101,7 @@ async function cancelDownload(g, quiet) {
 /* Desinstalar: Scarlet ya preguntó, así que Steam lo hace sin su ventanita. "Desinstalado" sale cuando de verdad se borró. */
 const uninstalling = new Map();
 async function uninstallGame(g, after) {
-  if (!Host.has) { g.installed = false; renderHome(); if (after) after(); return notify({ icon: I.cloud, title: "Desinstalado", text: `${g.name} · ${fmtSize(gameSize(g))} liberados` }); }
+  if (!Host.has) { g.installed = false; renderHome(); if (after) after(); return notify({ game: g, icon: I.cloud, title: "Desinstalado", text: `${g.name} · ${fmtSize(gameSize(g))} liberados` }); }
   const size = gameSize(g);
   const r = await Host.call("game.uninstall", { appid: g.appid, source: g.source }).catch(e => ({ ok: false, error: e.message }));
   if (!r || !r.ok) return alertDialog(`No se pudo desinstalar ${g.name}.\n${(r && r.error) || ""}`);
@@ -112,12 +112,12 @@ async function uninstallGame(g, after) {
 }
 Events.on("game.uninstalled", d => {
   const u = uninstalling.get(d.appid), g = byId(d.appid); if (!g) return;
-  if (d.pending) return notify({ key: "unin:" + g.appid, icon: I.cloud, title: "Desinstalando", text: `Steam se reinicia unos segundos para terminar de borrar ${g.name}.` });
+  if (d.pending) return notify({ key: "unin:" + g.appid, game: g, icon: I.cloud, title: "Desinstalando", text: `Steam se reinicia unos segundos para terminar de borrar ${g.name}.` });
   uninstalling.delete(d.appid);
   if (d.ok) {
     g.installed = false; delete state.downloads[g.appid]; delete state.updates[g.appid]; unpin(g.appid);
     const size = d.freed > 0 ? d.freed / 1073741824 : u ? u.size : 0;
-    notify({ key: "unin:" + g.appid, icon: I.cloud, title: "Desinstalado", text: `${g.name}${size > 0 ? " · " + fmtSize(size) + " liberados" : ""}` });
+    notify({ key: "unin:" + g.appid, game: g, icon: I.cloud, title: "Desinstalado", text: `${g.name}${size > 0 ? " · " + fmtSize(size) + " liberados" : ""}` });
   } else alertDialog(`No se pudo desinstalar ${g.name}.\nIntenta desde Steam.`);
   renderHome(); refreshLibrary(); if (u && u.after) u.after();
 });

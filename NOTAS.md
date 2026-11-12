@@ -1,3 +1,17 @@
+Novedades de la beta 1.7.1 (Lúmina)
+
+Avisos:
+- Con Lúmina, los avisos de un juego (nube, descargas, capturas, amigos jugando, errores) llevan la portada del juego en el bloque de la izquierda.
+- Cada tipo tiene su tira de color, y la etiqueta va del mismo color: nube naranja→amarillo, descargas azul→cian, amigos verde→menta, capturas plata→blanco, errores rojo→naranja; los del sistema llevan la del cursor.
+- Encima del juego, con Lúmina, los avisos ya salen con el estilo nuevo (bloque de color, cuerpo de cristal claro u oscuro según el tema, batería con el porcentaje en grande).
+
+Arreglos de Lúmina:
+- La foto de perfil ya no se deforma: la lente del cursor dobla según el tamaño de lo que enfoca (mucho en una portada, casi nada en un ícono chico).
+- Menú del botón Xbox encima del juego: ya se ve qué opción está elegida, el panel flota redondeado sin el rectángulo de atrás, y si cambias el tema o Lúmina en Ajustes se entera sin reiniciar.
+- La perilla del brillo al 100 % ya no se sale de su fila, y la franja de Dolby Atmos es una cápsula como las demás.
+- Tema claro: el botón Xbox de «Jugar», «Ver»… ya se ve.
+- Con Lúmina apagado todo sigue igual que antes.
+
 Novedades de la beta 1.7
 
 Lúmina, un estilo de cristal (Ajustes › Temas › Lúmina):

@@ -44,7 +44,7 @@ function finishDownload(appid, info = {}) {
     clearTimeout(doneBatchT);
     doneBatchT = setTimeout(() => {
       const b = doneBatch; doneBatch = [];
-      if (b.length === 1) { const g1 = b[0].g; notify({ kind: "dl", icon: I.cloud, title: b[0].fresh ? "Descarga completada" : "Actualización completada", text: g1.name, act: { label: "Jugar", run: () => { if (mode === "ui" && !state.running) { closeAllViews(); launchGame(g1); } } } }); }
+      if (b.length === 1) { const g1 = b[0].g; notify({ kind: "dl", game: g1, icon: I.cloud, title: b[0].fresh ? "Descarga completada" : "Actualización completada", text: g1.name, act: { label: "Jugar", run: () => { if (mode === "ui" && !state.running) { closeAllViews(); launchGame(g1); } } } }); }
       else if (b.length > 1) notify({ kind: "dl", icon: I.cloud, title: b.every(x => !x.fresh) ? `${b.length} juegos actualizados` : `${b.length} descargas completadas`, text: b.map(x => x.g.name).join(", ") });
     }, 1500);
   }, fresh ? 6000 : 1500) };
