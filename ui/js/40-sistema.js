@@ -27,7 +27,7 @@ function setBatt(level, charging) {
   }
   if (charging || level > .25) { battWarn[20] = false; battWarn[10] = false; }
   else if (level > .12) battWarn[10] = false;
-  if (charging && !wasCharging && typeof battReady !== "undefined" && battReady) notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg>', title: "Cargando", text: `Batería al ${Math.round(level * 100)} %` });
+  if (charging && !wasCharging && typeof battReady !== "undefined" && battReady) notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg>', title: "Cargando", text: `Batería al ${Math.round(level * 100)} %`, batt: level, chg: true });
 }
 let battReady = false; setTimeout(() => battReady = true, 4000);
 if (navigator.getBattery) navigator.getBattery().then(b => { const u = () => setBatt(b.level, b.charging); u(); b.addEventListener("levelchange", u); b.addEventListener("chargingchange", u); }).catch(() => setBatt(.82)); else setBatt(.82);

@@ -39,19 +39,23 @@ function notify(o) {
 }
 /* beta 1.6: cápsula con un color y una etiqueta por tipo de aviso */
 const NOTIF_TAG = { friend: ["En línea", "#3ddc84"], friendplay: ["Jugando", "#3ddc84"], dl: ["Descarga", "#3fb3ff"], batt: ["Batería", "#ff5a5a"], cap: ["Captura", "#ffffff"], sum: ["Avisos", "#ffffff"], err: ["Aviso", "#f2c230"] };
+const notifLumi = o => settings.lumina === true && typeof o.batt === "number" ? luminaBatt(o) : null;
+const notifCls = o => { const lb = notifLumi(o); return "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "") + (lb ? " batt " + lb.cls : ""); };
 function notifHTML(o) {
   const t = o.thumb;
   const ic = t ? `<div class="ic thumb${t.saving ? " saving" : ""}">${t.src ? `<img alt="" src="${esc(t.src)}">` : ""}${t.video && !t.saving ? `<span class="pl"><b></b></span>${t.dur ? `<span class="du">${esc(t.dur)}</span>` : ""}` : ""}${t.saving ? `<span class="rec"><i></i></span>` : ""}</div>`
     : `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div>`;
   const act = o.act && mode === "ui" ? `<div class="nact"><span class="xbtn"></span>${esc(o.act.label)}</div>` : "";
   const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : null);
+  const lb = notifLumi(o);   // (beta 1.7) con Lúmina, la batería lleva su porcentaje en grande y el nivel abajo
+  if (lb) return `${ic}<div class="ntx"><span class="ntag">${esc(lb.tag)}</span><b>${esc(lb.title)}</b><span>${esc(lb.text)}</span></div><span class="npct">${lb.pct} %</span><div class="nlvl"><i style="width:${lb.pct}%"></i></div><div class="nlife"></div>`;
   return `${ic}<div class="ntx">${tag ? `<span class="ntag">${esc(tag[0])}</span>` : ""}<b>${esc(o.title)}${o.star ? '<i class="nstar">★</i>' : ""}</b>${o.lines ? `<ul>${o.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span>${esc(o.text)}</span>`}</div>${act}<div class="nlife"></div>`;
 }
 function notifNext() {
   if (Ach.cur) { notifCur = null; return; }                      // hay un logro en pantalla: esperan a que se vaya
   if (Ach.q.length) { notifCur = null; return Ach.next(); }      // (beta 1.6) y los logros pendientes van primero
   const o = notifQ.shift(); if (!o) { notifCur = null; return; }
-  const n = document.createElement("div"); n.className = "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "");
+  const n = document.createElement("div"); n.className = notifCls(o);
   n.innerHTML = notifHTML(o); n.style.setProperty("--nac", (NOTIF_TAG[o.kind] || [0, o.tagColor || "#ffffff"])[1]);
   const wrap = document.createElement("div"); wrap.className = "nwrap"; wrap.append(n);
   const box = $("#notifs"); box.innerHTML = ""; box.append(wrap);
@@ -84,7 +88,7 @@ function notifTime(o) {
 }
 function notifReplace(o) {
   const cur = notifCur; o.el = cur.el; clearTimeout(cur.t);
-  cur.el.className = "notif" + (o.thumb ? " wide" : "");
+  cur.el.className = o.lines ? "notif" + (o.thumb ? " wide" : "") : notifCls(o);
   cur.el.innerHTML = notifHTML(o);
   if (settings.nSound !== false && o.sound) play(o.sound);
   notifCur = o; notifTime(o);
@@ -131,7 +135,7 @@ function notifyFriend(f) {
 }
 /* beta 1.6: los logros tienen su propio aviso, como en Xbox (43-logros.js) */
 function notifyAchievement(g, name, d = {}) { showAchievement(g, name, d); }
-function notifyBattery(level) { notify({ kind: "batt", icon: I.battLow, title: "Batería baja", text: `Queda ${Math.round(level * 100)} %. Conecta el cargador.` }); }
+function notifyBattery(level) { notify({ kind: "batt", batt: level, icon: I.battLow, title: "Batería baja", text: `Queda ${Math.round(level * 100)} %. Conecta el cargador.` }); }
 /* Capturas: miniatura de verdad (la foto, o un cuadro del video), con «Ver» que abre el Álbum en esa captura. */
 function notifyCapture(item, saving) {
   const video = item.type === "video", game = item.game && item.game !== "Sistema" ? item.game : "";

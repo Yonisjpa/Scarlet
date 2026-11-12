@@ -52,7 +52,10 @@ function setHints(list) {
   const h = list.map(hintHTML).join("");
   if (h !== setHints.last) { $("#hints").innerHTML = h; setHints.last = h; }   // no se rehace si no cambió
 }
-function updateFocus() {
+/* (beta 1.7) Lúmina: el cursor de cristal se entera de cada cambio de foco. Apagado, esto no hace nada. */
+let luminaKick = () => {};
+function updateFocus() { updateFocus0(); luminaKick(); }
+function updateFocus0() {
   $$(".focused").forEach(e => { e.classList.remove("focused"); const c = e.querySelector(".cap"); if (c) marquee(c, c.dataset.t || c.textContent, false); });
   const v = topView();
   if (v) {

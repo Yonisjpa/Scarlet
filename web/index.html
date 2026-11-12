@@ -1081,6 +1081,155 @@ body{touch-action:pan-y}
 @keyframes nIn2{0%{transform:translateX(-110%) scale(.92);opacity:0}65%{transform:translateX(3%) scale(1.02);opacity:1}100%{transform:none;opacity:1}}
 @keyframes nOut2{to{transform:translateY(-.9rem) scale(.86);opacity:0}}
 @keyframes npop{0%{transform:scale(0)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+/* ===================== beta 1.7: Lúmina =====================
+   Estilo de cristal translúcido que se enciende en Ajustes › Temas. Funciona con el tema claro y el oscuro.
+   TODO lo de este archivo cuelga de :root[data-lumina]: con el interruptor apagado no se aplica ni una regla,
+   así que los temas de siempre quedan exactamente igual. Solo cambia materiales; nada de posiciones ni iconos. */
+:root[data-lumina]{
+  --lm-fill:rgba(255,255,255,.075); --lm-fill2:rgba(255,255,255,.13); --lm-hi:rgba(255,255,255,.34); --lm-lo:rgba(255,255,255,.07);
+  --lm-edge:rgba(255,255,255,.14); --lm-sh:0 1.2rem 3.2rem rgba(0,0,0,.42); --lm-panel:rgba(46,46,50,.52);
+  --lm-bg:radial-gradient(90rem 60rem at 12% -10%,rgba(255,255,255,.10),transparent 60%),radial-gradient(80rem 60rem at 95% 110%,rgba(255,255,255,.07),transparent 60%),radial-gradient(60rem 40rem at 60% 45%,rgba(255,255,255,.035),transparent 70%),#1b1b1d;
+  --lm-blur:blur(2.6rem) saturate(1.7) brightness(1.08);
+}
+:root[data-lumina][data-theme="light"]{
+  --lm-fill:rgba(255,255,255,.5); --lm-fill2:rgba(255,255,255,.82); --lm-hi:rgba(255,255,255,1); --lm-lo:rgba(255,255,255,.5);
+  --lm-edge:rgba(0,0,0,.07); --lm-sh:0 1.2rem 3rem rgba(60,60,70,.18); --lm-panel:rgba(250,250,252,.55);
+  --lm-bg:radial-gradient(90rem 60rem at 12% -10%,#fff,transparent 60%),radial-gradient(80rem 60rem at 95% 110%,rgba(255,255,255,.9),transparent 60%),radial-gradient(70rem 50rem at 55% 50%,rgba(0,0,0,.035),transparent 70%),#e4e4e6;
+  --lm-blur:blur(2.6rem) saturate(1.6);
+}
+:root[data-lumina] body,:root[data-lumina] .view{background:var(--lm-bg) fixed}
+/* material */
+:root[data-lumina] .apps,:root[data-lumina] .status,:root[data-lumina] .nsl,:root[data-lumina] .nsr,:root[data-lumina] .tile.all,:root[data-lumina] .hints .hint{
+  background:linear-gradient(180deg,var(--lm-fill2),var(--lm-fill) 45%,var(--lm-fill));
+  -webkit-backdrop-filter:var(--lm-blur);backdrop-filter:var(--lm-blur);
+  box-shadow:inset 0 1.5px 0 var(--lm-hi),inset 0 -1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge),var(--lm-sh);
+}
+/* Inicio */
+:root[data-lumina] .status{padding:1.2rem 1.8rem;margin:-1.2rem -1rem;border-radius:99rem}
+:root[data-lumina] .app.focused{background:var(--lm-fill2);box-shadow:inset 0 1.5px 0 var(--lm-hi),inset 0 0 0 1px var(--lm-edge),0 .4rem 1.2rem rgba(0,0,0,.18)}
+:root[data-lumina] .tile:not(.all)::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:1;
+  background:linear-gradient(160deg,rgba(255,255,255,.26),rgba(255,255,255,0) 32%);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.55),inset 0 0 0 1px rgba(255,255,255,.16),inset 0 -1.5px 0 rgba(255,255,255,.12)}
+:root[data-lumina] .tile:not(.all){box-shadow:0 1.4rem 3rem rgba(0,0,0,.3)}
+:root[data-lumina][data-theme="light"] .tile:not(.all){box-shadow:0 1.2rem 2.6rem rgba(60,60,70,.22)}
+:root[data-lumina] .hints{background:transparent!important;border-top-color:transparent!important}
+:root[data-lumina] .hints .hint{padding:.9rem 1.8rem .9rem 1.2rem;border-radius:99rem;--lm-sh:0 .5rem 1.4rem rgba(0,0,0,.2)}
+:root[data-lumina] #hints{gap:1.2rem}
+/* Ajustes */
+:root[data-lumina] .vhead{border-bottom-color:transparent}
+:root[data-lumina] .nsb{gap:2rem;padding-bottom:1.2rem}
+:root[data-lumina] .nsl{border-right:0;border-radius:2.6rem;padding:1.4rem 0;width:33rem}
+:root[data-lumina] .nsr{border-radius:2.6rem;padding:1.2rem 2.4rem 3rem 3rem}
+:root[data-lumina] .nscat.focused,:root[data-lumina] .nsrow.focused{background:var(--lm-fill2);box-shadow:inset 0 1.5px 0 var(--lm-hi),inset 0 0 0 1px var(--lm-edge),0 .5rem 1.4rem rgba(0,0,0,.16)}
+:root[data-lumina] .nsrow,:root[data-lumina] .nssec + .nsrow{border-color:var(--lm-edge)}
+:root[data-lumina] .nsw{box-shadow:inset 0 1px 2px rgba(0,0,0,.3),inset 0 0 0 1px var(--lm-edge)}
+:root[data-lumina] .nsw::after{box-shadow:0 .2rem .5rem rgba(0,0,0,.35),inset 0 -1px 1px rgba(0,0,0,.12)}
+/* Menú rápido: panel flotante */
+:root[data-lumina] #qshade{background:rgba(0,0,0,.22)}
+:root[data-lumina][data-theme="light"] #qshade{background:rgba(0,0,0,.08)}
+:root[data-lumina] #quick,:root[data-lumina] #quick.ns{top:1.8rem;right:1.8rem;bottom:1.8rem;border-radius:3.4rem;background:transparent!important;
+  -webkit-backdrop-filter:blur(3.4rem) saturate(1.8);backdrop-filter:blur(3.4rem) saturate(1.8);
+  box-shadow:inset 0 2px 0 var(--lm-hi),inset 0 -1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge),0 2rem 6rem rgba(0,0,0,.45);overflow:hidden;padding-bottom:.4rem}
+:root[data-lumina] #quick::before,:root[data-lumina] #quick.ns:not(.tinted)::before{content:"";position:absolute;inset:0;z-index:-1;opacity:1;background:linear-gradient(180deg,var(--lm-fill2),transparent 30%),var(--lm-panel);pointer-events:none}
+:root[data-lumina] .nqst{border-bottom-color:transparent;margin-bottom:.2rem}
+:root[data-lumina] #quick.ns .qrow{border-bottom:0;border-radius:1.9rem;margin-bottom:.9rem;background:var(--lm-fill);box-shadow:inset 0 1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge)}
+:root[data-lumina] #quick.ns .qrow.focused{background:var(--lm-fill2);box-shadow:inset 0 1.5px 0 var(--lm-hi),inset 0 0 0 1px var(--lm-edge),0 .6rem 1.6rem rgba(0,0,0,.2)}
+:root[data-lumina] #quick.ns .qrow{--r:1.9rem}
+:root[data-lumina] .nqbar{height:.9rem;border-radius:.5rem;background:rgba(127,127,127,.28);box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
+:root[data-lumina] .nqbar i{border-radius:.5rem}
+:root[data-lumina] .nqbar u{width:4.4rem;height:2.9rem;border-radius:1.5rem;background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,.72))!important;box-shadow:0 .3rem .9rem rgba(0,0,0,.35),inset 0 0 0 1px rgba(255,255,255,.9),inset 0 -2px 3px rgba(0,0,0,.1)}
+:root[data-lumina] .qhint{border-top-color:transparent!important}
+/* ===== resto de pantallas ===== */
+:root[data-lumina] .dbox,:root[data-lumina] .pmenu,:root[data-lumina] .ppane,:root[data-lumina] .stat,:root[data-lumina] .key,:root[data-lumina] .kbfield,:root[data-lumina] .tabs,:root[data-lumina] .pwrow,:root[data-lumina] .dlo button,:root[data-lumina] .vbody>.lrow{
+  background:linear-gradient(180deg,var(--lm-fill2),var(--lm-fill) 45%,var(--lm-fill));
+  -webkit-backdrop-filter:var(--lm-blur);backdrop-filter:var(--lm-blur);
+  box-shadow:inset 0 1.5px 0 var(--lm-hi),inset 0 -1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge),var(--lm-sh);
+}
+/* diálogos: el fondo se desenfoca en vez de oscurecerse */
+:root[data-lumina] .view.dialog{background:rgba(0,0,0,.3);-webkit-backdrop-filter:blur(2rem) saturate(1.5);backdrop-filter:blur(2rem) saturate(1.5)}
+:root[data-lumina][data-theme="light"] .view.dialog{background:rgba(120,120,128,.18)}
+:root[data-lumina] .dbox{border-radius:3rem;overflow:hidden;background:linear-gradient(180deg,var(--lm-fill2),transparent 35%),var(--lm-panel);--lm-sh:0 2.4rem 6rem rgba(0,0,0,.4)}
+:root[data-lumina] .dbtns{border-top:0;gap:1.2rem;padding:0 2.2rem 2.2rem}
+:root[data-lumina] .dbtns button{border-left:0!important;border-radius:99rem;--r:99rem;padding:1.8rem;background:var(--lm-fill);box-shadow:inset 0 1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge)}
+:root[data-lumina] .dbtns .focused{background:var(--lm-fill2);box-shadow:inset 0 1.5px 0 var(--lm-hi),inset 0 0 0 1px var(--lm-edge),0 .6rem 1.6rem rgba(0,0,0,.2)}
+:root[data-lumina] .dbtns .focused::after{border-radius:99rem}
+:root[data-lumina] .pwrow{border-radius:1.9rem;--r:1.9rem;--lm-sh:0 0 0 transparent}
+:root[data-lumina] .pwrow.focused,:root[data-lumina] .dlo button.focused{background:var(--lm-fill2)}
+:root[data-lumina] .dlo button{border:0;border-radius:99rem;--r:99rem;--lm-sh:0 0 0 transparent}
+/* biblioteca */
+:root[data-lumina] .tabs{align-self:flex-start;padding:.7rem 1.2rem;border-radius:99rem;--lm-sh:0 .5rem 1.4rem rgba(0,0,0,.18);overflow:visible}
+/* opciones del juego */
+:root[data-lumina] .props{gap:2rem}
+:root[data-lumina] .pmenu{border-right:0;border-radius:2.6rem;padding:1.2rem}
+:root[data-lumina] .ppane{border-radius:2.6rem}
+:root[data-lumina] .lrow{border-bottom-color:var(--lm-edge)}
+:root[data-lumina] .lrow.focused{background:var(--lm-fill2);box-shadow:inset 0 1.5px 0 var(--lm-hi),inset 0 0 0 1px var(--lm-edge),0 .5rem 1.4rem rgba(0,0,0,.16)}
+/* listas (logros, amigos) */
+:root[data-lumina] .vbody>.lrow{border-bottom:0;border-radius:1.9rem;--r:1.9rem;margin-bottom:1rem;--lm-sh:0 0 0 transparent}
+:root[data-lumina] .vbody>.lrow.focused{background:var(--lm-fill2)}
+:root[data-lumina] .stat{border-radius:1.6rem;--lm-sh:0 0 0 transparent}
+/* teclado */
+:root[data-lumina] .key{border-radius:1.5rem;--r:1.5rem;--lm-sh:0 .3rem .9rem rgba(0,0,0,.16)}
+:root[data-lumina] .kbfield{border:0;border-radius:1.9rem}
+:root[data-lumina] .props{align-items:stretch;padding-bottom:1.6rem}
+:root[data-lumina] .pmenu{margin:0;align-self:stretch}
+:root[data-lumina] .ppane{padding:2.6rem 3rem;margin:0}
+:root[data-lumina] .key.ok{background:linear-gradient(180deg,rgba(255,255,255,.35),transparent 55%),var(--accent)}
+
+/* ----- Notificaciones (estilo B): bloque de color a la izquierda, cuerpo de cristal y línea de tiempo con los colores del cursor ----- */
+:root[data-lumina] .notif{align-items:stretch;gap:0;padding:0;min-height:10.4rem;min-width:52rem;max-width:66rem;border-radius:2.4rem;border:0;overflow:hidden;color:var(--fg);
+  background:linear-gradient(180deg,var(--lm-fill2),transparent 40%),var(--lm-panel);-webkit-backdrop-filter:blur(2.6rem) saturate(1.8);backdrop-filter:blur(2.6rem) saturate(1.8);
+  box-shadow:inset 0 1.5px 0 var(--lm-hi),inset 0 -1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge),0 1.4rem 3.6rem rgba(0,0,0,.38)}
+:root[data-lumina] .notif.wide,:root[data-lumina] .notif.sum,:root[data-lumina] .nghost{border-radius:2.4rem!important}
+:root[data-lumina] .notif .ic{width:10.4rem;height:auto;align-self:stretch;flex:0 0 auto;border-radius:0;font-size:3.8rem;color:#fff;
+  background:linear-gradient(160deg,#62a2f5,#0274fc 30%,#6e5ff4 60%,#b087f7 82%,#f0aacb);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.5),inset -1px 0 0 rgba(255,255,255,.25)}
+:root[data-lumina] .notif .ic svg{width:4.6rem;height:4.6rem}
+:root[data-lumina] .notif .ic.thumb{width:17rem;height:auto;border-radius:0;background:#111}
+:root[data-lumina] .notif .ntx{flex:1;display:flex;flex-direction:column;justify-content:center;gap:.2rem;padding:1.4rem 2.2rem 1.8rem 2rem}
+:root[data-lumina] .notif .ntag{font-size:1.3rem;letter-spacing:.07em;color:var(--fg2);margin:0}
+:root[data-lumina] .notif b{font-size:2.3rem;font-weight:700}
+:root[data-lumina] .notif .ntx>span:not(.ntag),:root[data-lumina] .notif li{font-size:1.75rem;opacity:.85}
+:root[data-lumina] .notif .nact{align-self:center;margin:0 2.2rem 0 0;display:flex;align-items:center;gap:.9rem;font-size:1.75rem;font-weight:600;white-space:nowrap;
+  background:var(--lm-fill2);box-shadow:inset 0 0 0 1px var(--lm-edge);padding:.8rem 1.5rem;border-radius:99rem}
+:root[data-lumina] .notif .nlife{left:10.4rem;right:0;bottom:0;height:.5rem;border-radius:0;background:linear-gradient(90deg,#62a2f5,#0274fc 30%,#6e5ff4 60%,#b087f7 82%,#f0aacb)}
+:root[data-lumina] .notif.wide .nlife{left:17rem}
+:root[data-lumina] .nghost{background:var(--lm-panel);box-shadow:inset 0 0 0 1px var(--lm-edge);filter:none;opacity:.7}
+:root[data-lumina] .nghost.g2{opacity:.45}
+:root[data-lumina] .nmore{background:linear-gradient(90deg,#0274fc,#6e5ff4,#b087f7);font-size:1.6rem;padding:.3rem 1.1rem;right:-.8rem;top:-1rem}
+/* batería: ámbar al avisar, rojo encendido cuando es crítica, rayo al cargar; el porcentaje en grande y la línea de abajo es el nivel */
+.notif .npct,.notif .nlvl{display:none}
+:root[data-lumina] .notif .npct{display:block;align-self:center;margin:0 2.4rem 0 0;font-size:3.2rem;font-weight:800;white-space:nowrap;opacity:1;font-variant-numeric:tabular-nums}
+:root[data-lumina] .notif .nlvl{display:block;position:absolute;left:10.4rem;right:0;bottom:0;height:.5rem;background:rgba(127,127,127,.22)}
+:root[data-lumina] .notif .nlvl i{display:block;height:100%;background:linear-gradient(90deg,#62a2f5,#0274fc 30%,#6e5ff4 60%,#b087f7 82%,#f0aacb)}
+:root[data-lumina] .notif.batt .nlife{display:none}
+:root[data-lumina] .notif.b-low .ic{background:#ffb02e;color:#2b1d00}
+:root[data-lumina] .notif.b-low .nlvl i{background:#ffb02e}
+:root[data-lumina] .notif.b-low .ntag{color:#e09a1c}
+:root[data-lumina] .notif.b-crit .ic,:root[data-lumina] .notif.b-crit .nlvl i{background:#ff4d4d}
+:root[data-lumina] .notif.b-crit .ntag{color:#ff5f5f}
+:root[data-lumina] .notif.b-crit{box-shadow:inset 0 0 0 2px #ff4d4d,0 0 3.4rem rgba(255,77,77,.45);animation:nIn2 .52s cubic-bezier(.2,.8,.25,1) both,lmCrit 1.4s ease-in-out .6s infinite}
+@keyframes lmCrit{50%{box-shadow:inset 0 0 0 2px #ff4d4d,0 0 1.2rem rgba(255,77,77,.2)}}
+
+/* ----- El cursor: una gota de cristal que viaja entre opciones (44-lumina.js). El anillo de colores va montado en la gota. ----- */
+:root[data-lumina][data-lens] .focused::after{opacity:0!important;animation:none!important}
+:root[data-lumina][data-lens] .tile.focused,:root[data-lumina][data-lens] .avatar.focused{box-shadow:0 1.4rem 3rem rgba(0,0,0,.3)}
+:root[data-lumina][data-lens] :is(.app,.nscat,.nsrow,.lrow,.pwrow,.dbtns button,.dlo button,.key).focused{background:transparent;box-shadow:none}
+:root[data-lumina][data-lens] .vbody>.lrow.focused,:root[data-lumina][data-lens] .pwrow.focused,:root[data-lumina][data-lens] .dbtns .focused,:root[data-lumina][data-lens] #quick.ns .qrow.focused,:root[data-lumina][data-lens] .key.focused{background:var(--lm-fill);box-shadow:inset 0 1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge)}
+:root[data-lumina][data-lens] .key.ok.focused{background:linear-gradient(180deg,rgba(255,255,255,.35),transparent 55%),var(--accent)}
+:root[data-lumina] .tile{transition:transform .28s cubic-bezier(.3,1.5,.5,1)}
+:root[data-lumina] .tile.focused{transform:scale(1.035)}
+#lumi{display:none}
+:root[data-lumina][data-lens] #lumi{display:block;position:fixed;left:0;top:0;z-index:89;pointer-events:none;opacity:0;will-change:transform,width,height;
+  background:linear-gradient(180deg,rgba(255,255,255,.20),rgba(255,255,255,.05) 45%,rgba(255,255,255,.10));
+  -webkit-backdrop-filter:brightness(1.12) saturate(1.35);backdrop-filter:brightness(1.12) saturate(1.35);
+  box-shadow:inset 0 1.5px 0 rgba(255,255,255,.55),inset 0 -1.5px 0 rgba(255,255,255,.15),0 .8rem 2.4rem rgba(0,0,0,.28)}
+:root[data-lumina][data-lens="refract"] #lumi{-webkit-backdrop-filter:url(#lumi-f) brightness(1.12) saturate(1.35);backdrop-filter:url(#lumi-f) brightness(1.12) saturate(1.35)}
+:root[data-lumina][data-lens][data-theme="light"] #lumi{background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,.12) 45%,rgba(255,255,255,.25));box-shadow:inset 0 1.5px 0 #fff,0 .8rem 2.2rem rgba(60,60,80,.22)}
+:root[data-lumina][data-lens] #lumi.hollow{background:linear-gradient(160deg,rgba(255,255,255,.22),rgba(255,255,255,0) 30%);-webkit-backdrop-filter:none;backdrop-filter:none}
+:root[data-lumina][data-lens="refract"] #lumi.hollow{-webkit-backdrop-filter:url(#lumi-f);backdrop-filter:url(#lumi-f)}
+#lumi::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:var(--ringw);background:conic-gradient(from var(--ringa),var(--ringstops));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);animation:ring 6s linear infinite}
+#lumi::before{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.35) 50%,transparent 65%);background-size:300% 100%;background-position:var(--gl,150%) 0;opacity:var(--go,0)}
 </style>
 </head>
 <body>
@@ -1706,7 +1855,10 @@ function setHints(list) {
   const h = list.map(hintHTML).join("");
   if (h !== setHints.last) { $("#hints").innerHTML = h; setHints.last = h; }   // no se rehace si no cambió
 }
-function updateFocus() {
+/* (beta 1.7) Lúmina: el cursor de cristal se entera de cada cambio de foco. Apagado, esto no hace nada. */
+let luminaKick = () => {};
+function updateFocus() { updateFocus0(); luminaKick(); }
+function updateFocus0() {
   $$(".focused").forEach(e => { e.classList.remove("focused"); const c = e.querySelector(".cap"); if (c) marquee(c, c.dataset.t || c.textContent, false); });
   const v = topView();
   if (v) {
@@ -2349,7 +2501,7 @@ function fakeWifi(op, a = {}) {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "1.6.1";
+let APP_VERSION = "1.7.0";
 const verName = v => (/^0\./.test(String(v)) ? "alpha " : "beta ") + v;
 const updState = { available: false, latest: null };
 function updateView() {
@@ -3187,7 +3339,12 @@ function settingsCats() {
           val: () => optLabel(LOGO_SIZES, settings.logoSize ?? 100), act() { if (settings.logoSize == null) settings.logoSize = 100; pickOption("Tamaño de los logos", LOGO_SIZES, "logoSize"); } }]],
       ...(H ? [] : [["Televisión", [sw("Probar: modo TV", "Simula conectar la consola a una pantalla externa", () => document.documentElement.classList.contains("tv"), v => setTvMode(v))]]])] },
     { label: "Temas", secs: [
-      [null, [theme("Claro", "light", "#fff"), theme("Oscuro", "dark", "#000"), theme("Automático (como Windows)", "auto", "linear-gradient(90deg,#fff 50%,#000 50%)")]]] },
+      [null, [theme("Claro", "light", "#fff"), theme("Oscuro", "dark", "#000"), theme("Automático (como Windows)", "auto", "linear-gradient(90deg,#fff 50%,#000 50%)")]],
+      ["Estilo", [
+        sw("Lúmina", "Paneles de cristal translúcido y un cursor que fluye entre opciones. Funciona con el tema claro y el oscuro; apagado, todo queda como siempre.",
+          () => settings.lumina === true, v => { settings.lumina = v; Lumina.apply(); }),
+        ...(settings.lumina === true && Lumina.canRefract() ? [sw("Refracción del cursor", "El borde del cursor dobla lo que tiene debajo, como una lente. Apágala si notas que el menú se mueve con tirones.",
+          () => settings.luminaRefract !== false, v => { settings.luminaRefract = v; Lumina.apply(); })] : [])]]] },
     { label: "Notificaciones", secs: [
       ["Avisos", [
         sw("Descargas completadas", "Avisa cuando termina de descargarse o actualizarse un juego", () => settings.nDl !== false, v => settings.nDl = v),
@@ -3721,19 +3878,23 @@ function notify(o) {
 }
 /* beta 1.6: cápsula con un color y una etiqueta por tipo de aviso */
 const NOTIF_TAG = { friend: ["En línea", "#3ddc84"], friendplay: ["Jugando", "#3ddc84"], dl: ["Descarga", "#3fb3ff"], batt: ["Batería", "#ff5a5a"], cap: ["Captura", "#ffffff"], sum: ["Avisos", "#ffffff"], err: ["Aviso", "#f2c230"] };
+const notifLumi = o => settings.lumina === true && typeof o.batt === "number" ? luminaBatt(o) : null;
+const notifCls = o => { const lb = notifLumi(o); return "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "") + (lb ? " batt " + lb.cls : ""); };
 function notifHTML(o) {
   const t = o.thumb;
   const ic = t ? `<div class="ic thumb${t.saving ? " saving" : ""}">${t.src ? `<img alt="" src="${esc(t.src)}">` : ""}${t.video && !t.saving ? `<span class="pl"><b></b></span>${t.dur ? `<span class="du">${esc(t.dur)}</span>` : ""}` : ""}${t.saving ? `<span class="rec"><i></i></span>` : ""}</div>`
     : `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div>`;
   const act = o.act && mode === "ui" ? `<div class="nact"><span class="xbtn"></span>${esc(o.act.label)}</div>` : "";
   const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : null);
+  const lb = notifLumi(o);   // (beta 1.7) con Lúmina, la batería lleva su porcentaje en grande y el nivel abajo
+  if (lb) return `${ic}<div class="ntx"><span class="ntag">${esc(lb.tag)}</span><b>${esc(lb.title)}</b><span>${esc(lb.text)}</span></div><span class="npct">${lb.pct} %</span><div class="nlvl"><i style="width:${lb.pct}%"></i></div><div class="nlife"></div>`;
   return `${ic}<div class="ntx">${tag ? `<span class="ntag">${esc(tag[0])}</span>` : ""}<b>${esc(o.title)}${o.star ? '<i class="nstar">★</i>' : ""}</b>${o.lines ? `<ul>${o.lines.map(l => `<li>${esc(l)}</li>`).join("")}</ul>` : `<span>${esc(o.text)}</span>`}</div>${act}<div class="nlife"></div>`;
 }
 function notifNext() {
   if (Ach.cur) { notifCur = null; return; }                      // hay un logro en pantalla: esperan a que se vaya
   if (Ach.q.length) { notifCur = null; return Ach.next(); }      // (beta 1.6) y los logros pendientes van primero
   const o = notifQ.shift(); if (!o) { notifCur = null; return; }
-  const n = document.createElement("div"); n.className = "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "");
+  const n = document.createElement("div"); n.className = notifCls(o);
   n.innerHTML = notifHTML(o); n.style.setProperty("--nac", (NOTIF_TAG[o.kind] || [0, o.tagColor || "#ffffff"])[1]);
   const wrap = document.createElement("div"); wrap.className = "nwrap"; wrap.append(n);
   const box = $("#notifs"); box.innerHTML = ""; box.append(wrap);
@@ -3766,7 +3927,7 @@ function notifTime(o) {
 }
 function notifReplace(o) {
   const cur = notifCur; o.el = cur.el; clearTimeout(cur.t);
-  cur.el.className = "notif" + (o.thumb ? " wide" : "");
+  cur.el.className = o.lines ? "notif" + (o.thumb ? " wide" : "") : notifCls(o);
   cur.el.innerHTML = notifHTML(o);
   if (settings.nSound !== false && o.sound) play(o.sound);
   notifCur = o; notifTime(o);
@@ -3813,7 +3974,7 @@ function notifyFriend(f) {
 }
 /* beta 1.6: los logros tienen su propio aviso, como en Xbox (43-logros.js) */
 function notifyAchievement(g, name, d = {}) { showAchievement(g, name, d); }
-function notifyBattery(level) { notify({ kind: "batt", icon: I.battLow, title: "Batería baja", text: `Queda ${Math.round(level * 100)} %. Conecta el cargador.` }); }
+function notifyBattery(level) { notify({ kind: "batt", batt: level, icon: I.battLow, title: "Batería baja", text: `Queda ${Math.round(level * 100)} %. Conecta el cargador.` }); }
 /* Capturas: miniatura de verdad (la foto, o un cuadro del video), con «Ver» que abre el Álbum en esa captura. */
 function notifyCapture(item, saving) {
   const video = item.type === "video", game = item.game && item.game !== "Sistema" ? item.game : "";
@@ -6001,7 +6162,7 @@ function setBatt(level, charging) {
   }
   if (charging || level > .25) { battWarn[20] = false; battWarn[10] = false; }
   else if (level > .12) battWarn[10] = false;
-  if (charging && !wasCharging && typeof battReady !== "undefined" && battReady) notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg>', title: "Cargando", text: `Batería al ${Math.round(level * 100)} %` });
+  if (charging && !wasCharging && typeof battReady !== "undefined" && battReady) notify({ icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M13 2.5 5 13.5h6l-1 8 8-11h-6z"/></svg>', title: "Cargando", text: `Batería al ${Math.round(level * 100)} %`, batt: level, chg: true });
 }
 let battReady = false; setTimeout(() => battReady = true, 4000);
 if (navigator.getBattery) navigator.getBattery().then(b => { const u = () => setBatt(b.level, b.charging); u(); b.addEventListener("levelchange", u); b.addEventListener("chargingchange", u); }).catch(() => setBatt(.82)); else setBatt(.82);
@@ -6431,6 +6592,164 @@ async function importAchSounds() {
   else toast((r && r.error) || "No se pudieron importar");
   const sv = views.find(x => x.isSettings); if (sv && sv.refresh) sv.refresh();
 }
+/* ===================== beta 1.7: Lúmina =====================
+   Estilo de cristal (Ajustes › Temas › Lúmina). Apagado no hace nada: ni estilos (13-lumina.css cuelga de data-lumina),
+   ni el cursor de cristal, ni un solo cuadro de animación. Encendido:
+   · los paneles se vuelven de cristal (solo CSS),
+   · el cursor es una gota que viaja entre opciones: el borde que va delante sale primero y el de atrás se estira,
+   · y, si se deja la refracción, el borde de la gota dobla lo que tiene debajo como una lente de verdad
+     (un mapa de desplazamiento en un filtro SVG, aplicado con backdrop-filter). */
+const Lumina = (() => {
+  const root = document.documentElement;
+  const RIM = 26, BEND = 20;                       // ancho del borde que refracta y cuánto dobla, en px a 1080p
+  const S = { l: 0, t: 0, r: 0, b: 0 }, V = { l: 0, t: 0, r: 0, b: 0 }, K = { l: 320, t: 320, r: 320, b: 320 };
+  const EDGES = ["l", "t", "r", "b"];
+  const maps = new Map();                          // mapas de desplazamiento ya hechos, por tamaño
+  let lens = null, feImg = null, feDisp = null, el = null, raf = 0, until = 0, since = 0, last = 0, snapUntil = 0, rad = 16, mapKey = "", watch = 0;
+
+  const on = () => settings.lumina === true;
+  const canRefract = () => typeof CSS !== "undefined" && CSS.supports && (CSS.supports("backdrop-filter", "url(#a)") || CSS.supports("-webkit-backdrop-filter", "url(#a)"));
+  const refracting = () => on() && settings.luminaRefract !== false && canRefract();
+
+  function ensure() {
+    if (lens) return;
+    lens = document.createElement("div"); lens.id = "lumi"; lens.setAttribute("aria-hidden", "true");
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", "0"); svg.setAttribute("height", "0"); svg.style.cssText = "position:absolute;width:0;height:0;pointer-events:none";
+    svg.innerHTML = `<filter id="lumi-f" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+      <feImage x="0" y="0" width="8" height="8" preserveAspectRatio="none" result="m"/>
+      <feDisplacementMap in="SourceGraphic" in2="m" scale="0" xChannelSelector="R" yChannelSelector="G"/></filter>`;
+    feImg = svg.querySelector("feImage"); feDisp = svg.querySelector("feDisplacementMap");
+    document.body.append(svg, lens);
+  }
+
+  /* El mapa: gris neutro en el centro (no mueve nada) y, hacia el borde, cada punto toma la imagen de más adentro,
+     siguiendo la forma redondeada. Se dibuja a media resolución y se guarda por tamaño. */
+  function buildMap(w, h, r) {
+    const sc = .5, cw = Math.max(8, Math.round(w * sc)), ch = Math.max(8, Math.round(h * sc));
+    const c = document.createElement("canvas"); c.width = cw; c.height = ch;
+    const ctx = c.getContext("2d"), img = ctx.createImageData(cw, ch), d = img.data;
+    const rim = Math.min(RIM * sc * (rem() / 10), cw / 2, ch / 2), rr = Math.min(r * sc, cw / 2, ch / 2), hx = cw / 2 - rr, hy = ch / 2 - rr;
+    for (let y = 0, i = 0; y < ch; y++) for (let x = 0; x < cw; x++, i += 4) {
+      const px = x + .5 - cw / 2, py = y + .5 - ch / 2, qx = Math.abs(px) - hx, qy = Math.abs(py) - hy;
+      const ox = Math.max(qx, 0), oy = Math.max(qy, 0), len = Math.hypot(ox, oy);
+      const depth = rr - len - Math.min(Math.max(qx, qy), 0);          // qué tan adentro está (0 = justo en el borde)
+      let nx = 0, ny = 0, m = 0;
+      if (depth < rim && depth >= 0) {
+        if (len > 0) { nx = ox / len * Math.sign(px); ny = oy / len * Math.sign(py); } else if (qx > qy) nx = Math.sign(px); else ny = Math.sign(py);
+        const t = 1 - depth / rim; m = t * t;
+      }
+      d[i] = 128 - nx * m * 127; d[i + 1] = 128 - ny * m * 127; d[i + 2] = 128; d[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return c.toDataURL();
+  }
+  function useMap(w, h, r) {
+    const key = `${Math.round(w / 4) * 4}x${Math.round(h / 4) * 4}x${Math.round(r)}`;
+    if (key === mapKey) return; mapKey = key;
+    let url = maps.get(key);
+    if (!url) { url = buildMap(w, h, r); maps.set(key, url); if (maps.size > 24) maps.delete(maps.keys().next().value); }
+    const im = new Image(); im.src = url;          // se pone cuando ya está lista: así nunca se ve un cuadro sin mapa
+    const put = () => { if (mapKey === key && feImg) { feImg.setAttribute("href", url); feDisp.setAttribute("scale", String(2 * BEND * (rem() / 10))); } };
+    if (im.decode) im.decode().then(put, put); else im.onload = put;
+  }
+
+  const gap = () => rem() * .68;
+  const rectOf = e => { const q = e.getBoundingClientRect(), g = gap(); return { l: q.left - g, t: q.top - g, r: q.right + g, b: q.bottom + g }; };
+  const zoneOf = e => e.closest(".view,#quick,main,header");
+  function pick() {
+    if (typeof mode !== "undefined" && mode !== "ui") return null;
+    const all = document.querySelectorAll(".focused");
+    for (let i = all.length - 1; i >= 0; i--) if (all[i].getClientRects().length) return all[i];
+    return null;
+  }
+  function retarget(n, now) {
+    const far = !el || !el.isConnected || !n || zoneOf(n) !== zoneOf(el) || lens.style.opacity !== "1";
+    el = n; if (!n) return;
+    const T = rectOf(n), cs = getComputedStyle(n).borderTopLeftRadius, h = T.b - T.t, w = T.r - T.l;
+    rad = Math.min((cs.endsWith("%") ? h : parseFloat(cs) || 10) + gap(), h / 2, w / 2);
+    lens.classList.toggle("hollow", n.matches(".tile:not(.all),.avatar,.shot"));
+    if (far) {                                     // otra pantalla o panel: aparece ahí, sin cruzar toda la pantalla
+      Object.assign(S, T); for (const k of EDGES) V[k] = 0; snapUntil = now + 520;
+      if (lens.animate) lens.animate([{ opacity: 0, scale: .92 }, { opacity: 1, scale: 1.03 }, { opacity: 1, scale: 1 }], { duration: 300, easing: "ease-out" });
+    } else {                                       // misma zona: viaja. El borde que va delante corre; el de atrás se queda
+      const dx = (T.l + T.r) / 2 - (S.l + S.r) / 2, dy = (T.t + T.b) / 2 - (S.t + S.b) / 2, FAST = 520, SLOW = 130;
+      K.r = dx > 0 ? FAST : SLOW; K.l = dx < 0 ? FAST : SLOW; K.b = dy > 0 ? FAST : SLOW; K.t = dy < 0 ? FAST : SLOW;
+      if (Math.abs(dx) < 2) K.l = K.r = 320; if (Math.abs(dy) < 2) K.t = K.b = 320;
+      snapUntil = 0;
+    }
+    since = now;
+    if (refracting()) useMap(w, h, rad);
+  }
+  function tick(now) {
+    raf = 0;
+    if (!on() || !lens) return;
+    const dt = Math.min(.032, Math.max(.001, (now - last) / 1000)); last = now;
+    const n = pick();
+    if (n !== el || (n && !el.isConnected)) retarget(n, now);
+    let moving = false;
+    if (el && el.isConnected) {
+      const T = rectOf(el), snap = now < snapUntil || now - since > 900;
+      for (const k of EDGES) {
+        if (snap) { S[k] = T[k]; V[k] = 0; continue; }
+        const k0 = K[k], c = 2 * Math.sqrt(k0) * .62;
+        V[k] += (k0 * (T[k] - S[k]) - c * V[k]) * dt; S[k] += V[k] * dt;
+        if (Math.abs(V[k]) > 4 || Math.abs(T[k] - S[k]) > .5) moving = true;
+      }
+      const w = Math.max(8, S.r - S.l), h = Math.max(8, S.b - S.t), sp = Math.min(1, (Math.abs(V.l) + Math.abs(V.r) + Math.abs(V.t) + Math.abs(V.b)) / 5000);
+      const st = lens.style;
+      st.width = w + "px"; st.height = h + "px"; st.transform = `translate(${S.l}px,${S.t}px)`;
+      st.borderRadius = Math.min(rad + sp * 10, h / 2, w / 2) + "px";
+      st.setProperty("--go", sp.toFixed(2)); st.setProperty("--gl", (150 - Math.min(1, (now - since) / 450) * 200) + "%");
+      st.opacity = "1";
+      if (feImg) { feImg.setAttribute("width", w); feImg.setAttribute("height", h); }
+    } else if (lens.style.opacity !== "0") lens.style.opacity = "0";
+    if (moving || now < until) raf = requestAnimationFrame(tick);
+  }
+  /* Se llama cuando cambia el foco o se mueve algo: la gota sigue a su opción un rato y luego deja de gastar. */
+  function kick(ms = 1300) {
+    if (!on() || !lens) return;
+    until = Math.max(until, performance.now() + ms);
+    if (!raf) { last = performance.now(); raf = requestAnimationFrame(tick); }
+  }
+  /* Red de seguridad: si la opción enfocada se movió sin avisar (una lista que se recorre sola, un panel que cambia), la alcanza. */
+  function check() {
+    if (raf || document.hidden) return;
+    const n = pick();
+    if (n !== el) return kick(600);
+    if (!n) return;
+    const T = rectOf(n);
+    if (Math.abs(T.l - S.l) > 1 || Math.abs(T.t - S.t) > 1 || Math.abs(T.r - S.r) > 1 || Math.abs(T.b - S.b) > 1) kick(600);
+  }
+  function apply() {
+    const o = on();
+    root.toggleAttribute("data-lumina", o);
+    if (!o) {
+      delete root.dataset.lens; clearInterval(watch); watch = 0; if (raf) cancelAnimationFrame(raf); raf = 0; el = null;
+      if (lens) lens.style.opacity = "0";
+      return;
+    }
+    ensure();
+    root.dataset.lens = refracting() ? "refract" : "on";
+    mapKey = ""; el = null;
+    if (!watch) watch = setInterval(check, 400);
+    kick();
+  }
+  addEventListener("scroll", () => kick(500), { capture: true, passive: true });
+  addEventListener("resize", () => { maps.clear(); mapKey = ""; el = null; kick(); });
+  return { apply, kick, on, canRefract, get el() { return lens; }, get target() { return el; } };
+})();
+luminaKick = () => Lumina.kick();
+
+/* Batería con Lúmina: el aviso dice lo mismo que siempre, pero se entiende de un vistazo (color, porcentaje en grande, nivel). */
+function luminaBatt(o) {
+  const lv = Math.max(0, Math.min(1, o.batt)), pct = Math.round(lv * 100);
+  if (o.chg) return { cls: "b-chg", tag: "Cargando", title: "Cargador conectado", text: lv >= .995 ? "Carga completa" : battEstimate().replace(/^Cargando$/, `Batería al ${pct} %`), pct };
+  if (lv <= .1) return { cls: "b-crit", tag: "Batería crítica", title: "Guarda tu partida", text: "La consola se apagará pronto", pct };
+  return { cls: "b-low", tag: "Batería baja", title: "Conecta el cargador", text: battEstimate(), pct };
+}
+
+if (document.body) Lumina.apply(); else addEventListener("DOMContentLoaded", () => Lumina.apply());
 </script>
 </body>
 </html>

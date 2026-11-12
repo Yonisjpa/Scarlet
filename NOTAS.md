@@ -1,3 +1,15 @@
+Novedades de la beta 1.7
+
+Lúmina, un estilo de cristal (Ajustes › Temas › Lúmina):
+- Es un interruptor aparte del tema: con el tema claro se ve cristal blanco y con el oscuro cristal gris humo. Apagado, los temas de siempre quedan exactamente igual.
+- Los paneles se vuelven de cristal translúcido: la barra de iconos, el reloj y la batería, las ayudas de botones, Ajustes, Perfil, Biblioteca, listas, teclado y diálogos (el fondo se desenfoca en vez de oscurecerse).
+- El menú del botón Xbox es ahora un panel flotante redondeado, con cada opción en su cápsula. La música, el brillo y el volumen funcionan igual.
+- El cursor es una gota de cristal que viaja de una opción a otra: se estira al salir, rebota tantito al llegar y lleva el anillo de colores de siempre.
+- Refracción del cursor: el borde de la gota dobla lo que tiene debajo, como una lente. Se puede apagar ahí mismo si el menú se siente pesado.
+- Notificaciones con Lúmina: bloque de color a la izquierda, texto más grande y la línea de tiempo con los colores del cursor.
+- Batería con Lúmina: ámbar al avisar, rojo encendido cuando es crítica («Guarda tu partida») y un rayo al conectar el cargador; el porcentaje sale en grande y la línea de abajo marca el nivel.
+- No cambia nada del funcionamiento: los logros estilo Xbox, los avisos encima del juego y todo lo demás siguen igual. Con Lúmina apagado no se gasta nada extra.
+
 Novedades de la beta 1.6.1 (arreglos)
 
 Al encender la consola:

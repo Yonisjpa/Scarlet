@@ -49,7 +49,12 @@ function settingsCats() {
           val: () => optLabel(LOGO_SIZES, settings.logoSize ?? 100), act() { if (settings.logoSize == null) settings.logoSize = 100; pickOption("Tamaño de los logos", LOGO_SIZES, "logoSize"); } }]],
       ...(H ? [] : [["Televisión", [sw("Probar: modo TV", "Simula conectar la consola a una pantalla externa", () => document.documentElement.classList.contains("tv"), v => setTvMode(v))]]])] },
     { label: "Temas", secs: [
-      [null, [theme("Claro", "light", "#fff"), theme("Oscuro", "dark", "#000"), theme("Automático (como Windows)", "auto", "linear-gradient(90deg,#fff 50%,#000 50%)")]]] },
+      [null, [theme("Claro", "light", "#fff"), theme("Oscuro", "dark", "#000"), theme("Automático (como Windows)", "auto", "linear-gradient(90deg,#fff 50%,#000 50%)")]],
+      ["Estilo", [
+        sw("Lúmina", "Paneles de cristal translúcido y un cursor que fluye entre opciones. Funciona con el tema claro y el oscuro; apagado, todo queda como siempre.",
+          () => settings.lumina === true, v => { settings.lumina = v; Lumina.apply(); }),
+        ...(settings.lumina === true && Lumina.canRefract() ? [sw("Refracción del cursor", "El borde del cursor dobla lo que tiene debajo, como una lente. Apágala si notas que el menú se mueve con tirones.",
+          () => settings.luminaRefract !== false, v => { settings.luminaRefract = v; Lumina.apply(); })] : [])]]] },
     { label: "Notificaciones", secs: [
       ["Avisos", [
         sw("Descargas completadas", "Avisa cuando termina de descargarse o actualizarse un juego", () => settings.nDl !== false, v => settings.nDl = v),
