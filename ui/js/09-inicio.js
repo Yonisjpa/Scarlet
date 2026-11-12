@@ -46,8 +46,12 @@ function marquee(box, text, active) {
   box.classList.add("scroll");
 }
 /* Táctil (beta 1.4): las ayudas de abajo («B Atrás», «A Aceptar», X, Y, ☰…) se pueden tocar. */
-const GLYPH_KEY = { A: "a", B: "b", X: "x", Y: "y", "☰": "start", LB: "lb", RB: "rb", LT: "lt", RT: "rt" };
-const hintHTML = ([k, t]) => `<span class="hint"${GLYPH_KEY[k] ? ` data-key="${GLYPH_KEY[k]}"` : ""}><span class="glyph">${esc(k)}</span>${esc(t)}</span>`;
+const GLYPH_KEY = { A: "a", B: "b", X: "x", Y: "y", "☰": "start", LB: "lb", RB: "rb", LT: "lt", RT: "rt", "◀": "left", "▶": "right" };
+/* (1.8) Las ayudas dobles («◀▶ Ajustar», «LB RB ±5 s») también se tocan: cada mitad manda su botón. */
+const GLYPH_PAIR = { "◀▶": [["◀", "left"], ["▶", "right"]], "LB RB": [["LB", "lb"], ["RB", "rb"]] };
+const hintHTML = ([k, t]) => GLYPH_PAIR[k]
+  ? `<span class="hint pair">${GLYPH_PAIR[k].map(([g, key]) => `<span class="glyph" data-key="${key}">${esc(g)}</span>`).join("")}${esc(t)}</span>`
+  : `<span class="hint"${GLYPH_KEY[k] ? ` data-key="${GLYPH_KEY[k]}"` : ""}><span class="glyph">${esc(k)}</span>${esc(t)}</span>`;
 function setHints(list) {
   const h = list.map(hintHTML).join("");
   if (h !== setHints.last) { $("#hints").innerHTML = h; setHints.last = h; }   // no se rehace si no cambió

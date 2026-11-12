@@ -28,3 +28,20 @@
 .nrad.on{border:0;background:radial-gradient(circle,#fff 0 .5rem,var(--accent) .55rem)}
 .nswatch{width:5.4rem;height:3.4rem;border-radius:.3rem;border:1px solid var(--line);flex:0 0 auto}
 .nshelp{font-size:1.5rem;color:var(--fg2);padding:1rem 2.2rem 1.4rem;line-height:1.45;border-bottom:1px solid var(--line)}
+/* (1.8) fila con barra (brillo) */
+.nsrow.nsslide .nsbar{margin-left:auto;display:flex;align-items:center;gap:2rem;width:46%}
+.nsrow.nsslide .nqbar{flex:1;touch-action:none}
+.nsrow.nsslide .nv{min-width:6rem;text-align:right}
+.nsrow.nsslide.off .nqbar{opacity:.35}
+.nsrow.nsslide.off .nv{color:var(--fg2)}
+/* (1.8) tamaño de la interfaz y margen en la tele */
+html.tv{font-size:calc(min(.9vw,1.6vh) * var(--tvscale,1))}
+html.tv #app{transform:scale(var(--tvmargin,1));transform-origin:center}
+.view.tvmargin{background:var(--bg)}
+.tvframe{position:absolute;inset:3%;border:.3rem dashed color-mix(in srgb,var(--accent) 60%,transparent);border-radius:1rem}
+.tvframe .tvar{position:absolute;width:6rem;height:6rem}
+.tvframe .tvmid{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:1rem}
+.tvframe h2{font-size:3.6rem;margin:0}.tvframe p{font-size:2rem;opacity:.8;margin:0 0 1.4rem}
+.tvframe .tvval{display:flex;align-items:center;justify-content:center;gap:2.4rem;font-size:3rem;font-weight:700}
+.tvframe .tvb{font-size:3rem;padding:.6rem 1.6rem;border-radius:99rem;background:var(--bg2)}
+.tvframe .tvok{margin:2.4rem auto 0;font-size:2.2rem;padding:1.2rem 3.6rem;border-radius:99rem;background:var(--bg2);--r:99rem}

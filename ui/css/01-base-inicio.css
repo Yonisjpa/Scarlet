@@ -78,5 +78,6 @@ svg{display:block}
 .hints .left{display:flex;align-items:center;gap:1.2rem;color:var(--fg2)}
 .padicon{height:3.4rem;aspect-ratio:420/182;background:currentColor;-webkit-mask:var(--padimg) center/contain no-repeat;mask:var(--padimg) center/contain no-repeat}
 .hint{display:inline-flex;align-items:center;gap:.7rem;margin-left:2.4rem}
+.hint.pair .glyph+.glyph{margin-left:-.35rem}
 .glyph{min-width:2.4rem;height:2.4rem;padding:0 .5rem;border-radius:99rem;background:var(--fg);color:var(--bg);display:grid;place-items:center;font-size:1.15rem;font-weight:900;line-height:1}
 

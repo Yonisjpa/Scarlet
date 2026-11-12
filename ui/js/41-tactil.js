@@ -15,8 +15,11 @@ document.addEventListener("click", e => {
   if (!t || Date.now() < touchSwallowClick) return;
   e.stopPropagation(); e.preventDefault();
   t.classList.add("tap"); setTimeout(() => t.classList.remove("tap"), 160);
+  if (touchExit(t.dataset.key)) return;
   input(t.dataset.key);
 });
+/* (1.8) Pantallas donde B es un botón más (Probar botones: hay que mantenerlo): con el dedo, «Atrás» sí sale. */
+function touchExit(key) { const v = topView(); if (key === "b" && v && v.touchExit) { closeView(); return true; } return false; }
 /* Un click justo después de deslizar o de un toque largo no debe abrir nada. */
 document.addEventListener("click", e => { if (Date.now() < touchSwallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
 
@@ -84,7 +87,7 @@ function edgeEnd(e) {
   edge.on = false;
   const ind = $("#edgeback"), go = ind.classList.contains("ready") && Math.abs(e.clientY - edge.y0) < 160;
   ind.className = "";
-  if (go) { touchSwallowClick = Date.now() + 350; input("b"); }
+  if (go) { touchSwallowClick = Date.now() + 350; if (!touchExit("b")) input("b"); }
 }
 
 /* ----- toque largo ----- */

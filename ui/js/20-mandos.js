@@ -256,7 +256,7 @@ function testerView(p) {
   const KB = { a: ["Enter", " "], b: ["Escape", "Backspace"], x: ["x"], y: ["y"], lb: ["q"], rb: ["e"], menu: ["m"], view: ["v"], guide: ["h"], up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"] };
   const f = v => (v >= 0 ? " " : "") + v.toFixed(2);
   return {
-    hints: [["B", "Mantén para salir"]],
+    hints: [["B", "Mantén para salir"]], touchExit: true,   // con el dedo, tocar «B» o deslizar desde la orilla sale
     render(el) {
       el.innerHTML = head(I.test, "Probar botones", `${p.name} · J${p.player}`) + `<div class="tester">
         <div class="tshoulders" style="width:${kind === "ally" ? "min(100rem,92%,calc((100vh - 36rem) * 2.31))" : "min(64rem,72%,calc((100vh - 36rem) * 1.5 + 8rem))"}"><div class="tsh"><div class="trig lt"><i></i><span>${ps ? "L2" : "LT"}</span></div><div class="bmp" data-k="lb">${ps ? "L1" : "LB"}</div></div><div class="tsh r"><div class="trig rt"><i></i><span>${ps ? "R2" : "RT"}</span></div><div class="bmp" data-k="rb">${ps ? "R1" : "RB"}</div></div></div>

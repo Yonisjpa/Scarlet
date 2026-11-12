@@ -25,6 +25,13 @@
     "ext.remove": p => { Q.ext = (Q.ext || []).filter(x => x.appid !== p.appid); return true; },
     "ext.art": p => ({ ok: true, url: p.mode === "clear" ? null : "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect width='64' height='64' fill='%23f80'/%3E%3C/svg%3E", icon: p.mode === "icon" }),
     "quick.glass": () => true, "quick.tint": () => true, "quick.shape": () => true,
+    // beta 1.8: Ajustes › Pantalla (resolución, frecuencia, HDR) con «¿Mantener?»
+    "display.state": () => JSON.parse(JSON.stringify(Q.disp || (Q.disp = { ok: true, name: "Pantalla de la consola", external: false, w: 1920, h: 1080, hz: 120, maxH: 1080,
+      resolutions: [{ w: 1920, h: 1080 }, { w: 1600, h: 900 }, { w: 1280, h: 720 }], rates: [120, 60], hdr: { supported: false, on: false, mode: "auto" } }))),
+    "display.set": p => { R["display.state"](); Q.dispPrev = { w: Q.disp.w, h: Q.disp.h, hz: Q.disp.hz }; Object.assign(Q.disp, { w: p.w, h: p.h, hz: p.hz || Q.disp.hz, pending: true }); return { ok: true }; },
+    "display.keep": () => { if (Q.disp) Q.disp.pending = false; return true; },
+    "display.revert": () => { if (Q.disp && Q.dispPrev) Object.assign(Q.disp, Q.dispPrev, { pending: false }); return true; },
+    "display.hdr": p => { R["display.state"](); Q.disp.hdr.mode = p.mode; Q.disp.hdr.on = p.mode === "on" || (p.mode === "auto" && Q.disp.hdr.supported); return R["display.state"](); },
     "steam.friends": () => [{ name: "NeoKaiser", steamid: "1", status: "playing", game: "ELDEN RING", avatar: "" }, { name: "Luna", steamid: "2", status: "offline", last: "hace 3 h" }],
     "steam.friendProfile": () => ({ level: 12, common: [{ appid: 1245620, name: "ELDEN RING", mine: 131, theirs: 80 }], recent: [{ appid: 1245620, name: "ELDEN RING", weeks2: 6.5, total: 80 }], lastSeen: "1 nov 2026, 21:10" }),
     "steam.achievements": () => ({ unlocked: 18, total: 38, list: [{ name: "Primeros pasos", desc: "Termina el tutorial", unlocked: true, date: "12 oct 2026" }, { name: "Explorador", desc: "Descubre 10 zonas", unlocked: false }] }),

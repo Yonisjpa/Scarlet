@@ -38,7 +38,7 @@ function settingsCats() {
           act() { if (settings.dolbyTag === false) delete settings.dolbyTag; else settings.dolbyTag = false; paintDolby(); } },
         sw("Letras doradas", "El aviso de Dolby Atmos en dorado y blanco, con un brillo suave", () => settings.dolbyGold !== false, v => { settings.dolbyGold = v; paintDolby(); })]]] },
     { sep: true },
-    { label: "Pantalla", secs: [
+    { label: "Pantalla", secs: displaySecs(sw, opt, [
       ["Pantalla de la consola", [
         opt("Atenuar pantalla", "Oscurece la pantalla si no la usas. Cualquier botón la vuelve a encender.", DIM_OPTS, "dimAfter"),
         sw("Ocultar el puntero del mouse", "Como en una consola: no se ve en Scarlet ni en los juegos (sí en el Explorador y Ajustes de Windows)", () => settings.hideCursor !== false,
@@ -47,7 +47,7 @@ function settingsCats() {
       ["Pantalla del juego", [
         { label: "Tamaño de los logos", desc: "El logo que sale al entrar o salir de un juego. Cada juego se puede ajustar aparte en sus opciones (X › Logo).",
           val: () => optLabel(LOGO_SIZES, settings.logoSize ?? 100), act() { if (settings.logoSize == null) settings.logoSize = 100; pickOption("Tamaño de los logos", LOGO_SIZES, "logoSize"); } }]],
-      ...(H ? [] : [["Televisión", [sw("Probar: modo TV", "Simula conectar la consola a una pantalla externa", () => document.documentElement.classList.contains("tv"), v => setTvMode(v))]]])] },
+      ...(H ? [] : [["Televisión", [sw("Probar: modo TV", "Simula conectar la consola a una pantalla externa", () => document.documentElement.classList.contains("tv"), v => { setTvMode(v); loadDisplay(); })]]])]) },
     { label: "Temas", secs: [
       [null, [theme("Claro", "light", "#fff"), theme("Oscuro", "dark", "#000"), theme("Automático (como Windows)", "auto", "linear-gradient(90deg,#fff 50%,#000 50%)")]],
       ["Estilo", [
@@ -118,6 +118,7 @@ function settingsView() {
   const rowsOf = c => c.secs.flatMap(([, rows]) => rows);
   const rowHTML = (r, j) => {
     const v = r.val ? r.val() : "";
+    if (r.slider) { const off = r.off && r.off(); return `<button class="nsrow fi nsslide${off ? " off" : ""}" data-r="${j}"><span class="nl">${esc(r.label)}</span><span class="nsbar"><span class="qbar nqbar"><i style="width:${off ? 0 : v}%"></i><u style="left:${off ? 0 : v}%"></u></span><span class="nv">${off ? "Automático" : v + " %"}</span></span></button>`; }
     const end = r.sw ? `<span class="nsw${v ? " on" : ""}"></span>` : r.radio ? `<span class="nrad${v ? " on" : ""}"></span>` : `<span class="nv${r.go && !v ? " go" : ""}">${r.go && !v ? "›" : esc(v)}</span>`;
     return `<button class="nsrow fi${r.radio && v ? " on" : ""}" data-r="${j}">${r.swatch ? `<span class="nswatch" style="background:${r.swatch}"></span>` : ""}<span class="nl">${esc(r.label)}</span>${end}</button>`;
   };
@@ -145,7 +146,15 @@ function settingsView() {
       const pane = $(".nsr", this.el); let j = 0;
       $$(".nscat", this.el).forEach(b => b.classList.toggle("sel", +b.dataset.c === this.ci));
       pane.innerHTML = real[this.ci].secs.map(([t, rows]) => (t ? `<div class="nssec">${esc(t)}</div>` : `<div class="nssec blank"></div>`) + rows.map(r => rowHTML(r, j++)).join("")).join("");
-      $$(".nsrow", pane).forEach(b => b.onclick = () => {
+      $$(".nsslide .nqbar", pane).forEach(bar => bar.addEventListener("pointerdown", e => {
+        const row = bar.closest(".nsrow"), j2 = +row.dataset.r, r = this.rows()[j2]; if (!r) return;
+        e.preventDefault(); e.stopPropagation(); bar.setPointerCapture && bar.setPointerCapture(e.pointerId);
+        if (this.side !== "R" || this.ri !== j2) { this.side = "R"; this.ri = j2; this.i = j2; updateFocus(); }
+        const at = ev => { const q = bar.getBoundingClientRect(); this.slide(r, 0, (ev.clientX - q.left) / q.width * 100); };
+        at(e); const mv = ev => at(ev), up = () => { bar.removeEventListener("pointermove", mv); bar.removeEventListener("pointerup", up); bar.removeEventListener("pointercancel", up); saveSys(); };
+        bar.addEventListener("pointermove", mv); bar.addEventListener("pointerup", up); bar.addEventListener("pointercancel", up);
+      }));
+      $$(".nsrow", pane).forEach(b => b.onclick = e => { if (e.target.closest(".nsslide .nqbar")) return;
         const j2 = +b.dataset.r, r = this.rows()[j2];
         if (this.side !== "R" || this.ri !== j2) { this.side = "R"; this.ri = j2; this.i = j2; }
         this.run(r);
@@ -153,7 +162,7 @@ function settingsView() {
       if (this.side === "L") pane.scrollTop = 0;
     },
     run(r) {
-      if (!r) return;
+      if (!r || r.slider) return;
       if (r.sw || r.radio) { r.toggle ? r.toggle() : r.act.call(r); saveSettings(); play(r.sw ? (r.val() ? "on" : "off") : "select"); this.refresh(); return; }
       const ret = r.act.call(r); saveSettings();
       Promise.resolve(ret).then(() => { if (this.el && this.el.isConnected) this.refresh(); });
@@ -170,11 +179,21 @@ function settingsView() {
         if (c < 0 || c >= real.length) return bump(this.items()[this.i], dir);
         this.ci = c; this.i = c; this.paneRender(); play("move"); updateFocus(); return;
       }
+      const sr = this.rows()[this.ri];
+      if (sr && sr.slider && (dir === "left" || dir === "right")) return this.slide(sr, dir === "left" ? -5 : 5);   // (1.8) ◀▶ mueven la barra
       if (dir === "left") { this.side = "L"; this.i = this.ci; play("move"); return updateFocus(); }
       if (dir === "right") return bump(this.items()[this.i], dir);
       const n = this.rows().length, j = this.ri + (dir === "down" ? 1 : -1);
       if (j < 0 || j >= n) return bump(this.items()[this.i], dir);
       this.ri = j; this.i = j; play("move"); updateFocus();
+    },
+    /* (1.8) Barra (brillo): con ◀▶ o con el dedo; se pinta sin rehacer la lista. */
+    slide(r, d, abs) {
+      if (r.off && r.off()) return bump(this.items()[this.ri]);
+      const v = clamp(abs != null ? Math.round(abs) : r.val() + d, 0, 100);
+      if (v === r.val()) return abs != null ? null : bump(this.items()[this.ri], d < 0 ? "left" : "right");
+      r.set(v); play("tick", v / 100);
+      const el = this.items()[this.ri]; if (el) { $(".nqbar i", el).style.width = v + "%"; $(".nqbar u", el).style.left = v + "%"; $(".nv", el).textContent = v + " %"; }
     },
     onB() { if (this.side === "R") { this.side = "L"; this.i = this.ci; play("back"); updateFocus(); return true; } return false; },
     /* La ayuda va debajo de la opción elegida (como en la consola). */

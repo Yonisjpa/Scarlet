@@ -40,6 +40,12 @@ sealed partial class MainForm
                 Log.Write("reiniciando el equipo");
                 Process.Start(new ProcessStartInfo("shutdown.exe", "/r /t 0") { CreateNoWindow = true, UseShellExecute = false });
                 return true;
+            // 1.8: Ajustes › Pantalla
+            case "display.state": return await Task.Run(() => DisplayService.State(cfg));
+            case "display.set": return await Task.Run(() => DisplayService.Set((int)P.L(p, "w"), (int)P.L(p, "h"), (int)P.L(p, "hz")));
+            case "display.keep": return DisplayService.Keep();
+            case "display.revert": return DisplayService.Revert();
+            case "display.hdr": return await Task.Run(() => DisplayService.SetHdr(cfg, P.S(p, "mode")));
             case "system.autobright": return await Task.Run(() => SystemService.SetAutoBright(P.B(p, "on")));
             case "system.shutdown":
                 Log.Write("apagando el equipo");

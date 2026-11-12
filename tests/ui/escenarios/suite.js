@@ -203,7 +203,8 @@ const dismiss = p => ev(p, () => { if (mode === "boot" && typeof dismissBoot ===
     }
     // con el control: entrar, bajar, regresar a categorías y cerrar con B
     await ev(p, () => { closeAllViews(); openView(settingsView()); }); await p.waitForTimeout(300);
-    await keys(p, ['down', 'down', 'a', 'down', 'b', 'down', 'right', 'left', 'b'], 120);
+    // (1.8) en Pantalla la primera fila es la barra de brillo: ahí ◀ baja el brillo, así que se regresa con B
+    await keys(p, ['down', 'down', 'a', 'down', 'b', 'down', 'right', 'b', 'b'], 120);
     const closed = await ev(p, () => !views.some(x => x.isSettings));
     return closed ? { p, note: cats.length + ' categorías, ' + n + ' opciones revisadas' } : { p, fail: 'B no cerró Ajustes' };
   });

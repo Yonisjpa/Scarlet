@@ -4,7 +4,7 @@
 const { execFileSync, spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), http = require('http');
 const ROOT = path.resolve(__dirname, '..', '..'), OUT = path.join(__dirname, '.sitio');
-const ALL = ['suite', 'beta', 'beta11', 'beta12', 'beta14', 'beta15', 'beta16', 'beta17', 'vpn', 'dl', 'install'];
+const ALL = ['suite', 'beta', 'beta11', 'beta12', 'beta14', 'beta15', 'beta16', 'beta17', 'beta18', 'vpn', 'dl', 'install'];
 
 fs.mkdirSync(OUT, { recursive: true });
 execFileSync(process.env.PYTHON || 'python3', [path.join(ROOT, 'ui', 'build.py'), path.join(OUT, 'demo.html')], { stdio: 'inherit' });

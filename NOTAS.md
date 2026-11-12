@@ -1,3 +1,21 @@
+Novedades de la beta 1.8
+
+Ajustes › Pantalla (nuevo):
+- Brillo con barra (◀ ▶ o con el dedo) y Brillo automático, si la consola tiene sensor de luz.
+- Resolución: 1080p, 900p o 720p en la consola. Con una tele o monitor, hasta lo que dé la pantalla (1440p, 2160p/4K…).
+- Frecuencia de actualización: 120 Hz (más fluido) o 60 Hz (ahorra batería); con pantalla externa, lo que soporte.
+- Al cambiar resolución o frecuencia pregunta «¿Mantener?» y, si no eliges nada en 15 s, regresa sola (aunque la pantalla se quede en negro).
+- HDR siempre aparece: sin pantalla con HDR, «Desactivado» o «Automático»; con una que sí lo tenga, también «Activado». En «Automático» se enciende solo al conectar una pantalla con HDR.
+- Al conectar una tele o monitor, Scarlet usa solo esa pantalla y apaga la de la consola, como la Switch; al desconectar, la de la consola vuelve sola.
+- Con pantalla externa: «Tamaño de la interfaz» (90 a 150 %) y «Margen para TV» (si la tele recorta las orillas).
+- Lo de siempre (atenuar, puntero, reloj…) sigue igual, en «General».
+
+Pantalla táctil:
+- Las ayudas ◀ ▶ de abajo también se tocan (cada flecha manda su botón).
+- Visor del Álbum: desliza a los lados para pasar de captura.
+- Recortar video: arrastra el inicio o el fin directo sobre la línea.
+- Probar botones: tocar «Atrás» sí sale (con el mando, B sigue siendo un botón más para probar).
+
 Novedades de la beta 1.7.2 (Lúmina)
 
 Logros con Lúmina (con Lúmina apagado siguen los de estilo Xbox):

@@ -151,6 +151,8 @@ sealed class Config
     /// <summary>Juegos donde el menú rápido se abre sin quitarles el foco (siguen sonando; también reciben los botones).</summary>
     public List<long> MenuKeepsFocus { get; set; } = new();
     public string InternalDisplay { get; set; } = "";
+    /// <summary>1.8: HDR en Ajustes › Pantalla: off, auto (se prende solo si la pantalla tiene HDR) u on.</summary>
+    public string HdrMode { get; set; } = "auto";
     public int? GameBarNexusBackup { get; set; }
     public int? GameBarLegacyBackup { get; set; }
     public Dictionary<string, int> PadOrder { get; set; } = new();

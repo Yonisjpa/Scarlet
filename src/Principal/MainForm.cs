@@ -208,6 +208,8 @@ sealed partial class MainForm : Form
 
             SystemEvents.PowerModeChanged += OnPower;
             SystemEvents.DisplaySettingsChanged += OnDisplay;
+            DisplayService.Reverted += () => Ui(() => Emit("display.reverted", null));   // 1.8: no se confirmó la resolución
+            _ = Task.Run(() => { if (!DisplayService.ExternalOnly()) DisplayService.ApplyHdr(cfg); });   // ya había una tele conectada al arrancar
 
             slow.Tick += (_, _) => SlowTick();
             steamGuard.Tick += (_, _) => HideSteamWindows();

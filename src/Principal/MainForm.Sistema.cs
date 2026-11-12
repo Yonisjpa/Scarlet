@@ -26,6 +26,10 @@ sealed partial class MainForm
     {
         Ui(() =>
         {
+            // 1.8: se conectó una tele o un monitor: todo pasa a esa pantalla y la de la consola se apaga (como la Switch).
+            // Ese cambio vuelve a avisar aquí; entonces ya se acomoda la ventana.
+            if (DisplayService.ExternalOnly()) return;
+            _ = Task.Run(() => DisplayService.ApplyHdr(cfg));
             Bounds = Screen.PrimaryScreen.Bounds;
             if (cfg.HideCursor) CursorHider.Hide(force: true);
             quick?.Refresh("cambió la pantalla");

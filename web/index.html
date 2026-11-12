@@ -116,6 +116,7 @@ svg{display:block}
 .hints .left{display:flex;align-items:center;gap:1.2rem;color:var(--fg2)}
 .padicon{height:3.4rem;aspect-ratio:420/182;background:currentColor;-webkit-mask:var(--padimg) center/contain no-repeat;mask:var(--padimg) center/contain no-repeat}
 .hint{display:inline-flex;align-items:center;gap:.7rem;margin-left:2.4rem}
+.hint.pair .glyph+.glyph{margin-left:-.35rem}
 .glyph{min-width:2.4rem;height:2.4rem;padding:0 .5rem;border-radius:99rem;background:var(--fg);color:var(--bg);display:grid;place-items:center;font-size:1.15rem;font-weight:900;line-height:1}
 
 /* ---------- pantallas secundarias ---------- */
@@ -242,7 +243,7 @@ html:not(.showcursor),html:not(.showcursor) *{cursor:none!important}
 /* recortar video */
 .trim{flex:1;display:flex;flex-direction:column;gap:1.8rem;padding:2rem var(--pad);min-height:0}
 .trim video{flex:1;min-height:0;width:100%;object-fit:contain;background:#000;border-radius:.8rem}
-.tline{position:relative;height:5.2rem;border-radius:.8rem;background:var(--bg3,#333)}
+.tline{position:relative;height:5.2rem;border-radius:.8rem;background:var(--bg3,#333);touch-action:none}
 .tline .sel{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 28%,transparent);border:.3rem solid var(--accent);border-radius:.8rem}
 .tline .h{position:absolute;top:-.6rem;bottom:-.6rem;width:1rem;margin-left:-.5rem;border-radius:.5rem;background:#fff;opacity:.55}
 .tline .h.on{opacity:1;box-shadow:0 0 0 .3rem var(--accent)}
@@ -813,6 +814,23 @@ body{font-weight:400}
 .nrad.on{border:0;background:radial-gradient(circle,#fff 0 .5rem,var(--accent) .55rem)}
 .nswatch{width:5.4rem;height:3.4rem;border-radius:.3rem;border:1px solid var(--line);flex:0 0 auto}
 .nshelp{font-size:1.5rem;color:var(--fg2);padding:1rem 2.2rem 1.4rem;line-height:1.45;border-bottom:1px solid var(--line)}
+/* (1.8) fila con barra (brillo) */
+.nsrow.nsslide .nsbar{margin-left:auto;display:flex;align-items:center;gap:2rem;width:46%}
+.nsrow.nsslide .nqbar{flex:1;touch-action:none}
+.nsrow.nsslide .nv{min-width:6rem;text-align:right}
+.nsrow.nsslide.off .nqbar{opacity:.35}
+.nsrow.nsslide.off .nv{color:var(--fg2)}
+/* (1.8) tamaño de la interfaz y margen en la tele */
+html.tv{font-size:calc(min(.9vw,1.6vh) * var(--tvscale,1))}
+html.tv #app{transform:scale(var(--tvmargin,1));transform-origin:center}
+.view.tvmargin{background:var(--bg)}
+.tvframe{position:absolute;inset:3%;border:.3rem dashed color-mix(in srgb,var(--accent) 60%,transparent);border-radius:1rem}
+.tvframe .tvar{position:absolute;width:6rem;height:6rem}
+.tvframe .tvmid{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:1rem}
+.tvframe h2{font-size:3.6rem;margin:0}.tvframe p{font-size:2rem;opacity:.8;margin:0 0 1.4rem}
+.tvframe .tvval{display:flex;align-items:center;justify-content:center;gap:2.4rem;font-size:3rem;font-weight:700}
+.tvframe .tvb{font-size:3rem;padding:.6rem 1.6rem;border-radius:99rem;background:var(--bg2)}
+.tvframe .tvok{margin:2.4rem auto 0;font-size:2.2rem;padding:1.2rem 3.6rem;border-radius:99rem;background:var(--bg2);--r:99rem}
 /* ===================== beta 1.0: menú rápido como en la Switch 2 ===================== */
 :root{--nqbg:#2c2c2e}
 :root[data-theme="light"]{--nqbg:#f4f4f6}
@@ -1926,8 +1944,12 @@ function marquee(box, text, active) {
   box.classList.add("scroll");
 }
 /* Táctil (beta 1.4): las ayudas de abajo («B Atrás», «A Aceptar», X, Y, ☰…) se pueden tocar. */
-const GLYPH_KEY = { A: "a", B: "b", X: "x", Y: "y", "☰": "start", LB: "lb", RB: "rb", LT: "lt", RT: "rt" };
-const hintHTML = ([k, t]) => `<span class="hint"${GLYPH_KEY[k] ? ` data-key="${GLYPH_KEY[k]}"` : ""}><span class="glyph">${esc(k)}</span>${esc(t)}</span>`;
+const GLYPH_KEY = { A: "a", B: "b", X: "x", Y: "y", "☰": "start", LB: "lb", RB: "rb", LT: "lt", RT: "rt", "◀": "left", "▶": "right" };
+/* (1.8) Las ayudas dobles («◀▶ Ajustar», «LB RB ±5 s») también se tocan: cada mitad manda su botón. */
+const GLYPH_PAIR = { "◀▶": [["◀", "left"], ["▶", "right"]], "LB RB": [["LB", "lb"], ["RB", "rb"]] };
+const hintHTML = ([k, t]) => GLYPH_PAIR[k]
+  ? `<span class="hint pair">${GLYPH_PAIR[k].map(([g, key]) => `<span class="glyph" data-key="${key}">${esc(g)}</span>`).join("")}${esc(t)}</span>`
+  : `<span class="hint"${GLYPH_KEY[k] ? ` data-key="${GLYPH_KEY[k]}"` : ""}><span class="glyph">${esc(k)}</span>${esc(t)}</span>`;
 function setHints(list) {
   const h = list.map(hintHTML).join("");
   if (h !== setHints.last) { $("#hints").innerHTML = h; setHints.last = h; }   // no se rehace si no cambió
@@ -2578,7 +2600,7 @@ function fakeWifi(op, a = {}) {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "1.7.2";
+let APP_VERSION = "1.8.0";
 const verName = v => (/^0\./.test(String(v)) ? "alpha " : "beta ") + v;
 const updState = { available: false, latest: null };
 function updateView() {
@@ -2968,7 +2990,16 @@ function viewerView(album, idx) {
         ? [["B", "Atrás"], ["☰", "Más"], ["A", this.vid.paused ? "Reproducir" : "Pausa"], ["◀", "−5 s"], ["▶", "+5 s"], ["LB", "Anterior"], ["RB", "Siguiente"]]
         : [["B", "Atrás"], ["☰", "Más"], ["X", "Borrar"], ["◀", "Anterior"], ["▶", "Siguiente"]];
     },
-    render(el) { el.innerHTML = `<div class="vwrap"><div class="media" style="display:contents"></div><div class="vcap"></div></div>`; this.show(); },
+    render(el) {
+      el.innerHTML = `<div class="vwrap" style="touch-action:pan-y"><div class="media" style="display:contents"></div><div class="vcap"></div></div>`; this.show();
+      // (1.8) con el dedo: deslizar a los lados cambia de captura
+      let sx = null, sy = 0;
+      el.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse" && !e.target.closest(".vbar")) { sx = e.clientX; sy = e.clientY; } });
+      el.addEventListener("pointerup", e => {
+        if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+        if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) { touchSwallowClick = Date.now() + 350; const d = dx < 0 ? 1 : -1; setTimeout(() => this.go(d), 30); }   // después del touchend: si no, el dedo se queda «colgado» de la imagen que se quitó
+      });
+    },
     show() {
       const list = album.list, c = list[this.idx], m = $(".media", this.el);
       this.stop();
@@ -3095,6 +3126,19 @@ function trimView(c, onSaved) {
       this.v = v; this.a = 0; this.b = 0; this.h = 0;
       v.addEventListener("loadedmetadata", () => { this.b = v.duration || 0; this.paint(); });
       v.addEventListener("timeupdate", () => { if (this.preview && v.currentTime >= this.b) { v.pause(); this.preview = false; } this.paint(); });
+      // (1.8) con el dedo: se arrastra el inicio o el fin (el más cercano a donde tocas)
+      const line = $(".tline", el);
+      line.addEventListener("pointerdown", e => {
+        const d = v.duration || 0; if (!d) return;
+        e.preventDefault(); line.setPointerCapture && line.setPointerCapture(e.pointerId);
+        const at = ev => { const r = line.getBoundingClientRect(); return clamp((ev.clientX - r.left) / r.width, 0, 1) * d; };
+        const t0 = at(e); this.h = Math.abs(t0 - this.a) <= Math.abs(t0 - this.b) ? 0 : 1;
+        const put = ev => { const t = at(ev); if (this.h === 0) this.a = clamp(t, 0, Math.max(0, this.b - 1)); else this.b = clamp(t, Math.min(d, this.a + 1), d);
+          v.pause(); this.preview = false; v.currentTime = this.h === 0 ? this.a : this.b; this.paint(); };
+        put(e); play("tick");
+        const up = () => { line.removeEventListener("pointermove", put); line.removeEventListener("pointerup", up); line.removeEventListener("pointercancel", up); updateFocus(); };
+        line.addEventListener("pointermove", put); line.addEventListener("pointerup", up); line.addEventListener("pointercancel", up);
+      });
     },
     paint() {
       const d = this.v.duration || 1, el = this.el, pa = this.a / d * 100, pb = this.b / d * 100;
@@ -3405,7 +3449,7 @@ function settingsCats() {
           act() { if (settings.dolbyTag === false) delete settings.dolbyTag; else settings.dolbyTag = false; paintDolby(); } },
         sw("Letras doradas", "El aviso de Dolby Atmos en dorado y blanco, con un brillo suave", () => settings.dolbyGold !== false, v => { settings.dolbyGold = v; paintDolby(); })]]] },
     { sep: true },
-    { label: "Pantalla", secs: [
+    { label: "Pantalla", secs: displaySecs(sw, opt, [
       ["Pantalla de la consola", [
         opt("Atenuar pantalla", "Oscurece la pantalla si no la usas. Cualquier botón la vuelve a encender.", DIM_OPTS, "dimAfter"),
         sw("Ocultar el puntero del mouse", "Como en una consola: no se ve en Scarlet ni en los juegos (sí en el Explorador y Ajustes de Windows)", () => settings.hideCursor !== false,
@@ -3414,7 +3458,7 @@ function settingsCats() {
       ["Pantalla del juego", [
         { label: "Tamaño de los logos", desc: "El logo que sale al entrar o salir de un juego. Cada juego se puede ajustar aparte en sus opciones (X › Logo).",
           val: () => optLabel(LOGO_SIZES, settings.logoSize ?? 100), act() { if (settings.logoSize == null) settings.logoSize = 100; pickOption("Tamaño de los logos", LOGO_SIZES, "logoSize"); } }]],
-      ...(H ? [] : [["Televisión", [sw("Probar: modo TV", "Simula conectar la consola a una pantalla externa", () => document.documentElement.classList.contains("tv"), v => setTvMode(v))]]])] },
+      ...(H ? [] : [["Televisión", [sw("Probar: modo TV", "Simula conectar la consola a una pantalla externa", () => document.documentElement.classList.contains("tv"), v => { setTvMode(v); loadDisplay(); })]]])]) },
     { label: "Temas", secs: [
       [null, [theme("Claro", "light", "#fff"), theme("Oscuro", "dark", "#000"), theme("Automático (como Windows)", "auto", "linear-gradient(90deg,#fff 50%,#000 50%)")]],
       ["Estilo", [
@@ -3485,6 +3529,7 @@ function settingsView() {
   const rowsOf = c => c.secs.flatMap(([, rows]) => rows);
   const rowHTML = (r, j) => {
     const v = r.val ? r.val() : "";
+    if (r.slider) { const off = r.off && r.off(); return `<button class="nsrow fi nsslide${off ? " off" : ""}" data-r="${j}"><span class="nl">${esc(r.label)}</span><span class="nsbar"><span class="qbar nqbar"><i style="width:${off ? 0 : v}%"></i><u style="left:${off ? 0 : v}%"></u></span><span class="nv">${off ? "Automático" : v + " %"}</span></span></button>`; }
     const end = r.sw ? `<span class="nsw${v ? " on" : ""}"></span>` : r.radio ? `<span class="nrad${v ? " on" : ""}"></span>` : `<span class="nv${r.go && !v ? " go" : ""}">${r.go && !v ? "›" : esc(v)}</span>`;
     return `<button class="nsrow fi${r.radio && v ? " on" : ""}" data-r="${j}">${r.swatch ? `<span class="nswatch" style="background:${r.swatch}"></span>` : ""}<span class="nl">${esc(r.label)}</span>${end}</button>`;
   };
@@ -3512,7 +3557,15 @@ function settingsView() {
       const pane = $(".nsr", this.el); let j = 0;
       $$(".nscat", this.el).forEach(b => b.classList.toggle("sel", +b.dataset.c === this.ci));
       pane.innerHTML = real[this.ci].secs.map(([t, rows]) => (t ? `<div class="nssec">${esc(t)}</div>` : `<div class="nssec blank"></div>`) + rows.map(r => rowHTML(r, j++)).join("")).join("");
-      $$(".nsrow", pane).forEach(b => b.onclick = () => {
+      $$(".nsslide .nqbar", pane).forEach(bar => bar.addEventListener("pointerdown", e => {
+        const row = bar.closest(".nsrow"), j2 = +row.dataset.r, r = this.rows()[j2]; if (!r) return;
+        e.preventDefault(); e.stopPropagation(); bar.setPointerCapture && bar.setPointerCapture(e.pointerId);
+        if (this.side !== "R" || this.ri !== j2) { this.side = "R"; this.ri = j2; this.i = j2; updateFocus(); }
+        const at = ev => { const q = bar.getBoundingClientRect(); this.slide(r, 0, (ev.clientX - q.left) / q.width * 100); };
+        at(e); const mv = ev => at(ev), up = () => { bar.removeEventListener("pointermove", mv); bar.removeEventListener("pointerup", up); bar.removeEventListener("pointercancel", up); saveSys(); };
+        bar.addEventListener("pointermove", mv); bar.addEventListener("pointerup", up); bar.addEventListener("pointercancel", up);
+      }));
+      $$(".nsrow", pane).forEach(b => b.onclick = e => { if (e.target.closest(".nsslide .nqbar")) return;
         const j2 = +b.dataset.r, r = this.rows()[j2];
         if (this.side !== "R" || this.ri !== j2) { this.side = "R"; this.ri = j2; this.i = j2; }
         this.run(r);
@@ -3520,7 +3573,7 @@ function settingsView() {
       if (this.side === "L") pane.scrollTop = 0;
     },
     run(r) {
-      if (!r) return;
+      if (!r || r.slider) return;
       if (r.sw || r.radio) { r.toggle ? r.toggle() : r.act.call(r); saveSettings(); play(r.sw ? (r.val() ? "on" : "off") : "select"); this.refresh(); return; }
       const ret = r.act.call(r); saveSettings();
       Promise.resolve(ret).then(() => { if (this.el && this.el.isConnected) this.refresh(); });
@@ -3537,11 +3590,21 @@ function settingsView() {
         if (c < 0 || c >= real.length) return bump(this.items()[this.i], dir);
         this.ci = c; this.i = c; this.paneRender(); play("move"); updateFocus(); return;
       }
+      const sr = this.rows()[this.ri];
+      if (sr && sr.slider && (dir === "left" || dir === "right")) return this.slide(sr, dir === "left" ? -5 : 5);   // (1.8) ◀▶ mueven la barra
       if (dir === "left") { this.side = "L"; this.i = this.ci; play("move"); return updateFocus(); }
       if (dir === "right") return bump(this.items()[this.i], dir);
       const n = this.rows().length, j = this.ri + (dir === "down" ? 1 : -1);
       if (j < 0 || j >= n) return bump(this.items()[this.i], dir);
       this.ri = j; this.i = j; play("move"); updateFocus();
+    },
+    /* (1.8) Barra (brillo): con ◀▶ o con el dedo; se pinta sin rehacer la lista. */
+    slide(r, d, abs) {
+      if (r.off && r.off()) return bump(this.items()[this.ri]);
+      const v = clamp(abs != null ? Math.round(abs) : r.val() + d, 0, 100);
+      if (v === r.val()) return abs != null ? null : bump(this.items()[this.ri], d < 0 ? "left" : "right");
+      r.set(v); play("tick", v / 100);
+      const el = this.items()[this.ri]; if (el) { $(".nqbar i", el).style.width = v + "%"; $(".nqbar u", el).style.left = v + "%"; $(".nv", el).textContent = v + " %"; }
     },
     onB() { if (this.side === "R") { this.side = "L"; this.i = this.ci; play("back"); updateFocus(); return true; } return false; },
     /* La ayuda va debajo de la opción elegida (como en la consola). */
@@ -3868,7 +3931,7 @@ function testerView(p) {
   const KB = { a: ["Enter", " "], b: ["Escape", "Backspace"], x: ["x"], y: ["y"], lb: ["q"], rb: ["e"], menu: ["m"], view: ["v"], guide: ["h"], up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"] };
   const f = v => (v >= 0 ? " " : "") + v.toFixed(2);
   return {
-    hints: [["B", "Mantén para salir"]],
+    hints: [["B", "Mantén para salir"]], touchExit: true,   // con el dedo, tocar «B» o deslizar desde la orilla sale
     render(el) {
       el.innerHTML = head(I.test, "Probar botones", `${p.name} · J${p.player}`) + `<div class="tester">
         <div class="tshoulders" style="width:${kind === "ally" ? "min(100rem,92%,calc((100vh - 36rem) * 2.31))" : "min(64rem,72%,calc((100vh - 36rem) * 1.5 + 8rem))"}"><div class="tsh"><div class="trig lt"><i></i><span>${ps ? "L2" : "LT"}</span></div><div class="bmp" data-k="lb">${ps ? "L1" : "LB"}</div></div><div class="tsh r"><div class="trig rt"><i></i><span>${ps ? "R2" : "RT"}</span></div><div class="bmp" data-k="rb">${ps ? "R1" : "RB"}</div></div></div>
@@ -6313,8 +6376,11 @@ document.addEventListener("click", e => {
   if (!t || Date.now() < touchSwallowClick) return;
   e.stopPropagation(); e.preventDefault();
   t.classList.add("tap"); setTimeout(() => t.classList.remove("tap"), 160);
+  if (touchExit(t.dataset.key)) return;
   input(t.dataset.key);
 });
+/* (1.8) Pantallas donde B es un botón más (Probar botones: hay que mantenerlo): con el dedo, «Atrás» sí sale. */
+function touchExit(key) { const v = topView(); if (key === "b" && v && v.touchExit) { closeView(); return true; } return false; }
 /* Un click justo después de deslizar o de un toque largo no debe abrir nada. */
 document.addEventListener("click", e => { if (Date.now() < touchSwallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
 
@@ -6382,7 +6448,7 @@ function edgeEnd(e) {
   edge.on = false;
   const ind = $("#edgeback"), go = ind.classList.contains("ready") && Math.abs(e.clientY - edge.y0) < 160;
   ind.className = "";
-  if (go) { touchSwallowClick = Date.now() + 350; input("b"); }
+  if (go) { touchSwallowClick = Date.now() + 350; if (!touchExit("b")) input("b"); }
 }
 
 /* ----- toque largo ----- */
@@ -7041,6 +7107,146 @@ function achLPlace(el) {
   el.style.left = pos[1] === "l" ? "2.4rem" : pos[1] === "c" ? "50%" : ""; el.style.right = pos[1] === "r" ? "2.4rem" : "";
   el.style.marginLeft = pos[1] === "c" ? `-${el.offsetWidth / 2}px` : "";
 }
+/* ===================== beta 1.8: Ajustes › Pantalla =====================
+   Brillo (barra), brillo automático, frecuencia, resolución y HDR de la pantalla que se usa. Con una tele o monitor
+   conectado, Scarlet usa solo esa pantalla (como la Switch) y aquí aparecen sus opciones: resolución hasta lo que dé
+   (2160p…), HDR, tamaño de la interfaz y margen para la tele. Cambiar la resolución o la frecuencia pregunta «¿Mantener?»
+   y, si no eliges nada en 15 s, regresa sola (la app también lo hace por su cuenta, por si la pantalla se queda en negro).
+   HDR siempre se ve: sin pantalla con HDR solo «Desactivado» y «Automático»; con una que lo tenga, también «Activado». */
+const DISP_DEMO = tv => tv
+  ? { ok: true, name: "LG OLED", external: true, w: 3840, h: 2160, hz: 60, maxH: 2160, resolutions: [{ w: 3840, h: 2160 }, { w: 2560, h: 1440 }, { w: 1920, h: 1080 }, { w: 1280, h: 720 }], rates: [120, 60], hdr: { supported: true, on: true, mode: "auto" } }
+  : { ok: true, name: "Pantalla de la consola", external: false, w: 1920, h: 1080, hz: 120, maxH: 1080, resolutions: [{ w: 1920, h: 1080 }, { w: 1600, h: 900 }, { w: 1280, h: 720 }], rates: [120, 60], hdr: { supported: false, on: false, mode: "auto" } };
+let disp = null;
+async function loadDisplay() {
+  if (!Host.has) disp = DISP_DEMO(document.documentElement.classList.contains("tv"));
+  else disp = await Host.call("display.state").catch(() => null);
+  if (disp && !disp.ok) disp = null;
+  return disp;
+}
+Events.on("display.changed", () => { loadDisplay().then(() => { const v = views.find(x => x.isSettings); if (v && v.refresh) v.refresh(); }); });
+
+const resLabel = h => h >= 2160 ? `${h}p (4K)` : h >= 1440 ? `${h}p (2K)` : `${h}p`;
+const HDR_OPTS = () => [["Desactivado", "off"], ["Automático", "auto"], ...(disp && disp.hdr.supported ? [["Activado", "on"]] : [])];
+const hdrLabel = () => { const m = disp ? disp.hdr.mode : "auto"; return (HDR_OPTS().find(o => o[1] === m) || HDR_OPTS()[0])[0]; };
+const hdrDesc = () => disp && disp.hdr.supported
+  ? `${disp.external ? "Esta pantalla" : "La pantalla"} tiene HDR. «Automático» lo enciende solo; «Activado» lo deja siempre prendido.`
+  : "Esta pantalla no tiene HDR. En «Automático» se enciende solo al conectar una pantalla que sí lo tenga.";
+
+/* Elegir resolución o frecuencia y confirmar. */
+function pickResolution() {
+  if (!disp) return;
+  const opts = disp.resolutions.map((r, i) => ({ label: resLabel(r.h), value: r.h, extra: i === 0 ? "Recomendada" : r.h <= 720 && !disp.external ? "Más fps en juegos en ventana" : "" }));
+  openView(pickerView("Resolución", I.gear, opts, disp.h, h => { const r = disp.resolutions.find(x => x.h === h); if (r) setMode(r.w, r.h, 0); }));
+}
+function pickRate() {
+  if (!disp) return;
+  const opts = disp.rates.map((hz, i) => ({ label: hz + " Hz", value: hz, extra: i === 0 && disp.rates.length > 1 ? "Más fluido" : hz <= 60 && !disp.external ? "Ahorra batería" : "" }));
+  openView(pickerView("Frecuencia de actualización", I.gear, opts, disp.hz, hz => setMode(disp.w, disp.h, hz)));
+}
+async function setMode(w, h, hz) {
+  const prev = { w: disp.w, h: disp.h, hz: disp.hz };
+  if (w === prev.w && h === prev.h && (!hz || hz === prev.hz)) return;
+  const r = Host.has ? await Host.call("display.set", { w, h, hz }).catch(e => ({ ok: false, error: e.message })) : { ok: true };
+  if (!r || !r.ok) return toast((r && r.error) || "La pantalla no acepta ese modo");
+  if (r.same) return;
+  await loadDisplay(); if (!Host.has) Object.assign(disp, { w, h, hz: hz || disp.hz });
+  keepDialog(h, prev);
+}
+/* «¿Mantener…?» con cuenta regresiva. Si no se elige nada, regresa (y la app también regresa sola por si acaso). */
+const KEEP_SECS = 15;
+function keepDialog(h, prev) {
+  let left = KEEP_SECS, timer = 0, done = false;
+  const finish = keep => {
+    if (done) return; done = true; clearInterval(timer);
+    if (topView() === v) closeView();
+    if (keep) { if (Host.has) Host.call("display.keep").catch(() => {}); toast(`Se queda en ${resLabel(disp ? disp.h : h)}`); }
+    else { if (Host.has) Host.call("display.revert").catch(() => {}); else Object.assign(disp, prev); toast(`Se regresó a ${resLabel(prev.h)}`); }
+    loadDisplay().then(() => { const s = views.find(x => x.isSettings); if (s && s.refresh) s.refresh(); });
+  };
+  const v = {
+    cls: "dialog", isKeep: true, cols: 2, i: 1, hints: [["B", "Regresar"], ["A", "Aceptar"]],
+    render(el) {
+      el.innerHTML = `<div class="dbox"><p>¿Mantener ${esc(resLabel(h))}${disp && disp.hz ? ` a ${disp.hz} Hz` : ""}? Si no eliges nada, se regresa a ${esc(resLabel(prev.h))} en ${KEEP_SECS} s.</p>
+        <div class="dbtns"><button class="fi" data-r="0">Regresar (<b class="kc">${left}</b>)</button><button class="fi" data-r="1">Mantener</button></div></div>`;
+      fis(el).forEach(b => b.onclick = () => finish(b.dataset.r === "1"));
+      timer = setInterval(() => { left--; const c = $(".kc", el); if (c) c.textContent = left; if (left <= 0) finish(false); }, 1000);
+    },
+    items() { return fis(this.el); },
+    onB() { finish(false); return true; },
+    keepFinish: finish
+  };
+  openView(v);
+}
+Events.on("display.reverted", () => { const v = views.find(x => x.isKeep); if (v) v.keepFinish(false); else { toast("Se regresó a la resolución de antes"); loadDisplay(); } });
+
+function pickHdr() {
+  openView(pickerView("HDR", I.gear, HDR_OPTS().map(([label, value]) => ({ label, value, extra: value === "auto" ? (disp && disp.hdr.supported ? "Lo enciende solo" : "Se enciende al conectar una pantalla con HDR") : value === "on" ? "Siempre" : "" })),
+    disp ? disp.hdr.mode : "auto", async mode => {
+      if (Host.has) { const r = await Host.call("display.hdr", { mode }).catch(() => null); if (r && r.ok) disp = r; }
+      else if (disp) disp.hdr.mode = mode;
+      const s = views.find(x => x.isSettings); if (s && s.refresh) s.refresh();
+    }));
+}
+
+/* ---- Tamaño de la interfaz y margen para la tele (solo con pantalla externa) ---- */
+const TV_SCALES = [["90 %", 90], ["100 %", 100], ["110 %", 110], ["125 %", 125], ["150 %", 150]];
+function applyTvLook() {
+  const r = document.documentElement.style, tv = document.documentElement.classList.contains("tv");
+  r.setProperty("--tvscale", tv ? (settings.tvScale || 100) / 100 : 1);
+  r.setProperty("--tvmargin", tv ? (settings.tvMargin || 100) / 100 : 1);
+}
+const tvObs = new MutationObserver(applyTvLook); tvObs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] }); applyTvLook();
+
+function marginView() {
+  const start = settings.tvMargin || 100;
+  const ar = t => `<svg viewBox="0 0 24 24" class="tvar" style="${t}" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round"><path d="M4 4h7M4 4v7M4 4l7 7"/></svg>`;
+  return {
+    cls: "tvmargin", hints: [["B", "Cancelar"], ["◀▶", "Ajustar"], ["A", "Listo"]],
+    render(el) {
+      el.innerHTML = `<div class="tvframe">${ar("left:1rem;top:1rem")}${ar("right:1rem;top:1rem;transform:scaleX(-1)")}${ar("left:1rem;bottom:1rem;transform:scaleY(-1)")}${ar("right:1rem;bottom:1rem;transform:scale(-1)")}
+        <div class="tvmid"><h2>Margen para TV</h2><p>Mueve con ◀ ▶ hasta que veas completas las 4 flechas</p>
+        <div class="tvval"><button class="tvb" data-d="-1">◀</button><b></b><button class="tvb" data-d="1">▶</button></div><button class="fi tvok">Listo</button></div></div>`;
+      $$(".tvb", el).forEach(b => b.onclick = e => { e.stopPropagation(); this.step(+b.dataset.d); });
+      $(".tvok", el).onclick = () => { saveSettings(); closeView(); toast(`Margen: ${settings.tvMargin || 100} %`); };
+      this.paint();
+    },
+    paint() { const b = $(".tvval b", this.el); if (b) b.textContent = (settings.tvMargin || 100) + " %"; applyTvLook(); },
+    step(d) { const v = clamp((settings.tvMargin || 100) + d, 85, 100); if (v === (settings.tvMargin || 100)) return bump(); settings.tvMargin = v; play("tick"); this.paint(); },
+    nav(dir) { if (dir === "left" || dir === "right") return this.step(dir === "left" ? -1 : 1); },
+    items() { return fis(this.el); },
+    onB() { settings.tvMargin = start; applyTvLook(); closeView(); return true; }
+  };
+}
+
+/* Las filas de la categoría Pantalla (las usa settingsCats). */
+function displayRows(sw, opt) {
+  const ext = disp && disp.external, bri = { label: "Brillo", desc: "También se cambia desde el menú del botón Xbox", slider: true,
+    off: () => (typeof QM !== "undefined" && QM.noBri) || sys.autoBri, val: () => sys.brightness, set(v) { sys.brightness = v; applySys("brightness"); } };
+  const general = ["General", null];   // lo llena settingsCats con lo de siempre
+  const mode = [
+    { label: "Resolución", desc: ext ? `La pantalla llega hasta ${resLabel(disp.maxH)}` : "La resolución de Windows. Los juegos en ventana sin bordes la usan; los de pantalla completa usan la suya.", val: () => disp ? resLabel(disp.h) + (disp.resolutions[0] && disp.resolutions[0].h === disp.h ? " (recomendada)" : "") : "—", act: pickResolution },
+    { label: "Frecuencia de actualización", desc: ext ? "Lo que soporte la pantalla" : "120 Hz se ve más fluido; 60 Hz ahorra batería", val: () => disp ? disp.hz + " Hz" : "—", act: pickRate },
+    { label: "HDR", desc: hdrDesc(), val: hdrLabel, act: pickHdr }
+  ];
+  if (ext) return [
+    [`Pantalla externa · ${disp.name}`, [...mode,
+      { label: "Tamaño de la interfaz", desc: "Todo un poco más grande para verlo desde el sillón", val: () => optLabel(TV_SCALES, settings.tvScale || 100),
+        act() { openView(pickerView("Tamaño de la interfaz", I.gear, TV_SCALES.map(([label, value]) => ({ label, value })), settings.tvScale || 100, v => { settings.tvScale = v; saveSettings(); applyTvLook(); const s = views.find(x => x.isSettings); if (s && s.refresh) s.refresh(); })); } },
+      { label: "Margen para TV", desc: "Si la tele recorta las orillas, encoge Scarlet hasta que se vea completo", go: true, val: () => (settings.tvMargin || 100) < 100 ? settings.tvMargin + " %" : "", act() { openView(marginView()); } }]],
+    ["Pantalla de la consola", [{ label: "Apagada mientras usas la pantalla externa", desc: "Se vuelve a encender sola al desconectar el cable, como en la Switch", val: () => "", act() {} }]],
+    general];
+  return [
+    ["Pantalla de la consola", [bri, ...(QM.autoBriOk || !Host.has ? [sw("Brillo automático", "Se ajusta solo según la luz del cuarto", () => !!sys.autoBri, v => setAutoBright(v))] : []), ...mode]],
+    general];
+}
+if (settings.tvScale == null) settings.tvScale = 100;
+/* La categoría completa: lo nuevo arriba y, en «General», lo de siempre (atenuar, puntero, reloj); luego lo demás. */
+function displaySecs(sw, opt, old) {
+  const rows = displayRows(sw, opt), gen = rows.find(x => x[0] === "General");
+  gen[1] = old[0][1];
+  return [...rows, ...old.slice(1)];
+}
+loadDisplay();
 </script>
 </body>
 </html>

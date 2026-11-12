@@ -122,7 +122,7 @@ html:not(.showcursor),html:not(.showcursor) *{cursor:none!important}
 /* recortar video */
 .trim{flex:1;display:flex;flex-direction:column;gap:1.8rem;padding:2rem var(--pad);min-height:0}
 .trim video{flex:1;min-height:0;width:100%;object-fit:contain;background:#000;border-radius:.8rem}
-.tline{position:relative;height:5.2rem;border-radius:.8rem;background:var(--bg3,#333)}
+.tline{position:relative;height:5.2rem;border-radius:.8rem;background:var(--bg3,#333);touch-action:none}
 .tline .sel{position:absolute;top:0;bottom:0;background:color-mix(in srgb,var(--accent) 28%,transparent);border:.3rem solid var(--accent);border-radius:.8rem}
 .tline .h{position:absolute;top:-.6rem;bottom:-.6rem;width:1rem;margin-left:-.5rem;border-radius:.5rem;background:#fff;opacity:.55}
 .tline .h.on{opacity:1;box-shadow:0 0 0 .3rem var(--accent)}

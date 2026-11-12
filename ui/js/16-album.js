@@ -73,7 +73,16 @@ function viewerView(album, idx) {
         ? [["B", "Atrás"], ["☰", "Más"], ["A", this.vid.paused ? "Reproducir" : "Pausa"], ["◀", "−5 s"], ["▶", "+5 s"], ["LB", "Anterior"], ["RB", "Siguiente"]]
         : [["B", "Atrás"], ["☰", "Más"], ["X", "Borrar"], ["◀", "Anterior"], ["▶", "Siguiente"]];
     },
-    render(el) { el.innerHTML = `<div class="vwrap"><div class="media" style="display:contents"></div><div class="vcap"></div></div>`; this.show(); },
+    render(el) {
+      el.innerHTML = `<div class="vwrap" style="touch-action:pan-y"><div class="media" style="display:contents"></div><div class="vcap"></div></div>`; this.show();
+      // (1.8) con el dedo: deslizar a los lados cambia de captura
+      let sx = null, sy = 0;
+      el.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse" && !e.target.closest(".vbar")) { sx = e.clientX; sy = e.clientY; } });
+      el.addEventListener("pointerup", e => {
+        if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
+        if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) { touchSwallowClick = Date.now() + 350; const d = dx < 0 ? 1 : -1; setTimeout(() => this.go(d), 30); }   // después del touchend: si no, el dedo se queda «colgado» de la imagen que se quitó
+      });
+    },
     show() {
       const list = album.list, c = list[this.idx], m = $(".media", this.el);
       this.stop();
@@ -200,6 +209,19 @@ function trimView(c, onSaved) {
       this.v = v; this.a = 0; this.b = 0; this.h = 0;
       v.addEventListener("loadedmetadata", () => { this.b = v.duration || 0; this.paint(); });
       v.addEventListener("timeupdate", () => { if (this.preview && v.currentTime >= this.b) { v.pause(); this.preview = false; } this.paint(); });
+      // (1.8) con el dedo: se arrastra el inicio o el fin (el más cercano a donde tocas)
+      const line = $(".tline", el);
+      line.addEventListener("pointerdown", e => {
+        const d = v.duration || 0; if (!d) return;
+        e.preventDefault(); line.setPointerCapture && line.setPointerCapture(e.pointerId);
+        const at = ev => { const r = line.getBoundingClientRect(); return clamp((ev.clientX - r.left) / r.width, 0, 1) * d; };
+        const t0 = at(e); this.h = Math.abs(t0 - this.a) <= Math.abs(t0 - this.b) ? 0 : 1;
+        const put = ev => { const t = at(ev); if (this.h === 0) this.a = clamp(t, 0, Math.max(0, this.b - 1)); else this.b = clamp(t, Math.min(d, this.a + 1), d);
+          v.pause(); this.preview = false; v.currentTime = this.h === 0 ? this.a : this.b; this.paint(); };
+        put(e); play("tick");
+        const up = () => { line.removeEventListener("pointermove", put); line.removeEventListener("pointerup", up); line.removeEventListener("pointercancel", up); updateFocus(); };
+        line.addEventListener("pointermove", put); line.addEventListener("pointerup", up); line.addEventListener("pointercancel", up);
+      });
     },
     paint() {
       const d = this.v.duration || 1, el = this.el, pa = this.a / d * 100, pb = this.b / d * 100;
