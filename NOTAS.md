@@ -1,3 +1,12 @@
+Novedades de la beta 1.8.1
+
+- Ajustes › Pantalla: Resolución, Frecuencia y HDR ya funcionan (en la 1.8 la app no recibía esos cambios: salían con «—» y el HDR regresaba a «Automático»).
+- Pantalla táctil: si una ventanita interna del teclado de Windows que es de Scarlet se queda encima de todo (la que hacía sonar «error» y no dejaba tocar, en Scarlet y en los juegos), ahora se esconde sola. El registro anota cuándo pasa y su tamaño.
+- Logros encima del juego: ya se muestran (la app no estaba recibiendo el aviso).
+- Biblioteca › Fondo › «Una imagen de tu PC»: ya funciona.
+- Menú rápido con música: el color de la carátula es más suave y se ve lo de atrás (antes casi parecía sólido).
+- Se quitó un error que salía en el registro al cerrarse para actualizar.
+
 Novedades de la beta 1.8
 
 Ajustes › Pantalla (nuevo):

@@ -103,6 +103,7 @@ sealed partial class MainForm
     /// </summary>
     void CheckTouchBlocked()
     {
+        ClearStrayImeWindows();
         try
         {
             var b = Screen.PrimaryScreen.Bounds;
@@ -116,7 +117,8 @@ sealed partial class MainForm
             if (root != lastBlocked)
             {
                 lastBlocked = root;
-                Log.Write($"toque bloqueado: {Native.Describe(root)} espera a {(popup == IntPtr.Zero ? "(ninguna ventana)" : Native.Describe(popup))}{(visible ? "" : " (escondida)")}");
+                Native.GetWindowRect(root, out var rr);
+                Log.Write($"toque bloqueado: {Native.Describe(root)} [{Native.ClassName(root)}, {rr.Right - rr.Left}×{rr.Bottom - rr.Top}] espera a {(popup == IntPtr.Zero ? "(ninguna ventana)" : Native.Describe(popup))}{(visible ? "" : " (escondida)")}");
             }
             bool steamPopup = popup != IntPtr.Zero && (hiddenSteam.Contains(popup) || Path.GetFileName(Native.WindowProcessPath(popup, out _) ?? "").StartsWith("steam", StringComparison.OrdinalIgnoreCase));
             if (popup != IntPtr.Zero && !visible && steamPopup)
@@ -134,6 +136,36 @@ sealed partial class MainForm
             }
         }
         catch (Exception ex) { Log.Error("toque bloqueado", ex); }
+    }
+
+    // ───── 1.8.1: ventanitas del teclado de Windows que se quedan encima de todo ─────
+    // Windows crea para cada programa ventanitas internas del teclado («Default IME», «MSCTFIME UI»). Siempre están
+    // «deshabilitadas»: si una de Scarlet se queda visible, con tamaño y encima de todo, cada toque que cae en ella
+    // suena «error» y no hace nada, en Scarlet y en cualquier juego. Se revisan 9 puntos de la pantalla y, si la de
+    // arriba es una de esas de Scarlet, se esconde (Windows la vuelve a crear cuando hace falta).
+    readonly HashSet<IntPtr> imeLogged = new();
+
+    void ClearStrayImeWindows()
+    {
+        try
+        {
+            var b = Screen.PrimaryScreen.Bounds;
+            uint me = (uint)Environment.ProcessId;
+            for (int i = 0; i < 9; i++)
+            {
+                var pt = new Point(b.Left + b.Width * (1 + 2 * (i % 3)) / 6, b.Top + b.Height * (1 + 2 * (i / 3)) / 6);
+                IntPtr root = Native.RootAt(pt);
+                if (root == IntPtr.Zero || root == Handle || Native.IsWindowEnabled(root)) continue;
+                Native.GetWindowThreadProcessId(root, out uint pid);
+                string cls = Native.ClassName(root);
+                if (pid != me || cls is not ("IME" or "MSCTFIME UI")) continue;
+                Native.GetWindowRect(root, out var r);
+                Native.ShowWindowAsync(root, 0 /* SW_HIDE */);
+                if (imeLogged.Add(root))
+                    Log.Write($"toque: se escondió una ventanita del teclado de Scarlet («{cls}», {r.Right - r.Left}×{r.Bottom - r.Top} en {r.Left},{r.Top}) que estaba encima de todo y bloqueaba los toques");
+            }
+        }
+        catch (Exception ex) { Log.Error("toque (ventanitas del teclado)", ex); }
     }
 
     /// <summary>Batería con datos reales de Windows: si carga, cuánto falta para llenarse; si no, cuánto queda.</summary>

@@ -241,6 +241,7 @@ sealed partial class MainForm : Form
 
     void SlowTick()
     {
+        if (IsDisposed || Disposing) return;   // 1.8.1: al cerrarse para actualizar, el reloj podía alcanzar a dar una vuelta más
         slowTicks++;
         if (steamDialogs.Count > 0 && steamDialogs.All(h => !Native.IsWindow(h) || !Native.IsWindowVisible(h)))
         {

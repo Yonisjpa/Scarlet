@@ -45,6 +45,19 @@ const openDisp = async (p, label) => { await ev(p, async l => { await loadDispla
 (async () => {
   browser = await chromium.launch();
 
+  // (1.8.1) En la consola, «display.*» llegaba como «Mensaje desconocido»: la consola de prueba sí lo entendía.
+  // Aquí se revisa el código real: cada mensaje que manda la interfaz tiene ruta en Puente.cs y su «case» en C#.
+  await run('Cada mensaje de la interfaz tiene a dónde llegar en la app (C#)', async () => {
+    const fs = require('fs'), R = require('path').join(__dirname, '..', '..', '..');
+    const js = fs.readdirSync(R + '/ui/js').map(f => fs.readFileSync(R + '/ui/js/' + f, 'utf8')).join('\n');
+    const types = new Set([...js.matchAll(/Host\.(?:call|send|post)\(\s*"([a-z0-9]+\.[a-zA-Z0-9.]+)"/g)].map(m => m[1]));
+    const cs = []; (function walk(d) { for (const f of fs.readdirSync(d)) { const p = d + '/' + f; if (fs.statSync(p).isDirectory()) walk(p); else if (p.endsWith('.cs')) cs.push(fs.readFileSync(p, 'utf8')); } })(R + '/src');
+    const all = cs.join('\n'), puente = fs.readFileSync(R + '/src/Principal/MainForm.Puente.cs', 'utf8');
+    const pre = new Set([...puente.slice(0, puente.indexOf('Mensaje desconocido')).matchAll(/"([a-z0-9]+)"/g)].map(m => m[1]));
+    const bad = [...types].filter(t => !pre.has(t.split('.')[0]) || !all.includes(`"${t}"`));
+    return types.size > 80 && !bad.length ? { note: types.size + ' mensajes' } : { fail: 'sin ruta: ' + bad.join(', ') };
+  });
+
   await run('Pantalla (consola): brillo con barra, resolución 1080p, 120 Hz y HDR con solo Desactivado/Automático', async () => {
     const p = await page();
     await openDisp(p, 'Brillo');

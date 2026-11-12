@@ -30,6 +30,6 @@
 html.qglass #quick{background:transparent!important;animation:none!important;isolation:isolate}
 html.qglass #quick::before{content:"";position:absolute;inset:0;z-index:-1;opacity:.5;background:var(--bg);pointer-events:none}
 html.qglass #quick.ns:not(.tinted)::before{background:var(--nqbg)}
-html.qglass #quick.tinted::before{background:linear-gradient(140deg,var(--mt1),var(--mt2) 45%,var(--mt3) 75%,var(--mt1)),#141414;background-size:260% 260%,auto;animation:qtint 16s ease-in-out infinite alternate}
+html.qglass #quick.tinted::before{opacity:.38;background:linear-gradient(140deg,var(--mt1),var(--mt2) 45%,var(--mt3) 75%,var(--mt1)),#141414;background-size:260% 260%,auto;animation:qtint 16s ease-in-out infinite alternate}
 html.overlay.hostglass #quick::before{display:none}
 .key.on{background:var(--accent);color:#06222c}

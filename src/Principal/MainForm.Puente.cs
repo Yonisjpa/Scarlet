@@ -83,10 +83,10 @@ sealed partial class MainForm
         return prefix switch
         {
             "game" or "ext" or "fs" or "compat" => GamesMessage(type, p, from),
-            "steam" or "steamKey" or "steamId" or "sgdbKey" or "sgdb" or "cache" or "install" or "download" => SteamMessage(type, p, from),
-            "system" or "audio" or "mixer" or "media" or "battery" or "cursor" or "autostart" or "gamebar" or "storage" or "diag" or "clipboard" or "rumble" or "pad" or "pads" or "bt" or "capture" => SystemMessage(type, p, from),
+            "steam" or "art" or "steamKey" or "steamId" or "sgdbKey" or "sgdb" or "cache" or "install" or "download" => SteamMessage(type, p, from),
+            "system" or "display" or "audio" or "mixer" or "media" or "battery" or "cursor" or "autostart" or "gamebar" or "storage" or "diag" or "clipboard" or "rumble" or "pad" or "pads" or "bt" or "capture" => SystemMessage(type, p, from),
             "wifi" or "vpn" or "net" or "web" => NetMessage(type, p, from),
-            "quick" or "overlay" or "ui" or "app" or "sounds" or "album" or "setup" or "update" => UiMessage(type, p, from),
+            "quick" or "ach" or "overlay" or "ui" or "app" or "sounds" or "album" or "setup" or "update" => UiMessage(type, p, from),
             _ => throw new NotSupportedException("Mensaje desconocido: " + type)
         };
     }

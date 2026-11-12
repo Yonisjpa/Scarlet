@@ -208,5 +208,6 @@
 .achl.k-rare .alflash{background:#dff3ff}
 .achl.k-full .alflash{background:#fff3b0}
 /* (1.7.2) Menú rápido con música: el tinte de la carátula también es cristal (antes se veía sólido) */
-:root[data-lumina] #quick.tinted::before{opacity:.58}
-:root[data-lumina][data-theme="light"] #quick.tinted::before{opacity:.5}
+:root[data-lumina] #quick.tinted::before{opacity:.36}
+:root[data-lumina] #quick.tinted{-webkit-backdrop-filter:blur(1.1rem) saturate(1.3)!important;backdrop-filter:blur(1.1rem) saturate(1.3)!important}
+:root[data-lumina][data-theme="light"] #quick.tinted::before{opacity:.34}
