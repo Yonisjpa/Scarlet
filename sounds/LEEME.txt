@@ -15,6 +15,8 @@ en lugar de los sonidos sintetizados. Los que falten se siguen oyendo como antes
   achieve   logro desbloqueado (2.8 s)
   achrare   logro raro: lo tiene menos del 10 % de los jugadores (6.0 s)
   ach100    juego al 100 % (7.8 s)
+  achrare_l logro raro con Lúmina (6.0 s)
+  ach100_l  juego al 100 % con Lúmina (7.8 s)
   wake      despertar de la suspensión
   boot      al encender
 

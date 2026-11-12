@@ -77,14 +77,17 @@ addEventListener("gamepadconnected", e => {
     state.pads.push({ key: "gp" + gp.index, gp: gp.index, name: padLabel(gp), type: "USB / inalámbrico", player: state.pads.length + 1 });
     updatePadName(); refreshControls();
   }
-  if (mode !== "boot") notify({ icon: I.pad, title: "Mando conectado", text: padLabel(gp) });
+  // (1.7.2) el mando de la consola: Windows lo presenta como «Xbox 360 Controller»; se dice cuál es y lleva su dibujo
+  const ally = gp.index === 0 && (!Host.has || state.pads.some(p => p.key === "ally"));
+  if (mode !== "boot") notify(ally ? { icon: ALLY_IC(), title: "Mando conectado", text: "ROG Xbox Ally X" } : { icon: I.pad, title: "Mando conectado", text: padLabel(gp) });
 });
+const ALLY_IC = () => `<i class="allyic" style="-webkit-mask-image:url(${PADSRC});mask-image:url(${PADSRC})"></i>`;
 addEventListener("gamepaddisconnected", e => {
   const p = state.pads.find(x => x.gp === e.gamepad.index && x.gp > 0);
   if (p) { state.pads = state.pads.filter(x => x !== p); renumberPads(); updatePadName(); refreshControls(); }
   if (mode !== "boot") notify({ icon: I.pad, title: "Mando desconectado", text: p ? p.name : "Vuelve a conectarlo para seguir jugando" });
 });
-Events.on("pad.connected", p => { state.pads = state.pads.filter(x => x.key !== p.key).concat(p); updatePadName(); refreshControls(); notify({ icon: I.pad, title: "Mando conectado", text: `${p.name} · Jugador ${p.player}` }); });
+Events.on("pad.connected", p => { state.pads = state.pads.filter(x => x.key !== p.key).concat(p); updatePadName(); refreshControls(); notify({ icon: p.key === "ally" ? ALLY_IC() : I.pad, title: "Mando conectado", text: `${p.name} · Jugador ${p.player}` }); });
 Events.on("pad.disconnected", p => { state.pads = state.pads.filter(x => x.key !== p.key); renumberPads(); updatePadName(); refreshControls(); notify({ icon: I.pad, title: "Mando desconectado", text: p.name }); });
 
 document.addEventListener("click", e => { Snd.ensure(); if (activity()) return; if (QM.open) { if (e.target.id === "qshade") closeQuick(); return; } if (mode === "ui") onHomeClick(e); }, true);

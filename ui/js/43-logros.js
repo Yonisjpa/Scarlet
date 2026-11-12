@@ -157,30 +157,39 @@ const Ach = {
     const ms = ACH_MS[a.kind];
     achSound(a.kind);
     rumble("achieve");
+    a.lumina = settings.lumina === true;   // (1.7.2) con Lúmina, el estilo de cristal (45-logros-lumina.js)
     if (mode === "game" && !OVERLAY && Host.has) {   // el menú está oculto: la app lo dibuja encima del juego, igualito
-      Host.call("ach.show", { kind: a.kind, name: a.name, game: a.game || "", percent: a.percent, total: a.total || 0, image: a.iconPath || "", pos: settings.achPos || "tl" }).catch(() => {});
+      Host.call("ach.show", { kind: a.kind, name: a.name, game: a.game || "", percent: a.percent, total: a.total || 0, image: a.iconPath || "", pos: settings.achPos || "tl",
+        ...(a.lumina ? { style: "b", light: document.documentElement.dataset.theme === "light", unlocked: a.unlocked || 0 } : {}) }).catch(() => {});
       a.t = setTimeout(() => this.done(a), ms + 150);
       return;
     }
-    const el = document.createElement("div"); el.className = "ach k-" + a.kind; el.style.height = ACH_SIZE[a.kind].D + "rem"; el.innerHTML = achHTML(a);
+    const el = document.createElement("div");
+    if (a.lumina) { el.className = "achl k-" + a.kind; el.innerHTML = achLHTML(a); }
+    else { el.className = "ach k-" + a.kind; el.style.height = ACH_SIZE[a.kind].D + "rem"; el.innerHTML = achHTML(a); }
     document.body.append(el); a.el = el; a.start = performance.now();
+    if (a.lumina) achLPlace(el);
     const step = () => {
       if (this.cur !== a || a.manual) return;
       const t = (performance.now() - a.start) / 1000;
       if (t >= ms / 1000) return this.done(a);
-      achPaint(el, a, t); a.raf = requestAnimationFrame(step);
+      achDraw(el, a, t); a.raf = requestAnimationFrame(step);
     };
-    achPaint(el, a, 0); a.raf = requestAnimationFrame(step);
+    achDraw(el, a, 0); a.raf = requestAnimationFrame(step);
   },
   done(a) { if (this.cur !== a) return; clearTimeout(a.t); cancelAnimationFrame(a.raf); if (a.el) a.el.remove(); this.cur = null; this.next(); },
   /* pruebas: congela el aviso actual en el segundo t */
-  seek(t) { const a = this.cur; if (!a || !a.el) return null; a.manual = true; cancelAnimationFrame(a.raf); return achPaint(a.el, a, t); }
+  seek(t) { const a = this.cur; if (!a || !a.el) return null; a.manual = true; cancelAnimationFrame(a.raf); return achDraw(a.el, a, t); }
 };
 
-/* Sonido: el de Scarlet o el importado (Personalizados), al volumen de su tipo. */
+const achDraw = (el, a, t) => a.lumina ? achLPaint(el, a, t) : achPaint(el, a, t);
+
+/* Sonido: el de Scarlet o el importado (Personalizados), al volumen de su tipo. Con Lúmina, el raro y el 100 % tienen
+   los suyos (achrare_l, ach100_l), hechos para su animación. */
 function achSound(kind) {
   if (settings.nSound === false) return;
-  const key = ACH_SND[kind], vol = (settings["achVol_" + kind] ?? ACH_VOL[kind]) / 100;
+  const lum = settings.lumina === true && kind !== "normal" && settings.achSounds !== "custom" && Snd.custom[ACH_SND[kind] + "_l"];
+  const key = ACH_SND[kind] + (lum ? "_l" : ""), vol = (settings["achVol_" + kind] ?? ACH_VOL[kind]) / 100;
   if (vol <= 0) return;
   const mine = settings.achSounds === "custom" && Snd.custom["x" + key] ? "x" + key : key;
   if (Snd.custom[mine] && Snd.sample(mine, 1, vol, true)) return;

@@ -174,3 +174,39 @@
 :root[data-lumina] .notif[class*=" g-"] .ntag{color:var(--gt)}
 :root[data-lumina] .notif[class*=" g-"] .ic:not(.game):not(.thumb){background:linear-gradient(160deg,var(--g1),var(--g2))}
 :root[data-lumina][data-theme="light"] .notif.g-cap .ntag{color:#6b7584}
+
+/* ----- (1.7.2) Logros con Lúmina (45-logros-lumina.js): se dibujan cuadro por cuadro ----- */
+.achl{position:fixed;z-index:96;pointer-events:none;will-change:transform,opacity}
+.achl .notif.alb{animation:none!important;overflow:hidden;position:relative;z-index:2;min-width:52rem}
+.achl .alfx,.achl .alfx2{position:absolute;inset:0;pointer-events:none}
+.achl .alfx{z-index:1}.achl .alfx2{z-index:3}
+.achl .alfx i{position:absolute;border-radius:50%;border:.35rem solid;transform:translate(-50%,-50%)}
+.achl .alfx2 i{position:absolute;left:0;top:0}
+.achl .albd{position:absolute;inset:-.35rem;border-radius:2.75rem;padding:.4rem;z-index:3;pointer-events:none;opacity:0;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.achl .alic{perspective:40rem;overflow:hidden;position:relative;padding:0!important}
+.achl .alflip{position:absolute;inset:0;transform-style:preserve-3d}
+.achl .alface{position:absolute;inset:0;backface-visibility:hidden;display:grid;place-items:center}
+.achl .alface.fr svg{width:5.8rem;height:5.8rem;filter:drop-shadow(0 0 .8rem rgba(255,255,255,.75))}
+.achl.k-full .alface.fr svg{width:78%;height:78%;filter:none}
+.achl .alface.bk{transform:rotateY(180deg);background:#111}
+.achl .alface.bk img{width:100%;height:100%;object-fit:cover;display:block;border-radius:0}
+.achl .alnoicon{width:100%;height:100%;display:grid;place-items:center}
+.achl .alnoicon svg{width:55%;height:55%}
+.achl .albadge{position:absolute;right:.5rem;bottom:.8rem;width:2.8rem;height:2.8rem;border-radius:50%;display:grid;place-items:center;background:#0a2bff;
+  box-shadow:0 0 0 .2rem #fff,0 0 1rem rgba(0,140,255,.9);z-index:2;transform:scale(0)}
+.achl .albadge svg{width:1.8rem;height:1.8rem}
+.achl .altx{position:relative}
+.achl .almain{display:flex;flex-direction:column;gap:.2rem}
+.achl .alpre{position:absolute;left:2rem;top:1.5rem;right:0;display:flex;flex-direction:column;gap:.2rem;white-space:nowrap}
+.achl .alpct{display:block;align-self:center;margin:0 2.4rem 0 0;font-size:3.4rem;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums;min-width:11rem;text-align:right;transform-origin:right center}
+.achl .alpct.lit{background:linear-gradient(90deg,var(--g1),var(--g2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.achl.k-rare .alpct.lit{background-image:linear-gradient(90deg,#2f7bff,#8fe3ff)}
+.achl .nlife{height:.6rem;transform-origin:left;left:10.4rem}
+.achl .alshine{position:absolute;top:0;bottom:0;left:-30%;width:22rem;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55) 50%,transparent);z-index:4;pointer-events:none;mix-blend-mode:screen;opacity:0}
+.achl .alflash{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:#fff3c4}
+.achl.k-rare .alflash{background:#dff3ff}
+.achl.k-full .alflash{background:#fff3b0}
+/* (1.7.2) Menú rápido con música: el tinte de la carátula también es cristal (antes se veía sólido) */
+:root[data-lumina] #quick.tinted::before{opacity:.58}
+:root[data-lumina][data-theme="light"] #quick.tinted::before{opacity:.5}

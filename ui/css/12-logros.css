@@ -52,3 +52,5 @@
 @keyframes nIn2{0%{transform:translateX(-110%) scale(.92);opacity:0}65%{transform:translateX(3%) scale(1.02);opacity:1}100%{transform:none;opacity:1}}
 @keyframes nOut2{to{transform:translateY(-.9rem) scale(.86);opacity:0}}
 @keyframes npop{0%{transform:scale(0)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+/* (1.7.2) el dibujo de la consola en el aviso «Mando conectado» */
+.notif .ic .allyic{display:block;width:86%;height:60%;background:currentColor;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}

@@ -1,3 +1,18 @@
+Novedades de la beta 1.7.2 (Lúmina)
+
+Logros con Lúmina (con Lúmina apagado siguen los de estilo Xbox):
+- Salen de cristal con el ícono propio del logro en el bloque, su nombre y una tira de color; mismos tiempos (2.8, 6.0 y 7.8 s) y la posición que elijas.
+- Logro: el ícono da un brinco al golpe del sonido, pasa un brillo dorado y sale una onda; tira dorada.
+- Logro raro (azul eléctrico): cae un diamante que gira mientras el porcentaje baja hasta el real; en el segundo golpe se voltea al ícono del logro con un diamantito, salen esquirlas de cristal y ondas azules.
+- Juego al 100 % (rojo → amarillo): un anillo de progreso y el contador sube de 0 a 100 % con tambores y brasas; al golpe, destello, ondas, chispas y fanfarria, y dice «Juego completado» con el último logro.
+- Sonidos nuevos (originales, hechos para Scarlet) para el raro y el 100 %. Si elegiste «Personalizados» en Ajustes › Notificaciones › Logros, se usan los tuyos.
+- Encima del juego se ven igual.
+
+Arreglos:
+- Música: la carátula de la canción nueva sale en un par de segundos (antes tardaba hasta ~15 s).
+- Con Lúmina, el menú rápido con música vuelve a ser transparente (el tinte de la carátula ya no se ve sólido).
+- El mando de la consola se anuncia como «ROG Xbox Ally X» con su dibujo (antes a veces decía «Xbox 360 Controller»).
+
 Novedades de la beta 1.7.1 (Lúmina)
 
 Avisos:

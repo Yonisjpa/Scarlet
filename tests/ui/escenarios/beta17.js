@@ -178,6 +178,68 @@ const hugs = b => b.op === '1' && [0, 1].every(i => Math.abs(b.f[i] - b.g - b.l[
     return ok ? { p, note: `curvatura: portada ${tile.toFixed(0)}, foto ${av[1].toFixed(1)}` } : { p, fail: JSON.stringify({ tile, av, k }) };
   });
 
+  // ───── 1.7.2 ─────
+  const achNow = (p, kind) => ev(p, kind => { Ach.q.length = 0; if (Ach.cur) Ach.done(Ach.cur); $('#notifs').innerHTML = ''; notifQ.length = 0; if (notifCur) clearTimeout(notifCur.t); notifCur = null;
+    const g = games.find(x => x.appid === 3489700); showAchievement(g, kind === 'full' ? 'Protocolo EVE' : kind === 'rare' ? 'Sin un rasguño' : 'Explorador',
+      { kind, percent: kind === 'normal' ? 48.3 : 3.1, total: 38, unlocked: kind === 'full' ? 38 : 12, icon: 'https://files.scarlet/f?p=C%3A%5Cach%5Cicon.png' }); }, kind);
+
+  await run('1.7.2: con Lúmina, los tres logros salen de cristal con el ícono del logro, sus textos y su tira; sin Lúmina, los de Xbox', async () => {
+    const p = await page({ vp: { width: 1920, height: 1080 } });
+    await achNow(p, 'normal'); const xbox = await ev(p, () => [!!$('.ach .axb'), !$('.achl')]);
+    await lumiOn(p);
+    const out = {};
+    for (const k of ['normal', 'rare', 'full']) {
+      await achNow(p, k);
+      out[k] = await ev(p, k => { const f = Ach.seek(k === 'normal' ? 1.2 : k === 'rare' ? 4 : 5); const el = $('.achl');
+        return { cls: el && el.className, img: ($('.alface.bk img', el) || {}).src || '', tag: $('.almain .ntag', el).textContent, title: $('.almain b', el).textContent, sub: $('.almain span:last-child', el).textContent,
+          pct: ($('.alpct', el) || {}).textContent || '', line: getComputedStyle($('.nlife', el)).backgroundImage, f, xbox: !!$('.ach') }; }, k);
+    }
+    const n = out.normal, r = out.rare, f = out.full;
+    const ok = xbox[0] && xbox[1]
+      && n.cls === 'achl k-normal' && /icon\.png/.test(n.img) && n.tag === 'Logro' && n.title === 'Explorador' && /12 de 38/.test(n.sub) && /217, 154, 0/.test(n.line) && !n.xbox
+      && r.tag === 'Logro raro' && r.pct === '3.1 %' && /3\.1 % de los jugadores/.test(r.sub) && /10, 43, 255/.test(r.line) && r.f.flip > .99
+      && f.tag === 'Juego completado' && /al 100 %/.test(f.title) && /Protocolo EVE/.test(f.sub) && f.pct === '100 %' && /255, 26, 26/.test(f.line) && /255, 212, 0/.test(f.line);
+    return ok ? { p } : { p, fail: JSON.stringify({ xbox, n, r, f }) };
+  });
+
+  await run('1.7.2: la animación del raro (el % baja, se voltea al ícono, esquirlas) y del 100 % (cuenta 0→100, golpe con chispas) va con su tiempo', async () => {
+    const p = await page({ vp: { width: 1920, height: 1080 } }); await lumiOn(p);
+    await achNow(p, 'rare');
+    const r = await ev(p, () => [1, 1.6, 2.6, 5.9].map(t => { const f = Ach.seek(t); return [+f.pct.toFixed(1), +f.flip.toFixed(2), f.parts, +f.op.toFixed(2)]; }));
+    await achNow(p, 'full');
+    const f = await ev(p, () => [1.5, 2.4, 2.75, 7.75].map(t => { const x = Ach.seek(t); return [x.pct, +x.flip.toFixed(2), x.parts, +x.op.toFixed(2), +x.pulse.toFixed(2)]; }));
+    const ok = r[0][0] > r[1][0] && r[1][0] > 3.1 && r[0][1] === 0 && r[2][0] === 3.1 && r[2][1] > .99 && r[2][2] > 10 && r[3][3] < .3
+      && f[0][0] < f[1][0] && f[1][0] < 100 && f[2][0] === 100 && f[2][1] > .5 && f[2][2] > 30 && f[2][4] > .6 && f[3][3] < .2;
+    return ok ? { p } : { p, fail: JSON.stringify({ r, f }) };
+  });
+
+  await run('1.7.2: con Lúmina el raro y el 100 % usan sus sonidos nuevos; encima del juego la app recibe el estilo y el ícono', async () => {
+    const p = await page();
+    await ev(p, () => { Snd.custom.achrare_l = {}; Snd.custom.ach100_l = {}; Snd.custom.achieve = {}; window.__played = []; Snd.sample = (k) => { window.__played.push(k); return true; }; settings.lumina = true; Lumina.apply(); });
+    for (const k of ['normal', 'rare', 'full']) await achNow(p, k);
+    const played = await ev(p, () => window.__played.slice());
+    await ev(p, () => { settings.nInGame = "all"; launchGame(games.find(g => g.appid === 3489700)); });
+    await p.waitForFunction(() => mode === "game", null, { timeout: 15000 }); await p.waitForTimeout(300);
+    await ev(p, () => { window.__qa.log.length = 0; Ach.q.length = 0; if (Ach.cur) Ach.done(Ach.cur); showAchievement(games.find(x => x.appid === 3489700), 'Sin un rasguño', { kind: 'rare', percent: 3.1, total: 38, unlocked: 13, iconPath: 'C:\\ach\\i.png' }); });
+    const msg = (await calls(p, 'ach.show')).pop();
+    await ev(p, () => { settings.lumina = false; saveSettings(); });
+    const ok = played.join(',') === 'achieve,achrare_l,ach100_l' && msg && msg.style === 'b' && msg.unlocked === 13 && msg.image === 'C:\\ach\\i.png' && msg.light === false;
+    return ok ? { p } : { p, fail: JSON.stringify({ played, msg }) };
+  });
+
+  await run('1.7.2: el mando de la consola se anuncia como «ROG Xbox Ally X» con su dibujo; el menú con música sigue siendo cristal con Lúmina', async () => {
+    const p = await page({ vp: { width: 1920, height: 1080 } }); await clean(p);
+    await ev(p, () => { state.pads = [{ key: "ally", name: "ROG Xbox Ally X", type: "Integrado", player: 1 }]; window.__emit("pad.connected", { key: "ally", name: "ROG Xbox Ally X", type: "Integrado", player: 1 }); });
+    const n = await ev(p, () => { const x = $('#notifs .notif'); return { t: x.textContent, ic: !!$('.allyic', x) }; });
+    await lumiOn(p);
+    await ev(p, () => { const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#0b0b0d"/><circle cx="62" cy="40" r="34" fill="#c4161c"/><rect y="70" width="100" height="30" fill="#7a0d12"/></svg>';
+      window.__qa.media = { app: "Apple Music", title: "Canción", artist: "Artista", art: "data:image/svg+xml;base64," + btoa(svg), playing: true, position: 10, duration: 200, now: Date.now() }; setMedia(window.__qa.media); openQuick(); });
+    await p.waitForTimeout(1500);
+    const q = await ev(p, () => ({ tinted: $('#quick').classList.contains('tinted'), op: getComputedStyle($('#quick'), '::before').opacity }));
+    const ok = /ROG Xbox Ally X/.test(n.t) && n.ic && q.tinted && +q.op > .3 && +q.op < .8;
+    return ok ? { p } : { p, fail: JSON.stringify({ n, q }) };
+  });
+
   await browser.close();
   const bad = results.filter(r => !r.ok);
   console.log(`\n${results.length - bad.length}/${results.length} escenarios OK`);

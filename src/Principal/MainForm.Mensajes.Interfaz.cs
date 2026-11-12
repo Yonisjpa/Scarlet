@@ -59,7 +59,7 @@ sealed partial class MainForm
             }
             case "ach.show":   // beta 1.6: el logro estilo Xbox, dibujado encima del juego
                 AchievementToast.Show(P.S(p, "kind"), P.S(p, "name"), P.S(p, "game"), p.TryGetProperty("percent", out var achPct) && achPct.ValueKind == JsonValueKind.Number ? (double?)achPct.GetDouble() : null,
-                    (int)P.L(p, "total"), P.S(p, "image"), P.S(p, "pos"));
+                    (int)P.L(p, "total"), P.S(p, "image"), P.S(p, "pos"), P.S(p, "style") == "b", P.B(p, "light"), (int)P.L(p, "unlocked"));
                 return true;
             case "overlay.notify":
                 ToastForm.Pop(P.S(p, "title"), P.S(p, "text"), P.S(p, "letter"), P.S(p, "color"), P.S(p, "image"),

@@ -148,7 +148,8 @@ sealed class MediaService
     //   2) si no hay, la imagen de Apple Music, solo si no es la misma de la canción anterior;
     //   3) si nada, la mejor coincidencia aproximada de iTunes.
     // Se revisa cada vez que cambia la canción y cada 30 s.
-    string curKey, curArt, curSource, curThumbHash, prevThumbHash, curAlbum, prevAlbum;
+    string curKey, curArt, curSource, curThumbHash, prevThumbHash, curAlbum, prevAlbum, itKey;
+    Task<(string url, bool exact)> itTask = Task.FromResult<(string url, bool exact)>((null, false));
     int retries, sameSeen;
     DateTime lastTry;
 
@@ -180,7 +181,14 @@ sealed class MediaService
         lastTry = DateTime.Now;
         try
         {
-            var (iurl, exact) = await ItunesAsync(props);
+            // 1.7.2: la búsqueda en iTunes se hace UNA vez por canción y en paralelo; mientras llega, se usa la imagen que da
+            // Apple Music. Antes cada reintento esperaba otra vez a iTunes y la carátula correcta tardaba ~15 s.
+            if (itKey != key)
+            {
+                itKey = key; itTask = ItunesAsync(props); string k2 = key;
+                _ = itTask.ContinueWith(t => { if (curKey == k2 && t.Status == TaskStatus.RanToCompletion && t.Result.exact && t.Result.url != null && curSource != "itunes") _ = RefreshAsync(true); });
+            }
+            var (iurl, exact) = itTask.IsCompletedSuccessfully ? itTask.Result : (null, false);
             if (exact && iurl != null) { Use(iurl, "itunes"); return curArt; }
 
             byte[] bytes = await ThumbBytes(props);
@@ -227,7 +235,7 @@ sealed class MediaService
     void ScheduleRetry()
     {
         if (retries >= 5) return;
-        int wait = new[] { 1200, 2500, 4500, 8000, 15000 }[retries++];
+        int wait = new[] { 500, 900, 1500, 2500, 4500 }[retries++];   // 1.7.2: más seguido (antes 1.2 s → 15 s)
         _ = Task.Delay(wait).ContinueWith(_ => RefreshAsync(true));
     }
 

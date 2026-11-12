@@ -9,7 +9,7 @@ namespace XboxScarlet;
 /// menú (ui/js/43-logros.js, ACH_FRAMES): cada cuadro se calcula del tiempo, con los mismos segundos y tamaños, y dura
 /// lo mismo que su sonido. El sonido lo pone la interfaz. Medidas pensadas a 1080p y escaladas a la pantalla.
 /// </summary>
-sealed class AchievementToast : LayeredWindow
+sealed partial class AchievementToast : LayeredWindow
 {
     static AchievementToast current;
     /// <summary>¿Hay un logro en pantalla? (las notificaciones esperan a que se vaya)</summary>
@@ -44,7 +44,8 @@ sealed class AchievementToast : LayeredWindow
     }
 
     /// <summary>Muestra un logro (si había otro, se va).</summary>
-    public static void Show(string kind, string name, string game, double? percent, int total, string imagePath, string pos)
+    public static void Show(string kind, string name, string game, double? percent, int total, string imagePath, string pos,
+        bool lumina = false, bool light = false, int unlocked = 0)   // 1.7.2: con Lúmina, el estilo de cristal (AchievementToast.Lumina.cs)
     {
         Image img = null;
         try
@@ -59,6 +60,7 @@ sealed class AchievementToast : LayeredWindow
         catch (Exception ex) { Log.Error("ícono del logro", ex); }
         try { current?.Finish(); } catch { }
         var t = new AchievementToast(kind, name, game, percent, total, img, pos);
+        if (lumina) t.UseLumina(light, unlocked);
         current = t;
         t.Start();
         Log.Write($"logro encima del juego: {t.kind} «{name}» ({game})");
@@ -67,6 +69,7 @@ sealed class AchievementToast : LayeredWindow
     void Start()
     {
         int w = (int)Math.Ceiling((P * 2 + D / 2 + W) * k), h = (int)Math.Ceiling((P * 2 + D) * k);
+        if (lumina) { var ls = LSize(); w = ls.Width; h = ls.Height; }
         canvas = new Bitmap(w, h, PixelFormat.Format32bppArgb);
         Size = new Size(w, h);
         Location = Origin();
@@ -79,6 +82,7 @@ sealed class AchievementToast : LayeredWindow
     /// <summary>Esquina de la ventana según la posición elegida en Ajustes.</summary>
     Point Origin()
     {
+        if (lumina) return LOrigin();
         float m = M * k, p = P * k;
         float x = pos[1] == 'l' ? screen.Left + m - p : pos[1] == 'r' ? screen.Right - m + p - canvas.Width : screen.Left + (screen.Width - canvas.Width) / 2f;
         float y = pos[0] == 'b' ? screen.Bottom - m - D * k - p : screen.Top + m - p;
@@ -109,7 +113,7 @@ sealed class AchievementToast : LayeredWindow
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 g.TextRenderingHint = TextRenderingHint.AntiAlias;
                 g.ScaleTransform(k, k);
-                Draw(g, (float)t);
+                if (lumina) DrawB(g, (float)t); else Draw(g, (float)t);
             }
             var o = Origin();
             Present(canvas, o.X, o.Y);
