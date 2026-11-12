@@ -105,7 +105,7 @@ const hugs = b => b.op === '1' && [0, 1].every(i => Math.abs(b.f[i] - b.g - b.l[
       const n = $('#notifs .notif'); return { cls: n.className, pct: !!$('.npct', n), life: getComputedStyle($('.nlife', n)).display, bg: getComputedStyle($('.ic', n)).backgroundImage, blur: getComputedStyle(n).backdropFilter }; });
     const ok = /batt b-crit/.test(crit.cls) && crit.pct === '8 %' && crit.tag === 'Batería crítica' && crit.t === 'Guarda tu partida' && crit.lvl === '8%' && crit.icH === crit.nH && crit.icL === 0 && crit.icBg === 'rgb(255, 77, 77)' && crit.life === 'none'
       && /batt b-low/.test(low.cls) && low.pct === '18 %' && low.t === 'Conecta el cargador' && low.icBg === 'rgb(255, 176, 46)'
-      && dl.cls === 'notif' && !dl.pct && dl.life !== 'none' && /gradient/.test(dl.bg) && /blur/.test(dl.blur);
+      && dl.cls === 'notif g-dl' && !dl.pct && dl.life !== 'none' && /gradient/.test(dl.bg) && /blur/.test(dl.blur);
     return ok ? { p } : { p, fail: JSON.stringify({ crit, low, dl }) };
   });
 
