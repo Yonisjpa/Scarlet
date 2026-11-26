@@ -113,7 +113,7 @@ function longFire(target) {
   if (k < 0) return;
   // Álbum: empieza a elegir capturas con esa (como ☰)
   if (v.isAlbum) {
-    v.i = k; updateFocus(); touchSwallowClick = Date.now() + 600; rumbleTap();
+    v.i = v.itemIndex(items[k]); updateFocus(); touchSwallowClick = Date.now() + 600; rumbleTap();
     if (!v.sel) v.onKey("start"); return;
   }
   // Biblioteca u otra lista con opciones (X)

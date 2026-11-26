@@ -153,18 +153,22 @@ const hugs = b => b.op === '1' && [0, 1].every(i => Math.abs(b.f[i] - b.g - b.l[
     return ok ? { p } : { p, fail: JSON.stringify({ classic, cloud, batt }) };
   });
 
-  await run('1.7.1: el menú del botón Xbox encima del juego muestra el cursor, pide su forma redondeada y se entera si apagas Lúmina', async () => {
+  await run('1.7.1: el menú del botón Xbox encima del juego marca la fila sin animación, pide su forma redondeada y se entera si apagas Lúmina', async () => {
     const p = await page({ q: '?overlay=quick', wait: 1500, vp: { width: 712, height: 1080 } });
     await ev(p, () => { settings.lumina = true; saveSettings(); Lumina.apply(); openQuick(); }); await p.waitForTimeout(900); await keys(p, ['down']); await p.waitForTimeout(1400);
-    const a = await ev(p, () => ({ d: getComputedStyle($('#lumi')).display, op: getComputedStyle($('#lumi')).opacity, lens: document.documentElement.dataset.lens,
-      shape: window.__qa.log.filter(x => x.type === 'quick.shape').map(x => x.payload).pop(), q: $('#quick').getBoundingClientRect().left, W: innerWidth, r: rem() }));
-    const b = await boxes(p);
+    const a = await ev(p, () => {
+      __emit("quick.glass", true);
+      return { lens: !!$("#lumi"), ring: getComputedStyle($("#quick .focused"), "::after").backgroundImage, motion: getComputedStyle($("#quick .focused"), "::after").animationName,
+        background: getComputedStyle(document.body).backgroundImage, back: getComputedStyle($("#quick"), "::before").display,
+        shape: window.__qa.log.filter(x => x.type === "quick.shape").pop().payload, q: $("#quick").getBoundingClientRect().left, r: rem() };
+    });
     await ev(p, () => { const s = store.get("settings", {}); s.lumina = false; localStorage.setItem("scarlet.settings", JSON.stringify(s)); dispatchEvent(new StorageEvent("storage", { key: "scarlet.settings" })); });
     await p.waitForTimeout(400);
     const c = await ev(p, () => ({ attr: document.documentElement.hasAttribute('data-lumina'), shape: window.__qa.log.filter(x => x.type === 'quick.shape').map(x => x.payload).pop() }));
-    const ok = a.d === 'block' && a.op === '1' && a.lens === 'on' && a.shape && a.shape.inset > 10 && a.shape.radius > a.shape.inset && Math.abs(a.q - 1.8 * a.r) < 2 && hugs(b)
-      && !c.attr && c.shape && c.shape.off === true;
-    return ok ? { p } : { p, fail: JSON.stringify({ a, b, c }) };
+    const ok = !a.lens && a.ring.includes("linear-gradient") && a.motion === "none" && a.background === "none" && a.back === "none"
+      && a.shape.inset > 10 && a.shape.radius > a.shape.inset && Math.abs(a.q - 1.8 * a.r) < 2
+      && !c.attr && c.shape?.off === true;
+    return ok ? { p } : { p, fail: JSON.stringify({ a, c }) };
   });
 
   await run('1.7.1: la lente dobla poco en la foto de perfil y mucho en una portada; la perilla del brillo al 100 % no se sale', async () => {
@@ -235,8 +239,8 @@ const hugs = b => b.op === '1' && [0, 1].every(i => Math.abs(b.f[i] - b.g - b.l[
     await ev(p, () => { const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#0b0b0d"/><circle cx="62" cy="40" r="34" fill="#c4161c"/><rect y="70" width="100" height="30" fill="#7a0d12"/></svg>';
       window.__qa.media = { app: "Apple Music", title: "Canción", artist: "Artista", art: "data:image/svg+xml;base64," + btoa(svg), playing: true, position: 10, duration: 200, now: Date.now() }; setMedia(window.__qa.media); openQuick(); });
     await p.waitForTimeout(1500);
-    const q = await ev(p, () => ({ tinted: $('#quick').classList.contains('tinted'), op: getComputedStyle($('#quick'), '::before').opacity }));
-    const ok = /ROG Xbox Ally X/.test(n.t) && n.ic && q.tinted && +q.op > .3 && +q.op < .8;
+    const q = await ev(p, () => ({ panel: $('#quick').classList.contains('tinted'), card: getComputedStyle($('#quick .nqmu')).backgroundImage }));
+    const ok = /ROG Xbox Ally X/.test(n.t) && n.ic && !q.panel && q.card.includes('linear-gradient');
     return ok ? { p } : { p, fail: JSON.stringify({ n, q }) };
   });
 

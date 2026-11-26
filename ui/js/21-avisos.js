@@ -26,7 +26,7 @@ function notify(o) {
     if (Host.has) {   // el menú está oculto: la app dibuja la notificación encima del juego (igual, pero sin acción)
       const t = o.thumb || {};
       const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : ["", "#ffffff"]);
-      const msg = { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
+      const msg = { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", friendId: o.friendId, image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
         tag: tag[0], accent: tag[1] };
       if (settings.lumina === true) Object.assign(msg, notifB(o, tag));
       return Host.call("overlay.notify", msg).catch(() => {});
@@ -76,12 +76,13 @@ function notifGrad(o) {
   if (o.kind === "cap") return "cap";
   return null;
 }
-const notifArt = o => settings.lumina === true && o.game && !o.thumb ? Art.now(o.game) : null;
+const notifArt = o => settings.lumina === true && !o.portrait && o.game && !o.thumb ? Art.now(o.game) : null;
 const notifLumi = o => settings.lumina === true && typeof o.batt === "number" ? luminaBatt(o) : null;
 const notifCls = o => { const lb = notifLumi(o), gr = settings.lumina === true ? notifGrad(o) : null; return "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "") + (lb ? " batt " + lb.cls : "") + (gr ? " g-" + gr : ""); };
 function notifHTML(o) {
   const t = o.thumb;
   const ic = t ? `<div class="ic thumb${t.saving ? " saving" : ""}">${t.src ? `<img alt="" src="${esc(t.src)}">` : ""}${t.video && !t.saving ? `<span class="pl"><b></b></span>${t.dur ? `<span class="du">${esc(t.dur)}</span>` : ""}` : ""}${t.saving ? `<span class="rec"><i></i></span>` : ""}</div>`
+    : o.portrait ? `<div class="ic portrait" style="background:${esc(o.bg)}">${esc(o.letter)}${o.avatar ? `<img alt="" hidden data-avatar="${esc(o.avatar)}">` : ""}</div>`
     : notifArt(o) ? `<div class="ic game"><img alt="" src="${esc(notifArt(o))}"></div>`
     : `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div>`;
   const act = o.act && mode === "ui" ? `<div class="nact"><span class="xbtn"></span>${esc(o.act.label)}</div>` : "";
@@ -121,6 +122,11 @@ function notifStack() {
 }
 /* La línea de abajo y el tiempo que se queda; si llega otra detrás, esta se va un poco antes. */
 function notifTime(o) {
+  const avatar = o.el.querySelector("img[data-avatar]");
+  if (avatar) {
+    avatar.onload = () => { avatar.hidden = false; };
+    avatar.src = avatar.dataset.avatar;
+  }
   const ms = o.ms || (o.act ? NOTIF_ACT_MS : NOTIF_MS), life = $(".nlife", o.el);
   clearTimeout(o.t);
   if (o.thumb && o.thumb.saving) { if (life) life.style.display = "none"; o.t = setTimeout(() => notifDone(o), 30000); return; }
@@ -171,7 +177,8 @@ function missedView() {
 const isBest = name => (settings.bestFriends || []).includes(name);
 function notifyFriend(f) {
   const best = isBest(f.name);
-  notify({ kind: f.game ? "friendplay" : "friend", game: f.game ? games.find(x => x.name === f.game) : null, star: best, sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
+  const letter = Array.from((f.name || "?").trim())[0]?.toUpperCase() || "?";
+  notify({ kind: f.game ? "friendplay" : "friend", portrait: true, friendId: f.steamid, avatar: f.avatar, image: filePathOf(f.avatar), star: best, sound: f.game ? "friendgame" : "friend", letter, bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
     act: { label: "Ver perfil", run: () => { const x = friends.find(y => y.name === f.name); if (x) openView(friendProfileView(x)); } } });
 }
 /* beta 1.6: los logros tienen su propio aviso, como en Xbox (43-logros.js) */

@@ -42,8 +42,7 @@
 :root[data-lumina] .nsw{box-shadow:inset 0 1px 2px rgba(0,0,0,.3),inset 0 0 0 1px var(--lm-edge)}
 :root[data-lumina] .nsw::after{box-shadow:0 .2rem .5rem rgba(0,0,0,.35),inset 0 -1px 1px rgba(0,0,0,.12)}
 /* Menú rápido: panel flotante */
-:root[data-lumina] #qshade{background:rgba(0,0,0,.22)}
-:root[data-lumina][data-theme="light"] #qshade{background:rgba(0,0,0,.08)}
+:root[data-lumina] #qshade{background:transparent}
 :root[data-lumina] #quick,:root[data-lumina] #quick.ns{top:1.8rem;right:1.8rem;bottom:1.8rem;border-radius:3.4rem;background:transparent!important;
   -webkit-backdrop-filter:blur(3.4rem) saturate(1.8);backdrop-filter:blur(3.4rem) saturate(1.8);
   box-shadow:inset 0 2px 0 var(--lm-hi),inset 0 -1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge),0 2rem 6rem rgba(0,0,0,.45);overflow:hidden;padding-bottom:.4rem}
@@ -149,9 +148,6 @@
 #lumi::before{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.35) 50%,transparent 65%);background-size:300% 100%;background-position:var(--gl,150%) 0;opacity:var(--go,0)}
 
 /* ----- (1.7.1) Menú del botón Xbox encima de un juego ----- */
-/* Es una página aparte que esconde todo menos el menú: el cursor de cristal también debe verse ahí. */
-:root[data-lumina][data-lens].overlay body>#lumi{display:block!important}
-:root.overlay body>svg.lumi-svg{display:block!important}
 /* El panel flota con el mismo margen por los cuatro lados (la ventana toma esta forma) y sin sombra hacia afuera:
    afuera del panel la ventana es transparente y la sombra se veía como una mancha. */
 :root[data-lumina].overlay #quick,:root[data-lumina].overlay #quick.ns{left:1.8rem;right:1.8rem;width:auto!important;
@@ -207,7 +203,32 @@
 .achl .alflash{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:#fff3c4}
 .achl.k-rare .alflash{background:#dff3ff}
 .achl.k-full .alflash{background:#fff3b0}
-/* (1.7.2) Menú rápido con música: el tinte de la carátula también es cristal (antes se veía sólido) */
-:root[data-lumina] #quick.tinted::before{opacity:.36}
-:root[data-lumina] #quick.tinted{-webkit-backdrop-filter:blur(1.1rem) saturate(1.3)!important;backdrop-filter:blur(1.1rem) saturate(1.3)!important}
-:root[data-lumina][data-theme="light"] #quick.tinted::before{opacity:.34}
+:root[data-lumina].overlay body{background:transparent;transition:none}
+:root[data-lumina].overlay #quick{width:auto;left:1.8rem;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:inset 0 0 0 1px var(--lm-edge)}
+:root[data-lumina].overlay.hostglass #quick::before{display:none}
+:root[data-lumina] #quick.music-tint :is(.qrow.nqmu,.qrow.qmedia),
+:root[data-lumina][data-lens] #quick.ns.music-tint .qrow.nqmu{
+  background:linear-gradient(115deg,var(--mt1),var(--mt2) 76%,var(--mt3));color:white;--fg:#fff;--fg2:#eee}
+/* La ventana superior usa una clave de color. Una capa CSS semitransparente encima
+   convertiría los huecos en píxeles opacos. El cristal uniforme lo dibuja GlassBack. */
+:root[data-lumina].overlay.hostglass #quick .qrow:not(.nqmu):not(.qmedia){background:transparent}
+:root[data-lumina].overlay #quick .qrow.focused::after{animation:none;opacity:1;inset:0;padding:.25rem;border-radius:inherit;background:linear-gradient(110deg,#75b4ff,#9387ff 65%,#c4a1f7)}
+
+:root[data-lumina] #quick .qrow.focused .nqbar i{background:linear-gradient(90deg,#62a2f5,#b087f7)}
+:root[data-lumina] #quick .nqbar em{padding:.3rem .7rem;font-weight:700}
+/* El foco puede viajar entre controles sin deformar letras, cifras ni carátulas. */
+:root[data-lumina][data-lens] #lumi.control{backdrop-filter:none;-webkit-backdrop-filter:none;background:transparent;box-shadow:none}
+:root[data-lumina] #lumi::after{animation:none}
+.notif .ic.portrait img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+.notif .ic.portrait{position:relative;overflow:hidden}
+.notif .ic.portrait img[hidden]{display:none}
+
+:root[data-lumina] .view.viewer{background:#101014;color:white}
+:root[data-lumina] .vplayer.paused .vctl{background:rgba(28,29,38,.92);border:1px solid rgba(195,200,255,.4);border-radius:1.4rem}
+:root[data-lumina] .shot .vid{background:rgba(17,18,24,.88);font-variant-numeric:tabular-nums}
+:root[data-lumina] .tile.focused::before{animation:lm-select .28s ease-out}
+@keyframes lm-select{from{background-color:rgba(187,197,255,.22)}to{background-color:transparent}}
+@media(prefers-reduced-motion:reduce){:root[data-lumina] .tile.focused::before{animation:none}}
+
+:root[data-lumina]:not(.overlay) body:has(#quick.show) #app :is(.status,footer.hints){visibility:hidden}

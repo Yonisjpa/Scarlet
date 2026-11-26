@@ -135,7 +135,7 @@ sealed class AlbumService
             {
                 using (File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read)) { }
                 var d = Item(path);
-                if (IsVideo(path)) { var en = EnrichVideo(d, path); await Task.WhenAny(en, Task.Delay(4000)); }
+                if (IsVideo(path)) await EnrichVideo(d, path);
                 NewCapture?.Invoke(d);
                 return;
             }
@@ -144,27 +144,98 @@ sealed class AlbumService
         }
     }
 
-    static bool IsVideo(string p) => Path.GetExtension(p).ToLowerInvariant() is ".mp4" or ".webm";
+    static bool IsVideo(string path) => VideoExts.Contains(Path.GetExtension(path).ToLowerInvariant());
 
-    /// <summary>Para el aviso de un video nuevo: cuánto dura y un cuadro como miniatura (la Game Bar no guarda una).</summary>
-    static async Task EnrichVideo(Dictionary<string, object> d, string path)
+    readonly SemaphoreSlim thumbnailSlots = new(2);
+    readonly System.Collections.Concurrent.ConcurrentDictionary<string, Preview> previews = new();
+    sealed record Preview(string Thumb, double Duration, double Fps);
+
+    public async Task<object> PreviewAsync(string path)
     {
+        if (!IsAlbumFile(path) || !IsMedia(path)) return null;
+        var info = new FileInfo(path);
+        string key = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            Encoding.UTF8.GetBytes($"{info.FullName}|{info.Length}|{info.LastWriteTimeUtc.Ticks}")));
+        if (previews.TryGetValue(key, out var known)) return known;
+        await thumbnailSlots.WaitAsync();
         try
         {
-            var f = await StorageFile.GetFileFromPathAsync(path);
-            var props = await f.Properties.GetVideoPropertiesAsync();
-            if (props.Duration.TotalSeconds > 0) d["duration"] = Math.Round(props.Duration.TotalSeconds, 1);
-            using var th = await f.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.VideosView, 320);
-            if (th == null || th.Size == 0) return;
+            if (previews.TryGetValue(key, out known)) return known;
+            var file = await StorageFile.GetFileFromPathAsync(path);
+            bool video = IsVideo(path);
+            double duration = 0, fps = 0;
+            if (video)
+            {
+                var props = await file.Properties.GetVideoPropertiesAsync();
+                duration = props.Duration.TotalSeconds;
+                var rate = await file.Properties.RetrievePropertiesAsync(new[] { "System.Video.FrameRate" });
+                if (rate.TryGetValue("System.Video.FrameRate", out var value)) fps = Convert.ToDouble(value) / 1000;
+            }
             string dir = Directory.CreateDirectory(Path.Combine(Paths.Cache, "capturas")).FullName;
-            string outp = Path.Combine(dir, Path.GetFileNameWithoutExtension(path) + ".png");
-            using (var s = th.AsStreamForRead())
-            using (var img = Image.FromStream(s))
-                img.Save(outp, System.Drawing.Imaging.ImageFormat.Png);
-            d["thumb"] = ArtCache.LocalUrl(outp);
-            d["thumbPath"] = outp;
+            string dest = Path.Combine(dir, key + ".png");
+            if (!File.Exists(dest))
+            {
+                var mode = video ? Windows.Storage.FileProperties.ThumbnailMode.VideosView : Windows.Storage.FileProperties.ThumbnailMode.PicturesView;
+                using var thumbnail = await file.GetThumbnailAsync(mode, 320);
+                if (thumbnail != null && thumbnail.Type == Windows.Storage.FileProperties.ThumbnailType.Image)
+                {
+                    using var stream = thumbnail.AsStreamForRead();
+                    using var image = Image.FromStream(stream);
+                    string temp = Path.Combine(dir, Path.GetRandomFileName());
+                    try
+                    {
+                        image.Save(temp, System.Drawing.Imaging.ImageFormat.Png);
+                        File.Move(temp, dest, true);
+                    }
+                    finally { File.Delete(temp); }
+                }
+            }
+            var result = new Preview(File.Exists(dest) ? ArtCache.LocalUrl(dest) : null, duration, fps);
+            if (previews.Count >= MaxItems * 2) previews.Clear();
+            previews[key] = result;
+            return result;
         }
-        catch (Exception ex) { Log.Error("miniatura del video", ex); }
+        catch (Exception ex) { Log.Error("vista previa del álbum", ex); return null; }
+        finally { thumbnailSlots.Release(); }
+    }
+
+    async Task EnrichVideo(Dictionary<string, object> item, string path)
+    {
+        var preview = PreviewAsync(path);
+        if (await Task.WhenAny(preview, Task.Delay(4000)) != preview || await preview is not Preview p) return;
+        item["duration"] = p.Duration;
+        if (p.Thumb != null)
+        {
+            item["thumb"] = p.Thumb;
+            item["thumbPath"] = System.Web.HttpUtility.ParseQueryString(new Uri(p.Thumb).Query)["p"];
+        }
+    }
+
+    public object SavePng(string path, string encoded, bool frame)
+    {
+        if (!IsAlbumFile(path) || !IsMedia(path) || frame != IsVideo(path))
+            throw new IOException("La captura de origen ya no está disponible.");
+        if (string.IsNullOrEmpty(encoded) || encoded.Length > 112 * 1024 * 1024)
+            throw new IOException("La imagen supera el tamaño admitido.");
+        byte[] bytes = Convert.FromBase64String(encoded);
+        if (!bytes.AsSpan().StartsWith(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }))
+            throw new InvalidDataException("La imagen recibida no es PNG.");
+        string dir = Path.GetDirectoryName(path);
+        string stem = Path.GetFileNameWithoutExtension(path) + (frame ? " (fotograma)" : " (texto)");
+        string temp = Path.Combine(dir, Guid.NewGuid() + ".tmp");
+        try
+        {
+            File.WriteAllBytes(temp, bytes);
+            for (int i = 1; ; i++)
+            {
+                string suffix = i == 1 ? "" : $" ({i})";
+                string dest = Path.Combine(dir, stem + suffix + ".png");
+                try { File.Move(temp, dest); }
+                catch (IOException) when (File.Exists(dest)) { continue; }
+                return Item(dest);
+            }
+        }
+        finally { File.Delete(temp); }
     }
 
     public bool IsAlbumFile(string path) => !string.IsNullOrEmpty(path) && File.Exists(path) && Roots().Any(r => Paths.Under(path, r));

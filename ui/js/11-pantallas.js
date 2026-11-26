@@ -9,7 +9,7 @@ function openView(v, origin) {
   }
   el.addEventListener("click", e => {
     const it = e.target.closest(".fi"); if (!it) return;
-    const idx = v.items().indexOf(it); if (idx >= 0 && idx !== v.i) { v.i = idx; if (v.syncFromIndex) v.syncFromIndex(); updateFocus(); }
+    const idx = v.itemIndex ? v.itemIndex(it) : v.items().indexOf(it); if (idx >= 0 && idx !== v.i) { v.i = idx; if (v.syncFromIndex) v.syncFromIndex(); updateFocus(); }
   }, true);
   v.render(el);
   $("#app").append(el);
@@ -18,13 +18,13 @@ function openView(v, origin) {
   play(v.cls === "dialog" ? "popup" : v.detail ? "detail" : "select"); updateFocus();
 }
 function closeView() {
-  const v = views.pop(); v.el.classList.remove("in"); v.el.classList.add("out");
+  const v = views.pop(); v.dispose?.(); v.el.classList.remove("in"); v.el.classList.add("out");
   setTimeout(() => v.el.remove(), 340);
   play(v.cls === "dialog" ? "popupclose" : "back");
   const t = topView(); if (t && t.onReturn && v.cls !== "dialog") t.onReturn();   // la pantalla de abajo se pone al día (beta 1.3)
   updateFocus();
 }
-function closeAllViews() { while (views.length) views.pop().el.remove(); updateFocus(); }
+function closeAllViews() { while (views.length) { const v = views.pop(); v.dispose?.(); v.el.remove(); } updateFocus(); }
 const head = (icon, title, sub = "") => `<div class="vhead">${icon}<span>${esc(title)}</span><span class="sub">${esc(sub)}</span></div>`;
 const fis = el => [...el.querySelectorAll(".fi")];
 

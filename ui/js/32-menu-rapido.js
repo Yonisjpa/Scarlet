@@ -32,7 +32,7 @@ function nqVal(r) {
   return ["", false];
 }
 /* Barra con su bolita; la burbuja con el número solo se ve en la barra elegida. */
-const nqBar = (v, off) => `<span class="qbar nqbar"><i style="width:${off ? 0 : v}%"></i><u style="left:${off ? 0 : v}%"><em>${off ? "—" : v}</em></u></span>`;
+const nqBar = (v, off) => `<span class="qbar nqbar"><i style="width:${off ? 0 : v}%"></i><u style="left:${off ? 0 : v}%"><em>${off ? "—" : v + " %"}</em></u></span>`;
 function nqMedia(f) {
   const m = media, p = mediaPos(), pct = m.duration ? p / m.duration * 100 : 0;
   const sub = [m.artist || m.album || "", m.app || ""].filter(Boolean).join(" · ");

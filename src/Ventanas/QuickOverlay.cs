@@ -49,6 +49,7 @@ sealed class QuickOverlay : Form
         if (on)
         {
             back ??= new GlassBack();
+            back.SetColors(lastColors, lightTheme);
             if (shapeInset > 0) back.SetShape(shapeInset, shapeRadius, want.IsEmpty ? Size : want.Size);
             BackColor = Key; TransparencyKey = Key;
             web.DefaultBackgroundColor = Color.Transparent;
@@ -73,6 +74,7 @@ sealed class QuickOverlay : Form
     {
         shapeInset = Math.Max(0, inset); shapeRadius = Math.Max(0, radius);
         ApplyShape();
+        if (Glass && IsOpen) ShowBack();
         Log.Write(shapeInset > 0 ? $"menú rápido: forma redondeada ({shapeInset} px, radio {shapeRadius} px)" : "menú rápido: forma de siempre");
     }
 
@@ -106,7 +108,13 @@ sealed class QuickOverlay : Form
     }
 
     /// <summary>Los colores del fondo: el del tema, o los de la carátula cuando suena música (null = color del menú).</summary>
-    public void SetTint(string[] colors, bool light) { back?.SetColors(colors, light); }
+    string[] lastColors;
+    bool lightTheme;
+    public void SetTint(string[] colors, bool light)
+    {
+        lastColors = colors; lightTheme = light;
+        back?.SetColors(colors, light);
+    }
 
     protected override CreateParams CreateParams
     {
@@ -354,7 +362,7 @@ sealed class QuickOverlay : Form
     {
         if (!Glass || back == null) return;
         back.Place(want);
-        back.FadeTo(0.5);
+        back.FadeTo(shapeInset > 0 ? .66 : .50);
     }
 
     /// <summary>Revisa que haya quedado como panel; si no, lo corrige y lo anota en el log.</summary>

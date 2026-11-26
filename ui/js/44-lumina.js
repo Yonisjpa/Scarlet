@@ -78,6 +78,7 @@ const Lumina = (() => {
     el = n; if (!n) return;
     const T = rectOf(n), cs = getComputedStyle(n).borderTopLeftRadius, h = T.b - T.t, w = T.r - T.l;
     rad = Math.min((cs.endsWith("%") ? h : parseFloat(cs) || 10) + gap(), h / 2, w / 2);
+    lens.classList.toggle("control", n.matches(".qrow"));
     lens.classList.toggle("hollow", n.matches(".tile:not(.all),.avatar,.shot"));
     if (far) {                                     // otra pantalla o panel: aparece ahí, sin cruzar toda la pantalla
       Object.assign(S, T); for (const k of EDGES) V[k] = 0; snapUntil = now + 520;
@@ -89,7 +90,7 @@ const Lumina = (() => {
       snapUntil = 0;
     }
     since = now;
-    if (refracting()) useMap(w, h, rad);
+    if (refracting() && !n.matches(".qrow")) useMap(w, h, rad);
   }
   function tick(now) {
     raf = 0;
@@ -118,7 +119,7 @@ const Lumina = (() => {
   }
   /* Se llama cuando cambia el foco o se mueve algo: la gota sigue a su opción un rato y luego deja de gastar. */
   function kick(ms = 1300) {
-    if (!on() || !lens) return;
+    if (!on() || !lens || OVERLAY) return;
     until = Math.max(until, performance.now() + ms);
     if (!raf) { last = performance.now(); raf = requestAnimationFrame(tick); }
   }
@@ -142,7 +143,8 @@ const Lumina = (() => {
     const o = on();
     root.toggleAttribute("data-lumina", o);
     shape();
-    if (!o) {
+    if (typeof tintFor !== "undefined") { tintQuick(); tellTint(tintColors); }
+    if (!o || OVERLAY) {
       delete root.dataset.lens; clearInterval(watch); watch = 0; if (raf) cancelAnimationFrame(raf); raf = 0; el = null;
       if (lens) lens.style.opacity = "0";
       return;

@@ -49,7 +49,7 @@ function navView(v, dir) {
 }
 function activate() {
   const v = topView();
-  if (v) { const el = v.items()[v.i]; if (el) el.click(); else play("bump"); return; }
+  if (v) { const el = v.focusItem ? v.focusItem() : v.items()[v.i]; if (el) el.click(); else play("bump"); return; }
   homeEl()?.click();
 }
 function back() {

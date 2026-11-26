@@ -17,13 +17,16 @@ function saveCapture(type, hostItem) {
   const d = new Date(), months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
   const item = hostItem || { url: shotSvg(g || { appid: 7, name: "Captura" }, Math.floor(Math.random() * 50)), path: `captura_${Date.now()}.png`, game: g ? g.name : "Sistema", date: `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} · ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`, type };
   if (!albumData) albumData = Host.has ? [] : mockAlbum();
+  const album = views.find(v => v.isAlbum);
+  const keep = album?.list?.[album.i]?.path;
   albumData.unshift(item);
+  if (album && topView() === album) album.refresh(keep);
   notifyCapture(item);
   if (!hostItem) Host.call("capture.take", { type }).catch(() => {});
 }
 Events.on("capture.saving", d => { if (d && d.path) notifyCapture(d, true); });
 Events.on("capture.saved", d => {
-  if (/ \(recorte\)/.test(d.path || "")) return;            // los recortes los agrega el editor, sin aviso de "últimos 30 s"
+  if (/ \((?:recorte|fotograma|texto)\)(?: \(\d+\))?\.[^.]+$/i.test(d.path || "")) return;            // los recortes los agrega el editor, sin aviso de "últimos 30 s"
   if (albumData && albumData.some(x => x.path === d.path)) return;
   saveCapture(d.type || "image", d);
 });

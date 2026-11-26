@@ -20,7 +20,7 @@ sealed class ToastForm : LayeredWindow
 
     readonly string title, text, letter, dur, tag;
     readonly Color badge, accent;
-    readonly Image image;
+    Image image;
     readonly bool wide, video, saving;
     readonly StyleB b;   // 1.7.1: con Lúmina, bloque de color a la izquierda y cuerpo de cristal (null = la cápsula de siempre)
 
@@ -31,6 +31,8 @@ sealed class ToastForm : LayeredWindow
             ParseColor(P.S(p, "lineA")), ParseColor(P.S(p, "lineB")), P.S(p, "pct") ?? "", P.S(p, "level") == null ? -1 : P.D(p, "level"), P.B(p, "crit"), P.S(p, "glyph") ?? "");
     }
     const float HB = 104, RB = 24;   // estilo B a 1080p: alto y radio
+    // El tema web usa rem = min(0.84vw, 1.5vh). Las medidas B están en décimas de rem.
+    float scale;
     float HH => b != null ? HB : H;
     readonly System.Windows.Forms.Timer anim = new() { Interval = 15 };
     readonly Stopwatch clock = new();
@@ -64,7 +66,7 @@ sealed class ToastForm : LayeredWindow
             {
                 using var pf = new Font("Segoe UI", 34, FontStyle.Bold, GraphicsUnit.Pixel);
                 float pw = b.Pct.Length > 0 ? g.MeasureString(b.Pct, pf).Width + 24 : 0;
-                return Math.Clamp((wide ? 170 : HB) + 20 + textW + pw + 30, 560, 780);
+                return Math.Clamp((wide ? 170 : HB) + 20 + textW + pw + 30, 520, 660);
             }
             float iconW = wide ? 138 : 74;
             return Math.Clamp(14 + iconW + 20 + textW + 36, 520, 760);
@@ -74,12 +76,13 @@ sealed class ToastForm : LayeredWindow
 
     void Start()
     {
-        float k = K;
+        var screen = Screen.FromHandle(Native.GetForegroundWindow()).Bounds;
+        scale = b == null ? K : Math.Min(screen.Width * .0084f, screen.Height * .015f) / 10f;
+        float k = scale;
         int w = (int)Math.Ceiling((bodyW + PAD * 2 + 40) * k), h = (int)Math.Ceiling((HH + PAD * 2 + 50) * k);
         canvas = new Bitmap(w, h, PixelFormat.Format32bppArgb);
         Size = new Size(w, h);
-        var b = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
-        Location = new Point(b.Left + (int)((38 - PAD) * k), b.Top + (int)((36 - PAD) * k));
+        Location = new Point(screen.Left + (int)((38 - PAD) * k), screen.Top + (int)((36 - PAD) * k));
         Show();
         clock.Restart();
         Render();
@@ -94,6 +97,7 @@ sealed class ToastForm : LayeredWindow
         if (!closing && age > (saving ? 30000 : LIFE_MS)) closing = true;
         if (closing && outAt < 0) outAt = age;
         if (outAt >= 0 && age - outAt >= OUT_MS) { Kill(); return; }
+        anim.Interval = b != null && age > IN_MS && !closing && !saving ? 80 : 15;
         Render();
     }
 
@@ -101,7 +105,7 @@ sealed class ToastForm : LayeredWindow
     {
         if (canvas == null) return;
         double age = clock.Elapsed.TotalMilliseconds;
-        float k = K;
+        float k = scale;
         // entrada: desde la izquierda con un rebote (como nIn2); salida: sube un poco y se encoge
         double pin = Math.Clamp(age / IN_MS, 0, 1);
         float dx, sc = 1, op = 1;
@@ -283,7 +287,10 @@ sealed class ToastForm : LayeredWindow
         var block = new RectangleF(0, 0, bw, HB);
         if (image != null)
         {
+            var clip = g.Save();
+            g.SetClip(block, CombineMode.Intersect);
             g.DrawImage(image, Cover(image.Size, block));
+            g.Restore(clip);
             if (saving) using (var dim = new SolidBrush(Color.FromArgb((int)(110 * op), 0, 0, 0))) g.FillRectangle(dim, block);
             if (video && !saving)
             {
@@ -374,7 +381,7 @@ sealed class ToastForm : LayeredWindow
         anim.Stop();
         live.Remove(this);
         try { Close(); } catch { }
-        image?.Dispose(); canvas?.Dispose(); canvas = null;
+        canvas?.Dispose(); canvas = null;
         Dispose();
         ShowNext();
     }
@@ -391,9 +398,13 @@ sealed class ToastForm : LayeredWindow
     /// <summary>Se fue el logro: si había avisos esperando, sale el siguiente.</summary>
     public static void Resume() => ShowNext();
 
-    /// <summary>Muestra una notificación. Debe llamarse en el hilo de la ventana principal.</summary>
-    public static void Pop(string title, string text, string letter, string color, string imagePath,
-        bool wide = false, bool video = false, string dur = null, bool saving = false, string tag = null, string accent = null, StyleB b = null)
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) { image?.Dispose(); image = null; anim.Dispose(); }
+        base.Dispose(disposing);
+    }
+
+    static Image LoadImage(string imagePath, int w)
     {
         Image img = null;
         try
@@ -402,16 +413,36 @@ sealed class ToastForm : LayeredWindow
             {
                 using var fs = File.OpenRead(imagePath);
                 using var src = Image.FromStream(fs);
-                int w = wide ? 320 : b != null ? 220 : 160, h = Math.Max(1, (int)((double)w * src.Height / src.Width));
+                int h = Math.Max(1, (int)((double)w * src.Height / src.Width));
                 img = new Bitmap(src, new Size(w, h));
             }
         }
         catch (Exception ex) { Log.Error("miniatura", ex); img = null; }
 
+        return img;
+    }
+
+    async Task LoadAvatarAsync(Task<string> pending)
+    {
+        try
+        {
+            string path = await pending;
+            if (!IsDisposed && image == null) image = LoadImage(path, b == null ? 160 : 220);
+        }
+        catch (Exception ex) { Log.Error("avatar del aviso", ex); }
+    }
+
+    /// <summary>Muestra una notificación. Debe llamarse en el hilo de la ventana principal.</summary>
+    public static void Pop(string title, string text, string letter, string color, string imagePath,
+        bool wide = false, bool video = false, string dur = null, bool saving = false, string tag = null, string accent = null, StyleB b = null, Task<string> avatar = null)
+    {
+        Image img = LoadImage(imagePath, wide ? 320 : b != null ? 220 : 160);
+
         // "Guardando video…" → "Video guardado": la nueva reemplaza a la que sigue en pantalla.
         if (!saving && video) foreach (var s in live.Where(x => x.saving).ToList()) s.closing = true;
         var t = new ToastForm(title, text, string.IsNullOrEmpty(letter) ? "•" : letter, ParseColor(color), img, wide, video, dur, saving,
             tag, string.IsNullOrEmpty(accent) ? (b != null ? (b.Light ? Color.FromArgb(90, 90, 100) : Color.FromArgb(200, 200, 210)) : Color.FromArgb(34, 214, 227)) : ParseColor(accent), b);
+        if (avatar != null && img == null) _ = t.LoadAvatarAsync(avatar);
         waiting.Enqueue(t);
         while (waiting.Count > 5) waiting.Dequeue().Dispose();
         ShowNext();

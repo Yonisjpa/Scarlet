@@ -1,3 +1,10 @@
+Novedades de la beta 1.9.0
+
+- Lúmina muestra el menú Xbox sobre el juego con la fila activa iluminada. El color de la canción queda en su tarjeta.
+- Los avisos de amigos muestran el avatar o la inicial mientras carga. Los de Lúmina ajustan su tamaño a la pantalla donde juegas.
+- El Álbum carga las miniaturas por filas. Abre una foto, amplía con RT, mueve con el stick y pulsa A para encajarla.
+- Pausa un video y pulsa Y para guardar el fotograma visible. En las opciones de una foto, «Añadir texto» permite guardar una copia PNG y compartirla por QR.
+
 Novedades de la beta 1.8.1
 
 - Ajustes › Pantalla: Resolución, Frecuencia y HDR ya funcionan (en la 1.8 la app no recibía esos cambios: salían con «—» y el HDR regresaba a «Automático»).

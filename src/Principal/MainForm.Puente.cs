@@ -242,6 +242,8 @@ sealed partial class MainForm
         ".gif" => "image/gif",
         ".webp" => "image/webp",
         ".mp4" => "video/mp4",
+        ".mov" => "video/quicktime",
+        ".mkv" => "video/x-matroska",
         ".webm" => "video/webm",
         ".svg" => "image/svg+xml",
         ".wav" => "audio/wav",

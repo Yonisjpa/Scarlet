@@ -94,7 +94,7 @@ function settingsCats() {
       ["Biblioteca", [go("Juegos ocultos", "Los que ocultaste no salen en ningún lado; aquí los vuelves a mostrar", () => openView(hiddenView()), () => { const n = games.filter(isHidden).length; return n ? String(n) : "Ninguno"; })]],
       ["Caché", [{ label: "Borrar caché de portadas", desc: "Vuelve a descargar las imágenes", val: () => "", act() { Art.clear(); renderHome(); toast("Caché de portadas borrada"); } }]]] },
     { label: "Sistema", secs: [
-      ["Menú rápido", [sw("Fondo transparente", "El fondo del menú rápido al 50 % para seguir viendo el juego detrás. Los textos y las barras no cambian.", () => settings.quickGlass !== false, v => { settings.quickGlass = v; applyGlass(); }),
+      ["Menú rápido", [sw("Fondo transparente", "Permite ver el juego a través del panel. Lúmina usa un tinte más marcado para que se lean los controles.", () => settings.quickGlass !== false, v => { settings.quickGlass = v; applyGlass(); }),
         sw("Menú rápido clásico", "El menú rápido de antes, con cuadritos. Úsalo si el nuevo te da algún problema.", () => !!settings.quickClassic, v => settings.quickClassic = v)]],
       ["Herramientas", [
         ...(H ? [go("Diagnóstico", "Lo que Scarlet detecta ahora: juego, apps con sonido, Dolby, música, Steam", () => openView(diagView()))] : []),

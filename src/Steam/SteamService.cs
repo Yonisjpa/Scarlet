@@ -663,15 +663,16 @@ sealed class SteamService
                 }
             }
 
-            if (emit && friends.Count > 0)
+            var previousFriends = friends;
+            friends = list;
+            if (emit && previousFriends.Count > 0)
                 foreach (var f in list)
                 {
-                    var old = friends.FirstOrDefault(x => x.steamid == f.steamid);
+                    var old = previousFriends.FirstOrDefault(x => x.steamid == f.steamid);
                     bool wasOff = old == null || old.status == "offline";
                     if (wasOff && f.status != "offline") FriendOnline?.Invoke(f);
                 }
 
-            friends = list;
             SaveCache("friends.json", list);
             if (emit) FriendsChanged?.Invoke();
             return list;

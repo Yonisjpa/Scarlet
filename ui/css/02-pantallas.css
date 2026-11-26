@@ -159,3 +159,25 @@ html:not(.showcursor),html:not(.showcursor) *{cursor:none!important}
 .stat{background:var(--bg2);border-radius:.9rem;padding:1.4rem 2.2rem;font-size:1.4rem;color:var(--fg2)}
 .stat b{display:block;font-size:2.6rem;color:var(--fg)}
 
+
+
+/* Álbum: las filas fuera de la ventana visible ocupan espacio sin abrir imágenes ni videos. */
+.agrid{overflow-anchor:none}
+.agrid .shot{animation:none}
+.photostage,.caption-preview{display:flex;align-items:center;justify-content:center;overflow:hidden;min-width:0;min-height:0}
+.photostage{width:100%;flex:1}
+.photostage img{max-width:100%;max-height:100%;object-fit:contain}
+.photo-view.photo-idle .vcap{opacity:0}
+#app:has(> .photo-view.photo-idle.in:last-of-type) > .hints{opacity:0}
+.photo-view .vcap{transition:opacity .18s}
+.view.viewer .vctl{pointer-events:auto}
+.vctl .frame-save{padding:.45rem 1.1rem;border-radius:.65rem;background:#eef0ff;color:#171826;white-space:nowrap;font:inherit}
+.vplayer:not(.paused) .frame-save{display:none}
+.vctl .pp{padding:0;border:0;background:transparent;color:white}
+.vbar{touch-action:none}
+.caption-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(22rem,25%);gap:2.2rem;padding:2rem var(--pad);flex:1;min-height:0}
+.caption-preview{background:#131315;border-radius:1rem;color:#fff}
+.caption-preview canvas{max-width:100%;max-height:100%;object-fit:contain}
+.caption-tools{overflow-y:auto;min-height:0}
+.caption-tools .lrow{width:100%;gap:1rem;justify-content:space-between}
+.caption-tools .val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

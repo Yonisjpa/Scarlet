@@ -2,12 +2,46 @@
 const ATYPES = ["Todo", "Fotos", "Videos"];
 const albumFilter = { type: 0, game: null };
 const albumList = () => (albumData || []).filter(c => (albumFilter.type === 0 || (albumFilter.type === 1 ? c.type !== "video" : c.type === "video")) && (!albumFilter.game || c.game === albumFilter.game));
+const albumPreviews = new Map();
+let previewsInFlight = 0;
+const previewQueue = [];
+function pumpAlbumPreviews() {
+  while (previewsInFlight < 3 && previewQueue.length) {
+    const { tile, load } = previewQueue.pop();
+    if (!tile.isConnected) continue;
+    previewsInFlight++;
+    load().finally(() => { previewsInFlight--; pumpAlbumPreviews(); });
+  }
+}
+async function albumPreview(c) {
+  if (!Host.has || !c.path || c.url.startsWith("data:") || (c.thumb && c.type !== "video")) return;
+  let entry = albumPreviews.get(c.url);
+  if (!entry) {
+    entry = Host.call("album.preview", { path: c.path }).catch(() => null);
+    albumPreviews.set(c.url, entry);
+    if (albumPreviews.size > 2500) albumPreviews.delete(albumPreviews.keys().next().value);
+  }
+  const p = await entry;
+  if (p) { c.thumb ||= p.Thumb; c.duration ||= p.Duration; c.fps ||= p.Fps; }
+}
 function albumView() {
   return {
     cols: 5, isAlbum: true,
     hints() { return this.sel ? [["B", "Cancelar"], ["A", "Marcar"], ["☰", `Enviar (${this.sel.size})`]] : [["B", "Atrás"], ["Y", "Tipo"], ["X", "Juego"], ["RB", "Actualizar"], ["☰", "Enviar"], ["A", "Ver"]]; },
     render(el) {
       el.innerHTML = head(I.album, "Álbum", "Cargando…") + `<div class="vbody"><div class="agrid"></div></div>`;
+      this.grid = $(".agrid", el);
+      this.scroller = this.grid.parentElement;
+      this.grid.onclick = e => {
+        const b = e.target.closest(".shot"); if (!b) return;
+        const i = Number(b.dataset.i), c = this.list[i];
+        if (!this.sel) return openView(viewerView(this, i));
+        if (this.sel.has(c.path)) this.sel.delete(c.path); else this.sel.add(c.path);
+        b.classList.toggle("on", this.sel.has(c.path)); play("select"); updateFocus();
+      };
+      this.scroller.addEventListener("scroll", () => this.windowRows(), { passive: true });
+      this.resize = new ResizeObserver(() => this.windowRows(true));
+      this.resize.observe(this.scroller);
       // Se ve al instante lo que ya se sabía y siempre se vuelve a leer la carpeta (antes se leía una vez por sesión).
       if (albumData) this.refresh();
       this.reload();
@@ -16,32 +50,78 @@ function albumView() {
       if (manual) { const s = $(".vhead .sub", this.el); if (s) s.textContent = "Buscando capturas…"; }
       return Data.album().then(list => {
         const keep = this.list && this.list[this.i] && this.list[this.i].path;
-        albumData = list; this.refresh();
-        if (keep) { const j = this.list.findIndex(c => c.path === keep); if (j >= 0) { this.i = j; updateFocus(); } }
+        if (!views.includes(this)) return;
+        albumData = list; this.refresh(keep);
         if (manual) toast(`Álbum actualizado · ${list.length} capturas`);
       });
     },
-    refresh() {
+    refresh(keep) {
       if (!albumData) return;
       this.list = albumList();
+      const index = keep ? this.list.findIndex(c => c.path === keep) : -1;
+      this.i = index >= 0 ? index : clamp(this.i, 0, Math.max(0, this.list.length - 1));
       $(".vhead .sub", this.el).textContent = `${ATYPES[albumFilter.type]}${albumFilter.game ? " · " + albumFilter.game : ""} · ${this.list.length}`;
-      const g = $(".agrid", this.el);
-      g.classList.toggle("sel", !!this.sel);
-      g.innerHTML = this.list.length ? this.list.map((c, i) => `<button class="shot fi${this.sel && this.sel.has(c.path) ? " on" : ""}" style="--k:${i % 15}" data-i="${i}"><span class="chk">✓</span>${c.type === "video" && !c.thumb && !c.url.startsWith("data:") ? `<video data-src="${esc(c.url)}#t=0.5" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block"></video>` : `<img alt="" loading="lazy" decoding="async" src="${esc(c.thumb || c.url)}">`}${c.type === "video" ? '<span class="vid">▶ Video</span>' : ""}<span class="cap">${esc(c.game)} · ${esc(c.date)}</span></button>`).join("") : `<p class="empty" style="grid-column:1/-1">No hay capturas con este filtro.</p>`;
-      // Los videos cargan su primer cuadro solo cuando se ven (con cientos de capturas ya no se piden todos de golpe).
-      const vids = $$("video[data-src]", g);
-      if (vids.length) {
-        const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.src = e.target.dataset.src; e.target.removeAttribute("data-src"); io.unobserve(e.target); } }), { rootMargin: "400px" });
-        vids.forEach(v => io.observe(v));
-      }
-      fis(this.el).forEach(b => b.onclick = () => {
-        if (!this.sel) return openView(viewerView(this, +b.dataset.i));
-        const c = this.list[+b.dataset.i]; if (!c || c.url.startsWith("data:") && Host.has) return play("bump");
-        if (this.sel.has(c.path)) this.sel.delete(c.path); else this.sel.add(c.path);
-        b.classList.toggle("on", this.sel.has(c.path)); play("select"); updateFocus();
-      });
-      this.i = clamp(this.i, 0, Math.max(0, this.list.length - 1)); updateFocus();
+      this.grid.classList.toggle("sel", !!this.sel);
+      this.windowRows(true, this.i);
+      if (topView() === this) updateFocus();
     },
+    windowRows(force = false, focusIndex) {
+      if (!this.list) return;
+      const g = this.grid, sc = this.scroller, css = getComputedStyle(g);
+      const gap = parseFloat(css.rowGap), colGap = parseFloat(css.columnGap);
+      if (!g.clientWidth) return;
+      const stride = (g.clientWidth - colGap * (this.cols - 1)) / this.cols * 9 / 16 + gap;
+      const rows = Math.ceil(this.list.length / this.cols);
+      if (focusIndex != null) {
+        const y = Math.floor(focusIndex / this.cols) * stride;
+        if (y < sc.scrollTop) sc.scrollTop = y;
+        else if (y + stride > sc.scrollTop + sc.clientHeight) sc.scrollTop = y + stride - sc.clientHeight;
+      }
+      const first = clamp(Math.floor(sc.scrollTop / stride) - 2, 0, Math.max(0, rows - 1));
+      const end = Math.min(rows, first + Math.ceil(sc.clientHeight / stride) + 5);
+      if (!force && first === this.first && end === this.end) return;
+      this.first = first; this.end = end;
+      g.style.paddingTop = first * stride + "px";
+      g.style.paddingBottom = Math.max(0, rows - end) * stride + "px";
+      if (!rows) { g.innerHTML = '<p class="empty">No hay capturas con este filtro.</p>'; return; }
+      const group = document.createDocumentFragment();
+      for (let i = first * this.cols; i < Math.min(this.list.length, end * this.cols); i++) {
+        const c = this.list[i], video = c.type === "video";
+        const b = document.createElement("button");
+        b.className = "shot fi"; b.dataset.i = i; b.classList.toggle("on", !!this.sel?.has(c.path));
+        b.classList.toggle("focused", topView() === this && this.i === i);
+        b.innerHTML = `<span class="chk">✓</span><img alt="" decoding="async">${video ? '<span class="vid"></span>' : ""}<span class="cap">${esc(c.game)} · ${esc(c.date)}</span>`;
+        const img = b.querySelector("img"), badge = b.querySelector(".vid");
+        const paint = () => {
+          const src = c.thumb || (!video || c.url.startsWith("data:") ? c.url : "");
+          if (src) img.src = src;
+          if (badge) badge.textContent = "▶ " + (c.duration ? mmss(c.duration) : "Video");
+        };
+        if (c.thumb || !Host.has || c.url.startsWith("data:")) paint();
+        else if (badge) badge.textContent = "▶ Video";
+        group.append(b);
+        previewQueue.push({ tile: b, load: async () => { await albumPreview(c); if (b.isConnected) paint(); } });
+      }
+      g.replaceChildren(group);
+      pumpAlbumPreviews();
+    },
+    focusItem() {
+      if (!this.list?.length) return null;
+      this.windowRows(false, this.i);
+      return this.grid.querySelector(`[data-i="${this.i}"]`);
+    },
+    itemIndex(b) { return Number(b.dataset.i); },
+    nav(dir) {
+      if (!this.list?.length) return;
+      let n = this.i;
+      if (dir === "left" && n % this.cols) n--;
+      if (dir === "right" && n % this.cols < this.cols - 1) n++;
+      if (dir === "up" && n >= this.cols) n -= this.cols;
+      if (dir === "down" && Math.floor(n / this.cols) < Math.floor((this.list.length-1) / this.cols)) n += this.cols;
+      this.i = Math.min(n, this.list.length - 1); play("move"); updateFocus();
+    },
+    onReturn() { this.refresh(this.list?.[this.i]?.path); },
+    dispose() { this.resize.disconnect(); },
     onKey(k) {
       if (k === "start") {   // ☰: elegir varias y mandarlas al celular
         if (!this.list || !this.list.length) return play("bump"), true;
@@ -66,37 +146,52 @@ function albumView() {
   };
 }
 function viewerView(album, idx) {
+  let playbackList = album.list;
   return {
-    cls: "viewer", idx,
+    cls: "viewer", idx, zoom: 1, panX: 0, panY: 0,
     hints() {
       return this.vid
-        ? [["B", "Atrás"], ["☰", "Más"], ["A", this.vid.paused ? "Reproducir" : "Pausa"], ["◀", "−5 s"], ["▶", "+5 s"], ["LB", "Anterior"], ["RB", "Siguiente"]]
-        : [["B", "Atrás"], ["☰", "Más"], ["X", "Borrar"], ["◀", "Anterior"], ["▶", "Siguiente"]];
+        ? [["B", "Atrás"], ["☰", "Más"], ["A", this.vid.paused ? "Reproducir" : "Pausa"], ["◀▶", this.vid.paused ? "Fotograma" : "±5 s"], ...(this.vid.paused ? [["Y", "Guardar fotograma"]] : []), ["LB", "Anterior"], ["RB", "Siguiente"]]
+        : [["B", "Atrás"], ["☰", "Más"], ["LT RT", "Zoom"], ["A", "Encajar"], ["◀▶", this.zoom > 1 ? "Mover" : "Cambiar foto"]];
     },
     render(el) {
       el.innerHTML = `<div class="vwrap" style="touch-action:pan-y"><div class="media" style="display:contents"></div><div class="vcap"></div></div>`; this.show();
+      el.addEventListener("pointermove", () => this.wake());
+      el.addEventListener("pointerdown", () => this.wake());
       // (1.8) con el dedo: deslizar a los lados cambia de captura
       let sx = null, sy = 0;
-      el.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse" && !e.target.closest(".vbar")) { sx = e.clientX; sy = e.clientY; } });
+      el.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse" && !e.target.closest(".vctl") && this.zoom === 1) { sx = e.clientX; sy = e.clientY; } });
       el.addEventListener("pointerup", e => {
         if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
         if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) { touchSwallowClick = Date.now() + 350; const d = dx < 0 ? 1 : -1; setTimeout(() => this.go(d), 30); }   // después del touchend: si no, el dedo se queda «colgado» de la imagen que se quitó
       });
     },
     show() {
-      const list = album.list, c = list[this.idx], m = $(".media", this.el);
+      const list = playbackList, c = list[this.idx], m = $(".media", this.el);
       this.stop();
-      if (c.type === "video" && !c.url.startsWith("data:")) this.player(m, c.url);
-      else m.innerHTML = `<img alt="" src="${esc(c.url)}">`;
+      this.zoom = 1; this.panX = this.panY = 0;
+      album.i = this.idx;
+      this.el.classList.remove("photo-idle");
+      this.el.classList.toggle("photo-view", c.type !== "video");
+      if (c.type === "video" && !c.url.startsWith("data:image/")) { albumPreview(c); this.player(m, c.url); }
+      else {
+        m.innerHTML = '<div class="photostage"><img alt="" crossorigin="anonymous"></div>';
+        const img = m.querySelector("img");
+        if (c.thumb) img.src = c.thumb;
+        const full = new Image(); full.crossOrigin = "anonymous";
+        full.onload = () => { img.src = full.src; };
+        full.src = c.url;
+        this.photo = full; this.wake();
+      }
       $(".vcap", this.el).textContent = `${c.game} · ${c.date} · ${this.idx + 1} de ${list.length}${c.type === "video" ? " · video" : ""}`;
       updateFocus();
     },
     /* Reproductor propio: la barra se esconde sola mientras corre y vuelve con cualquier botón. */
     player(m, url) {
       const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"/></svg>', PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="4.5" width="4.5" height="15" rx="1"/><rect x="14" y="4.5" width="4.5" height="15" rx="1"/></svg>';
-      m.innerHTML = `<div class="vplayer paused wait"><video src="${esc(url)}" autoplay playsinline preload="auto" disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback"></video>
+      m.innerHTML = `<div class="vplayer paused wait"><video crossorigin="anonymous" src="${esc(url)}" autoplay playsinline preload="auto" disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback"></video>
         <div class="vbig play">${PLAY}</div><div class="vbig load"><i></i></div>
-        <div class="vctl"><span class="pp">${PLAY}</span><span class="t cur">0:00</span><div class="vbar"><i class="buf"></i><i class="fill"></i><i class="knob"></i></div><span class="t r dur">0:00</span></div></div>`;
+        <div class="vctl"><button class="frame-save">Guardar fotograma</button><button aria-label="Reproducir o pausar" class="pp">${PLAY}</button><span class="t cur">0:00</span><div class="vbar"><i class="buf"></i><i class="fill"></i><i class="knob"></i></div><span class="t r dur">0:00</span></div></div>`;
       const box = $(".vplayer", m), v = $("video", box), bar = $(".vbar", box);
       const fmt = s => !isFinite(s) ? "0:00" : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
       const paint = () => {
@@ -112,57 +207,153 @@ function viewerView(album, idx) {
       ["playing", "canplay", "seeked"].forEach(e => v.addEventListener(e, () => box.classList.remove("wait")));
       v.addEventListener("error", () => { box.classList.remove("wait"); box.insertAdjacentHTML("beforeend", `<p class="verr">No se pudo reproducir este video.<br><small>Puede que el formato no sea compatible (H.264 / VP9 sí lo son).</small></p>`); });
       v.addEventListener("click", () => this.toggle());
-      bar.addEventListener("click", e => { const r = bar.getBoundingClientRect(); if (v.duration) v.currentTime = clamp((e.clientX - r.left) / r.width, 0, 1) * v.duration; this.wake(); });
+      $(".pp", box).onclick = () => this.toggle();
+      $(".frame-save", box).onclick = () => this.frame();
+      const scrub = e => {
+        if (!Number.isFinite(v.duration)) return;
+        const r = bar.getBoundingClientRect();
+        v.currentTime = clamp((e.clientX - r.left) / r.width, 0, 1) * v.duration; this.wake();
+      };
+      bar.onpointerdown = e => { bar.setPointerCapture(e.pointerId); scrub(e); };
+      bar.onpointermove = e => { if (bar.hasPointerCapture(e.pointerId)) scrub(e); };
       box.addEventListener("pointermove", () => this.wake());
       this.vid = v; this.box = box;
       v.play().catch(() => state());
       this.wake();
     },
     wake() {
-      if (!this.box) return;
+      if (!this.box) {
+        if (!this.photo) return;
+        this.el.classList.remove("photo-idle"); clearTimeout(this.idleT);
+        this.idleT = setTimeout(() => this.el.classList.add("photo-idle"), 2600);
+        return;
+      }
       this.box.classList.remove("idle"); clearTimeout(this.idleT);
       this.idleT = setTimeout(() => { if (this.vid && !this.vid.paused) this.box.classList.add("idle"); }, 2600);
     },
     toggle() { const v = this.vid; if (!v) return; if (v.paused || v.ended) { if (v.ended) v.currentTime = 0; v.play().catch(() => {}); play("select"); } else { v.pause(); play("tick"); } },
-    seek(s) { const v = this.vid; if (!v || !v.duration) return play("bump"); v.currentTime = clamp(v.currentTime + s, 0, v.duration - 0.05); play("tick"); this.wake(); },
-    stop() { if (this.vid) { try { this.vid.pause(); this.vid.removeAttribute("src"); this.vid.load(); } catch {} } this.vid = this.box = null; clearTimeout(this.idleT); },
+    seek(s) { const v = this.vid; if (!v || !v.duration) return play("bump"); v.currentTime = clamp(v.currentTime + s, 0, Math.max(0, v.duration - .00001)); play("tick"); this.wake(); },
+    transformPhoto(step = 0, dx = 0, dy = 0) {
+      const img = this.el.querySelector(".photostage img"); if (!img) return;
+      this.zoom = clamp(this.zoom + step, 1, 4);
+      this.panX = clamp(this.panX + dx, -img.clientWidth * (this.zoom - 1)/2, img.clientWidth * (this.zoom - 1)/2);
+      this.panY = clamp(this.panY + dy, -img.clientHeight * (this.zoom - 1)/2, img.clientHeight * (this.zoom - 1)/2);
+      img.style.transform = `translate(${this.panX}px,${this.panY}px) scale(${this.zoom})`; this.wake(); updateFocus();
+    },
+    async stepFrame(dir) {
+      const v = this.vid;
+      if (!v || this.stepping || !v.paused || v.readyState < 2) return;
+      const interval = 1 / (playbackList[this.idx].fps || 30);
+      if (!v.requestVideoFrameCallback || !Number.isFinite(v.duration)) return this.seek(dir * interval);
+      const origin = v.currentTime, limit = Math.max(0, v.duration - .000001);
+      this.stepping = v;
+      // El tiempo de presentación identifica el cuadro incluso cuando dos cuadros tienen los mismos píxeles.
+      const sample = at => new Promise(resolve => {
+        if (v !== this.vid || !v.paused) return resolve(null);
+        let handle;
+        const timer = setTimeout(() => { v.cancelVideoFrameCallback(handle); resolve(null); }, 180);
+        const presented = (_, metadata) => {
+          if (v.seeking) { handle = v.requestVideoFrameCallback(presented); return; }
+          clearTimeout(timer); resolve(metadata.mediaTime);
+        };
+        v.currentTime = at;
+        handle = v.requestVideoFrameCallback(presented);
+      });
+      try {
+        // Chromium no presenta un cuadro nuevo si se asigna exactamente el mismo currentTime.
+        const base = await sample(origin < limit ? Math.min(limit, origin + .00001) : Math.max(0, origin - .00001));
+        if (base == null) {
+          if (v === this.vid && v.paused) v.currentTime = clamp(origin + dir * interval, 0, limit);
+          return;
+        }
+        let near = origin, far = origin, distance = interval;
+        let changed = false;
+        while (v === this.vid && v.paused) {
+          far = clamp(origin + dir * distance, 0, limit);
+          if (far === near) break;
+          const stamp = await sample(far);
+          if (stamp == null) return;
+          if ((stamp - base) * dir > .000001) { changed = true; break; }
+          near = far; distance *= 2;
+        }
+        if (!changed) return;
+        // Acota el primer cambio de cuadro desde la posición de partida (también con video de tasa variable).
+        while (Math.abs(far - near) > .001) {
+          const middle = (near + far) / 2, stamp = await sample(middle);
+          if (stamp == null) return;
+          if ((stamp - base) * dir > .000001) far = middle; else near = middle;
+        }
+        if (v === this.vid && v.paused) v.currentTime = far;
+      } finally { if (this.stepping === v) this.stepping = null; }
+      this.wake();
+    },
+    async frame() {
+      const v = this.vid, c = playbackList[this.idx];
+      if (!v || this.saving || this.stepping || !v.paused || v.seeking || v.readyState < 2) return play("bump");
+      this.saving = true;
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+        canvas.getContext("2d").drawImage(v, 0, 0);
+        await saveAlbumImage(c, canvas, true);
+        toast("Fotograma guardado en el Álbum");
+      } catch (e) { toast(e.message || "No se pudo guardar el fotograma"); }
+      finally { this.saving = false; }
+    },
+    dispose() { this.stop(); },
+    stop() { this.stepping = null; this.photo = null; if (this.vid) { try { this.vid.pause(); this.vid.removeAttribute("src"); this.vid.load(); } catch {} } this.vid = this.box = null; clearTimeout(this.idleT); },
     go(d) {
       const n = this.idx + d;
-      if (n < 0 || n >= album.list.length) return bump($(".vwrap img, .vwrap .vplayer", this.el), d > 0 ? "right" : "left");
+      if (n < 0 || n >= playbackList.length) return bump($(".vwrap img, .vwrap .vplayer", this.el), d > 0 ? "right" : "left");
       this.idx = n; play("move"); this.show();
     },
     more() {
-      const c = album.list[this.idx]; if (!c) return;
+      const c = playbackList[this.idx]; if (!c) return;
       if (this.vid && !this.vid.paused) this.vid.pause();
       const opts = [{ label: "Enviar al celular (código QR)", value: "share" }, { label: "Copiar (para pegar en Discord, WhatsApp…)", value: "copy" }];
-      if (c.type === "video") opts.push({ label: "Recortar video", value: "trim" });
+      if (c.type === "video") opts.push({ label: "Guardar fotograma", value: "frame" }, { label: "Recortar video", value: "trim" });
+      else opts.push({ label: "Añadir texto", value: "caption" });
       opts.push({ label: c.type === "video" ? "Borrar grabación" : "Borrar captura", value: "del" });
       openView(pickerView("Opciones", I.album, opts, null, v => {
         if (v === "share") openView(shareView([c.path]));
         else if (v === "copy") Host.has ? Host.call("album.copy", { path: c.path }).then(ok => toast(ok ? "Copiada: pégala con Ctrl+V" : "No se pudo copiar")).catch(() => toast("No se pudo copiar")) : toast("Copiada (demo)");
-        else if (v === "trim") { this.stop(); openView(trimView(c, item => { albumData.unshift(item); album.refresh(); this.idx = Math.max(0, album.list.indexOf(c)); this.show(); })); }
+        else if (v === "frame") this.frame();
+        else if (v === "caption") openView(albumCaptionView(c));
+        else if (v === "trim") openView(trimView(c, addAlbumImage));
         else if (v === "del") this.onX();
       }));
     },
     onKey(k) {
-      if (this.vid) this.wake();
+      this.wake();
+      if (k === "y" && this.vid?.paused) { this.frame(); return true; }
+      if (this.photo && ["lt","rt","a"].includes(k)) {
+        this.transformPhoto(k === "rt" ? .5 : k === "lt" ? -.5 : 1 - this.zoom); return true;
+      }
       if (k === "start") { this.more(); return true; }
       if (k === "a" && this.vid) { this.toggle(); return true; }
       if (k === "lb" || k === "rb") { this.go(k === "lb" ? -1 : 1); return true; }
       return false;
     },
     nav(d) {
+      if (this.photo && this.zoom > 1) {
+        this.transformPhoto(0, d === "left" ? 48 : d === "right" ? -48 : 0, d === "up" ? 48 : d === "down" ? -48 : 0); return;
+      }
       if (d !== "left" && d !== "right") return false;
-      if (this.vid) this.seek(d === "right" ? 5 : -5); else this.go(d === "right" ? 1 : -1);
+      if (this.vid) {
+        const dir = d === "right" ? 1 : -1;
+        if (this.vid.paused) this.stepFrame(dir); else this.seek(dir * 5);
+      } else this.go(d === "right" ? 1 : -1);
     },
-    onB() { this.stop(); return false; },
+    onB() { const i = album.list.findIndex(c => c.path === playbackList[this.idx].path); if (i >= 0) album.i = i; return false; },
     onX() {
-      const c = album.list[this.idx];
-      confirmDialog(`¿Borrar esta ${c.type === "video" ? "grabación" : "captura"}?\nNo se puede deshacer.`, "Borrar").then(ok => {
+      const c = playbackList[this.idx];
+      confirmDialog(`¿Borrar esta ${c.type === "video" ? "grabación" : "captura"}?\nNo se puede deshacer.`, "Borrar").then(async ok => {
         if (!ok) return;
         this.stop();   // suelta el archivo antes de borrarlo
-        Host.call("album.delete", { path: c.path }).catch(() => {});
-        albumData = albumData.filter(x => x !== c); album.refresh();
+        if (Host.has && !await Host.call("album.delete", { path: c.path }).catch(() => false)) {
+          this.show(); toast("No se pudo borrar la captura"); return;
+        }
+        albumData = albumData.filter(x => x.path !== c.path); album.refresh(); playbackList = album.list;
         if (!album.list.length) return closeView();
         this.idx = Math.min(this.idx, album.list.length - 1); this.show(); toast("Se borró la captura");
       });

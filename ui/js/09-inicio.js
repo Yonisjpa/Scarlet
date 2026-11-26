@@ -65,8 +65,8 @@ function updateFocus0() {
   if (v) {
     const items = v.items();
     if (items.length) {
-      v.i = clamp(v.i, 0, items.length - 1);
-      const el = items[v.i]; el.classList.add("focused");
+      if (!v.focusItem) v.i = clamp(v.i, 0, items.length - 1);
+      const el = v.focusItem ? v.focusItem() : items[v.i]; if (!el) return; el.classList.add("focused");
       el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
       const cap = el.querySelector(".cap"); if (cap) marquee(cap, cap.dataset.t || cap.textContent, true);
       if (v.onFocus) v.onFocus(v.i);

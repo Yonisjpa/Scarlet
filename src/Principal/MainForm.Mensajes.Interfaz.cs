@@ -11,6 +11,8 @@ sealed partial class MainForm
         {
             // ── Álbum
             case "album.list": album.Watch(); return await Task.Run(() => album.List());   // por si apareció una carpeta nueva (Steam ya dio tu cuenta)
+            case "album.preview": return await Task.Run(() => album.PreviewAsync(P.S(p, "path")));
+            case "album.savePng": return await Task.Run(() => album.SavePng(P.S(p, "path"), P.S(p, "png"), P.B(p, "frame")));
             case "album.delete": return album.Delete(P.S(p, "path"));
             case "album.trim": return await album.TrimAsync(P.S(p, "path"), P.D(p, "start"), P.D(p, "end"));
             case "album.share":
@@ -62,9 +64,12 @@ sealed partial class MainForm
                     (int)P.L(p, "total"), P.S(p, "image"), P.S(p, "pos"), P.S(p, "style") == "b", P.B(p, "light"), (int)P.L(p, "unlocked"));
                 return true;
             case "overlay.notify":
+                string friendId = P.S(p, "friendId");
+                string avatarUrl = friendId == null ? null : steam.Friends.FirstOrDefault(f => f.steamid == friendId)?.avatar;
                 ToastForm.Pop(P.S(p, "title"), P.S(p, "text"), P.S(p, "letter"), P.S(p, "color"), P.S(p, "image"),
                     wide: P.B(p, "wide"), video: P.B(p, "video"), dur: P.S(p, "dur"), saving: P.B(p, "saving"), tag: P.S(p, "tag"), accent: P.S(p, "accent"),
-                    b: P.S(p, "style") == "b" ? ToastForm.StyleB.From(p) : null);   // 1.7.1: con Lúmina, el estilo B
+                    b: P.S(p, "style") == "b" ? ToastForm.StyleB.From(p) : null,
+                    avatar: string.IsNullOrEmpty(avatarUrl) ? null : art.CacheFileAsync(avatarUrl, "friend"));   // 1.7.1: con Lúmina, el estilo B
                 return true;
             // Menú rápido en vivo: cada dato por separado (si uno falla, los demás sí llegan); se pide cada 2 s.
             // Al abrir (full) se vuelve a leer todo desde cero; cada dato tiene un tiempo límite y, si no llega, la interfaz

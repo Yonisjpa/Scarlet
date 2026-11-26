@@ -280,6 +280,28 @@ html:not(.showcursor),html:not(.showcursor) *{cursor:none!important}
 .stat{background:var(--bg2);border-radius:.9rem;padding:1.4rem 2.2rem;font-size:1.4rem;color:var(--fg2)}
 .stat b{display:block;font-size:2.6rem;color:var(--fg)}
 
+
+
+/* Álbum: las filas fuera de la ventana visible ocupan espacio sin abrir imágenes ni videos. */
+.agrid{overflow-anchor:none}
+.agrid .shot{animation:none}
+.photostage,.caption-preview{display:flex;align-items:center;justify-content:center;overflow:hidden;min-width:0;min-height:0}
+.photostage{width:100%;flex:1}
+.photostage img{max-width:100%;max-height:100%;object-fit:contain}
+.photo-view.photo-idle .vcap{opacity:0}
+#app:has(> .photo-view.photo-idle.in:last-of-type) > .hints{opacity:0}
+.photo-view .vcap{transition:opacity .18s}
+.view.viewer .vctl{pointer-events:auto}
+.vctl .frame-save{padding:.45rem 1.1rem;border-radius:.65rem;background:#eef0ff;color:#171826;white-space:nowrap;font:inherit}
+.vplayer:not(.paused) .frame-save{display:none}
+.vctl .pp{padding:0;border:0;background:transparent;color:white}
+.vbar{touch-action:none}
+.caption-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(22rem,25%);gap:2.2rem;padding:2rem var(--pad);flex:1;min-height:0}
+.caption-preview{background:#131315;border-radius:1rem;color:#fff}
+.caption-preview canvas{max-width:100%;max-height:100%;object-fit:contain}
+.caption-tools{overflow-y:auto;min-height:0}
+.caption-tools .lrow{width:100%;gap:1rem;justify-content:space-between}
+.caption-tools .val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* ---------- capas de sistema ---------- */
 #toast{position:absolute;left:50%;bottom:9.6rem;transform:translate(-50%,1rem);background:var(--bg2);padding:1.1rem 2.2rem;border-radius:99rem;font-weight:700;font-size:1.5rem;box-shadow:var(--shadow);opacity:0;transition:.2s;z-index:20;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1;transform:translate(-50%,0)}
@@ -1145,8 +1167,7 @@ body{touch-action:pan-y}
 :root[data-lumina] .nsw{box-shadow:inset 0 1px 2px rgba(0,0,0,.3),inset 0 0 0 1px var(--lm-edge)}
 :root[data-lumina] .nsw::after{box-shadow:0 .2rem .5rem rgba(0,0,0,.35),inset 0 -1px 1px rgba(0,0,0,.12)}
 /* Menú rápido: panel flotante */
-:root[data-lumina] #qshade{background:rgba(0,0,0,.22)}
-:root[data-lumina][data-theme="light"] #qshade{background:rgba(0,0,0,.08)}
+:root[data-lumina] #qshade{background:transparent}
 :root[data-lumina] #quick,:root[data-lumina] #quick.ns{top:1.8rem;right:1.8rem;bottom:1.8rem;border-radius:3.4rem;background:transparent!important;
   -webkit-backdrop-filter:blur(3.4rem) saturate(1.8);backdrop-filter:blur(3.4rem) saturate(1.8);
   box-shadow:inset 0 2px 0 var(--lm-hi),inset 0 -1.5px 0 var(--lm-lo),inset 0 0 0 1px var(--lm-edge),0 2rem 6rem rgba(0,0,0,.45);overflow:hidden;padding-bottom:.4rem}
@@ -1252,9 +1273,6 @@ body{touch-action:pan-y}
 #lumi::before{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.35) 50%,transparent 65%);background-size:300% 100%;background-position:var(--gl,150%) 0;opacity:var(--go,0)}
 
 /* ----- (1.7.1) Menú del botón Xbox encima de un juego ----- */
-/* Es una página aparte que esconde todo menos el menú: el cursor de cristal también debe verse ahí. */
-:root[data-lumina][data-lens].overlay body>#lumi{display:block!important}
-:root.overlay body>svg.lumi-svg{display:block!important}
 /* El panel flota con el mismo margen por los cuatro lados (la ventana toma esta forma) y sin sombra hacia afuera:
    afuera del panel la ventana es transparente y la sombra se veía como una mancha. */
 :root[data-lumina].overlay #quick,:root[data-lumina].overlay #quick.ns{left:1.8rem;right:1.8rem;width:auto!important;
@@ -1310,10 +1328,35 @@ body{touch-action:pan-y}
 .achl .alflash{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;background:#fff3c4}
 .achl.k-rare .alflash{background:#dff3ff}
 .achl.k-full .alflash{background:#fff3b0}
-/* (1.7.2) Menú rápido con música: el tinte de la carátula también es cristal (antes se veía sólido) */
-:root[data-lumina] #quick.tinted::before{opacity:.36}
-:root[data-lumina] #quick.tinted{-webkit-backdrop-filter:blur(1.1rem) saturate(1.3)!important;backdrop-filter:blur(1.1rem) saturate(1.3)!important}
-:root[data-lumina][data-theme="light"] #quick.tinted::before{opacity:.34}
+:root[data-lumina].overlay body{background:transparent;transition:none}
+:root[data-lumina].overlay #quick{width:auto;left:1.8rem;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:inset 0 0 0 1px var(--lm-edge)}
+:root[data-lumina].overlay.hostglass #quick::before{display:none}
+:root[data-lumina] #quick.music-tint :is(.qrow.nqmu,.qrow.qmedia),
+:root[data-lumina][data-lens] #quick.ns.music-tint .qrow.nqmu{
+  background:linear-gradient(115deg,var(--mt1),var(--mt2) 76%,var(--mt3));color:white;--fg:#fff;--fg2:#eee}
+/* La ventana superior usa una clave de color. Una capa CSS semitransparente encima
+   convertiría los huecos en píxeles opacos. El cristal uniforme lo dibuja GlassBack. */
+:root[data-lumina].overlay.hostglass #quick .qrow:not(.nqmu):not(.qmedia){background:transparent}
+:root[data-lumina].overlay #quick .qrow.focused::after{animation:none;opacity:1;inset:0;padding:.25rem;border-radius:inherit;background:linear-gradient(110deg,#75b4ff,#9387ff 65%,#c4a1f7)}
+
+:root[data-lumina] #quick .qrow.focused .nqbar i{background:linear-gradient(90deg,#62a2f5,#b087f7)}
+:root[data-lumina] #quick .nqbar em{padding:.3rem .7rem;font-weight:700}
+/* El foco puede viajar entre controles sin deformar letras, cifras ni carátulas. */
+:root[data-lumina][data-lens] #lumi.control{backdrop-filter:none;-webkit-backdrop-filter:none;background:transparent;box-shadow:none}
+:root[data-lumina] #lumi::after{animation:none}
+.notif .ic.portrait img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+.notif .ic.portrait{position:relative;overflow:hidden}
+.notif .ic.portrait img[hidden]{display:none}
+
+:root[data-lumina] .view.viewer{background:#101014;color:white}
+:root[data-lumina] .vplayer.paused .vctl{background:rgba(28,29,38,.92);border:1px solid rgba(195,200,255,.4);border-radius:1.4rem}
+:root[data-lumina] .shot .vid{background:rgba(17,18,24,.88);font-variant-numeric:tabular-nums}
+:root[data-lumina] .tile.focused::before{animation:lm-select .28s ease-out}
+@keyframes lm-select{from{background-color:rgba(187,197,255,.22)}to{background-color:transparent}}
+@media(prefers-reduced-motion:reduce){:root[data-lumina] .tile.focused::before{animation:none}}
+
+:root[data-lumina]:not(.overlay) body:has(#quick.show) #app :is(.status,footer.hints){visibility:hidden}
 </style>
 </head>
 <body>
@@ -1964,8 +2007,8 @@ function updateFocus0() {
   if (v) {
     const items = v.items();
     if (items.length) {
-      v.i = clamp(v.i, 0, items.length - 1);
-      const el = items[v.i]; el.classList.add("focused");
+      if (!v.focusItem) v.i = clamp(v.i, 0, items.length - 1);
+      const el = v.focusItem ? v.focusItem() : items[v.i]; if (!el) return; el.classList.add("focused");
       el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
       const cap = el.querySelector(".cap"); if (cap) marquee(cap, cap.dataset.t || cap.textContent, true);
       if (v.onFocus) v.onFocus(v.i);
@@ -2051,7 +2094,7 @@ function navView(v, dir) {
 }
 function activate() {
   const v = topView();
-  if (v) { const el = v.items()[v.i]; if (el) el.click(); else play("bump"); return; }
+  if (v) { const el = v.focusItem ? v.focusItem() : v.items()[v.i]; if (el) el.click(); else play("bump"); return; }
   homeEl()?.click();
 }
 function back() {
@@ -2095,7 +2138,7 @@ function openView(v, origin) {
   }
   el.addEventListener("click", e => {
     const it = e.target.closest(".fi"); if (!it) return;
-    const idx = v.items().indexOf(it); if (idx >= 0 && idx !== v.i) { v.i = idx; if (v.syncFromIndex) v.syncFromIndex(); updateFocus(); }
+    const idx = v.itemIndex ? v.itemIndex(it) : v.items().indexOf(it); if (idx >= 0 && idx !== v.i) { v.i = idx; if (v.syncFromIndex) v.syncFromIndex(); updateFocus(); }
   }, true);
   v.render(el);
   $("#app").append(el);
@@ -2104,13 +2147,13 @@ function openView(v, origin) {
   play(v.cls === "dialog" ? "popup" : v.detail ? "detail" : "select"); updateFocus();
 }
 function closeView() {
-  const v = views.pop(); v.el.classList.remove("in"); v.el.classList.add("out");
+  const v = views.pop(); v.dispose?.(); v.el.classList.remove("in"); v.el.classList.add("out");
   setTimeout(() => v.el.remove(), 340);
   play(v.cls === "dialog" ? "popupclose" : "back");
   const t = topView(); if (t && t.onReturn && v.cls !== "dialog") t.onReturn();   // la pantalla de abajo se pone al día (beta 1.3)
   updateFocus();
 }
-function closeAllViews() { while (views.length) views.pop().el.remove(); updateFocus(); }
+function closeAllViews() { while (views.length) { const v = views.pop(); v.dispose?.(); v.el.remove(); } updateFocus(); }
 const head = (icon, title, sub = "") => `<div class="vhead">${icon}<span>${esc(title)}</span><span class="sub">${esc(sub)}</span></div>`;
 const fis = el => [...el.querySelectorAll(".fi")];
 
@@ -2601,7 +2644,7 @@ function fakeWifi(op, a = {}) {
 }
 
 /* --- actualizaciones desde GitHub --- */
-let APP_VERSION = "1.8.1";
+let APP_VERSION = "1.9.0";
 const verName = v => (/^0\./.test(String(v)) ? "alpha " : "beta ") + v;
 const updState = { available: false, latest: null };
 function updateView() {
@@ -2920,12 +2963,46 @@ function keyboardView(initial, onDone, countFor, opt = {}) {
 const ATYPES = ["Todo", "Fotos", "Videos"];
 const albumFilter = { type: 0, game: null };
 const albumList = () => (albumData || []).filter(c => (albumFilter.type === 0 || (albumFilter.type === 1 ? c.type !== "video" : c.type === "video")) && (!albumFilter.game || c.game === albumFilter.game));
+const albumPreviews = new Map();
+let previewsInFlight = 0;
+const previewQueue = [];
+function pumpAlbumPreviews() {
+  while (previewsInFlight < 3 && previewQueue.length) {
+    const { tile, load } = previewQueue.pop();
+    if (!tile.isConnected) continue;
+    previewsInFlight++;
+    load().finally(() => { previewsInFlight--; pumpAlbumPreviews(); });
+  }
+}
+async function albumPreview(c) {
+  if (!Host.has || !c.path || c.url.startsWith("data:") || (c.thumb && c.type !== "video")) return;
+  let entry = albumPreviews.get(c.url);
+  if (!entry) {
+    entry = Host.call("album.preview", { path: c.path }).catch(() => null);
+    albumPreviews.set(c.url, entry);
+    if (albumPreviews.size > 2500) albumPreviews.delete(albumPreviews.keys().next().value);
+  }
+  const p = await entry;
+  if (p) { c.thumb ||= p.Thumb; c.duration ||= p.Duration; c.fps ||= p.Fps; }
+}
 function albumView() {
   return {
     cols: 5, isAlbum: true,
     hints() { return this.sel ? [["B", "Cancelar"], ["A", "Marcar"], ["☰", `Enviar (${this.sel.size})`]] : [["B", "Atrás"], ["Y", "Tipo"], ["X", "Juego"], ["RB", "Actualizar"], ["☰", "Enviar"], ["A", "Ver"]]; },
     render(el) {
       el.innerHTML = head(I.album, "Álbum", "Cargando…") + `<div class="vbody"><div class="agrid"></div></div>`;
+      this.grid = $(".agrid", el);
+      this.scroller = this.grid.parentElement;
+      this.grid.onclick = e => {
+        const b = e.target.closest(".shot"); if (!b) return;
+        const i = Number(b.dataset.i), c = this.list[i];
+        if (!this.sel) return openView(viewerView(this, i));
+        if (this.sel.has(c.path)) this.sel.delete(c.path); else this.sel.add(c.path);
+        b.classList.toggle("on", this.sel.has(c.path)); play("select"); updateFocus();
+      };
+      this.scroller.addEventListener("scroll", () => this.windowRows(), { passive: true });
+      this.resize = new ResizeObserver(() => this.windowRows(true));
+      this.resize.observe(this.scroller);
       // Se ve al instante lo que ya se sabía y siempre se vuelve a leer la carpeta (antes se leía una vez por sesión).
       if (albumData) this.refresh();
       this.reload();
@@ -2934,32 +3011,78 @@ function albumView() {
       if (manual) { const s = $(".vhead .sub", this.el); if (s) s.textContent = "Buscando capturas…"; }
       return Data.album().then(list => {
         const keep = this.list && this.list[this.i] && this.list[this.i].path;
-        albumData = list; this.refresh();
-        if (keep) { const j = this.list.findIndex(c => c.path === keep); if (j >= 0) { this.i = j; updateFocus(); } }
+        if (!views.includes(this)) return;
+        albumData = list; this.refresh(keep);
         if (manual) toast(`Álbum actualizado · ${list.length} capturas`);
       });
     },
-    refresh() {
+    refresh(keep) {
       if (!albumData) return;
       this.list = albumList();
+      const index = keep ? this.list.findIndex(c => c.path === keep) : -1;
+      this.i = index >= 0 ? index : clamp(this.i, 0, Math.max(0, this.list.length - 1));
       $(".vhead .sub", this.el).textContent = `${ATYPES[albumFilter.type]}${albumFilter.game ? " · " + albumFilter.game : ""} · ${this.list.length}`;
-      const g = $(".agrid", this.el);
-      g.classList.toggle("sel", !!this.sel);
-      g.innerHTML = this.list.length ? this.list.map((c, i) => `<button class="shot fi${this.sel && this.sel.has(c.path) ? " on" : ""}" style="--k:${i % 15}" data-i="${i}"><span class="chk">✓</span>${c.type === "video" && !c.thumb && !c.url.startsWith("data:") ? `<video data-src="${esc(c.url)}#t=0.5" muted preload="metadata" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block"></video>` : `<img alt="" loading="lazy" decoding="async" src="${esc(c.thumb || c.url)}">`}${c.type === "video" ? '<span class="vid">▶ Video</span>' : ""}<span class="cap">${esc(c.game)} · ${esc(c.date)}</span></button>`).join("") : `<p class="empty" style="grid-column:1/-1">No hay capturas con este filtro.</p>`;
-      // Los videos cargan su primer cuadro solo cuando se ven (con cientos de capturas ya no se piden todos de golpe).
-      const vids = $$("video[data-src]", g);
-      if (vids.length) {
-        const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.src = e.target.dataset.src; e.target.removeAttribute("data-src"); io.unobserve(e.target); } }), { rootMargin: "400px" });
-        vids.forEach(v => io.observe(v));
-      }
-      fis(this.el).forEach(b => b.onclick = () => {
-        if (!this.sel) return openView(viewerView(this, +b.dataset.i));
-        const c = this.list[+b.dataset.i]; if (!c || c.url.startsWith("data:") && Host.has) return play("bump");
-        if (this.sel.has(c.path)) this.sel.delete(c.path); else this.sel.add(c.path);
-        b.classList.toggle("on", this.sel.has(c.path)); play("select"); updateFocus();
-      });
-      this.i = clamp(this.i, 0, Math.max(0, this.list.length - 1)); updateFocus();
+      this.grid.classList.toggle("sel", !!this.sel);
+      this.windowRows(true, this.i);
+      if (topView() === this) updateFocus();
     },
+    windowRows(force = false, focusIndex) {
+      if (!this.list) return;
+      const g = this.grid, sc = this.scroller, css = getComputedStyle(g);
+      const gap = parseFloat(css.rowGap), colGap = parseFloat(css.columnGap);
+      if (!g.clientWidth) return;
+      const stride = (g.clientWidth - colGap * (this.cols - 1)) / this.cols * 9 / 16 + gap;
+      const rows = Math.ceil(this.list.length / this.cols);
+      if (focusIndex != null) {
+        const y = Math.floor(focusIndex / this.cols) * stride;
+        if (y < sc.scrollTop) sc.scrollTop = y;
+        else if (y + stride > sc.scrollTop + sc.clientHeight) sc.scrollTop = y + stride - sc.clientHeight;
+      }
+      const first = clamp(Math.floor(sc.scrollTop / stride) - 2, 0, Math.max(0, rows - 1));
+      const end = Math.min(rows, first + Math.ceil(sc.clientHeight / stride) + 5);
+      if (!force && first === this.first && end === this.end) return;
+      this.first = first; this.end = end;
+      g.style.paddingTop = first * stride + "px";
+      g.style.paddingBottom = Math.max(0, rows - end) * stride + "px";
+      if (!rows) { g.innerHTML = '<p class="empty">No hay capturas con este filtro.</p>'; return; }
+      const group = document.createDocumentFragment();
+      for (let i = first * this.cols; i < Math.min(this.list.length, end * this.cols); i++) {
+        const c = this.list[i], video = c.type === "video";
+        const b = document.createElement("button");
+        b.className = "shot fi"; b.dataset.i = i; b.classList.toggle("on", !!this.sel?.has(c.path));
+        b.classList.toggle("focused", topView() === this && this.i === i);
+        b.innerHTML = `<span class="chk">✓</span><img alt="" decoding="async">${video ? '<span class="vid"></span>' : ""}<span class="cap">${esc(c.game)} · ${esc(c.date)}</span>`;
+        const img = b.querySelector("img"), badge = b.querySelector(".vid");
+        const paint = () => {
+          const src = c.thumb || (!video || c.url.startsWith("data:") ? c.url : "");
+          if (src) img.src = src;
+          if (badge) badge.textContent = "▶ " + (c.duration ? mmss(c.duration) : "Video");
+        };
+        if (c.thumb || !Host.has || c.url.startsWith("data:")) paint();
+        else if (badge) badge.textContent = "▶ Video";
+        group.append(b);
+        previewQueue.push({ tile: b, load: async () => { await albumPreview(c); if (b.isConnected) paint(); } });
+      }
+      g.replaceChildren(group);
+      pumpAlbumPreviews();
+    },
+    focusItem() {
+      if (!this.list?.length) return null;
+      this.windowRows(false, this.i);
+      return this.grid.querySelector(`[data-i="${this.i}"]`);
+    },
+    itemIndex(b) { return Number(b.dataset.i); },
+    nav(dir) {
+      if (!this.list?.length) return;
+      let n = this.i;
+      if (dir === "left" && n % this.cols) n--;
+      if (dir === "right" && n % this.cols < this.cols - 1) n++;
+      if (dir === "up" && n >= this.cols) n -= this.cols;
+      if (dir === "down" && Math.floor(n / this.cols) < Math.floor((this.list.length-1) / this.cols)) n += this.cols;
+      this.i = Math.min(n, this.list.length - 1); play("move"); updateFocus();
+    },
+    onReturn() { this.refresh(this.list?.[this.i]?.path); },
+    dispose() { this.resize.disconnect(); },
     onKey(k) {
       if (k === "start") {   // ☰: elegir varias y mandarlas al celular
         if (!this.list || !this.list.length) return play("bump"), true;
@@ -2984,37 +3107,52 @@ function albumView() {
   };
 }
 function viewerView(album, idx) {
+  let playbackList = album.list;
   return {
-    cls: "viewer", idx,
+    cls: "viewer", idx, zoom: 1, panX: 0, panY: 0,
     hints() {
       return this.vid
-        ? [["B", "Atrás"], ["☰", "Más"], ["A", this.vid.paused ? "Reproducir" : "Pausa"], ["◀", "−5 s"], ["▶", "+5 s"], ["LB", "Anterior"], ["RB", "Siguiente"]]
-        : [["B", "Atrás"], ["☰", "Más"], ["X", "Borrar"], ["◀", "Anterior"], ["▶", "Siguiente"]];
+        ? [["B", "Atrás"], ["☰", "Más"], ["A", this.vid.paused ? "Reproducir" : "Pausa"], ["◀▶", this.vid.paused ? "Fotograma" : "±5 s"], ...(this.vid.paused ? [["Y", "Guardar fotograma"]] : []), ["LB", "Anterior"], ["RB", "Siguiente"]]
+        : [["B", "Atrás"], ["☰", "Más"], ["LT RT", "Zoom"], ["A", "Encajar"], ["◀▶", this.zoom > 1 ? "Mover" : "Cambiar foto"]];
     },
     render(el) {
       el.innerHTML = `<div class="vwrap" style="touch-action:pan-y"><div class="media" style="display:contents"></div><div class="vcap"></div></div>`; this.show();
+      el.addEventListener("pointermove", () => this.wake());
+      el.addEventListener("pointerdown", () => this.wake());
       // (1.8) con el dedo: deslizar a los lados cambia de captura
       let sx = null, sy = 0;
-      el.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse" && !e.target.closest(".vbar")) { sx = e.clientX; sy = e.clientY; } });
+      el.addEventListener("pointerdown", e => { if (e.pointerType !== "mouse" && !e.target.closest(".vctl") && this.zoom === 1) { sx = e.clientX; sy = e.clientY; } });
       el.addEventListener("pointerup", e => {
         if (sx == null) return; const dx = e.clientX - sx, dy = e.clientY - sy; sx = null;
         if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 1.5) { touchSwallowClick = Date.now() + 350; const d = dx < 0 ? 1 : -1; setTimeout(() => this.go(d), 30); }   // después del touchend: si no, el dedo se queda «colgado» de la imagen que se quitó
       });
     },
     show() {
-      const list = album.list, c = list[this.idx], m = $(".media", this.el);
+      const list = playbackList, c = list[this.idx], m = $(".media", this.el);
       this.stop();
-      if (c.type === "video" && !c.url.startsWith("data:")) this.player(m, c.url);
-      else m.innerHTML = `<img alt="" src="${esc(c.url)}">`;
+      this.zoom = 1; this.panX = this.panY = 0;
+      album.i = this.idx;
+      this.el.classList.remove("photo-idle");
+      this.el.classList.toggle("photo-view", c.type !== "video");
+      if (c.type === "video" && !c.url.startsWith("data:image/")) { albumPreview(c); this.player(m, c.url); }
+      else {
+        m.innerHTML = '<div class="photostage"><img alt="" crossorigin="anonymous"></div>';
+        const img = m.querySelector("img");
+        if (c.thumb) img.src = c.thumb;
+        const full = new Image(); full.crossOrigin = "anonymous";
+        full.onload = () => { img.src = full.src; };
+        full.src = c.url;
+        this.photo = full; this.wake();
+      }
       $(".vcap", this.el).textContent = `${c.game} · ${c.date} · ${this.idx + 1} de ${list.length}${c.type === "video" ? " · video" : ""}`;
       updateFocus();
     },
     /* Reproductor propio: la barra se esconde sola mientras corre y vuelve con cualquier botón. */
     player(m, url) {
       const PLAY = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"/></svg>', PAUSE = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="4.5" width="4.5" height="15" rx="1"/><rect x="14" y="4.5" width="4.5" height="15" rx="1"/></svg>';
-      m.innerHTML = `<div class="vplayer paused wait"><video src="${esc(url)}" autoplay playsinline preload="auto" disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback"></video>
+      m.innerHTML = `<div class="vplayer paused wait"><video crossorigin="anonymous" src="${esc(url)}" autoplay playsinline preload="auto" disablepictureinpicture controlslist="nodownload nofullscreen noremoteplayback"></video>
         <div class="vbig play">${PLAY}</div><div class="vbig load"><i></i></div>
-        <div class="vctl"><span class="pp">${PLAY}</span><span class="t cur">0:00</span><div class="vbar"><i class="buf"></i><i class="fill"></i><i class="knob"></i></div><span class="t r dur">0:00</span></div></div>`;
+        <div class="vctl"><button class="frame-save">Guardar fotograma</button><button aria-label="Reproducir o pausar" class="pp">${PLAY}</button><span class="t cur">0:00</span><div class="vbar"><i class="buf"></i><i class="fill"></i><i class="knob"></i></div><span class="t r dur">0:00</span></div></div>`;
       const box = $(".vplayer", m), v = $("video", box), bar = $(".vbar", box);
       const fmt = s => !isFinite(s) ? "0:00" : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
       const paint = () => {
@@ -3030,57 +3168,153 @@ function viewerView(album, idx) {
       ["playing", "canplay", "seeked"].forEach(e => v.addEventListener(e, () => box.classList.remove("wait")));
       v.addEventListener("error", () => { box.classList.remove("wait"); box.insertAdjacentHTML("beforeend", `<p class="verr">No se pudo reproducir este video.<br><small>Puede que el formato no sea compatible (H.264 / VP9 sí lo son).</small></p>`); });
       v.addEventListener("click", () => this.toggle());
-      bar.addEventListener("click", e => { const r = bar.getBoundingClientRect(); if (v.duration) v.currentTime = clamp((e.clientX - r.left) / r.width, 0, 1) * v.duration; this.wake(); });
+      $(".pp", box).onclick = () => this.toggle();
+      $(".frame-save", box).onclick = () => this.frame();
+      const scrub = e => {
+        if (!Number.isFinite(v.duration)) return;
+        const r = bar.getBoundingClientRect();
+        v.currentTime = clamp((e.clientX - r.left) / r.width, 0, 1) * v.duration; this.wake();
+      };
+      bar.onpointerdown = e => { bar.setPointerCapture(e.pointerId); scrub(e); };
+      bar.onpointermove = e => { if (bar.hasPointerCapture(e.pointerId)) scrub(e); };
       box.addEventListener("pointermove", () => this.wake());
       this.vid = v; this.box = box;
       v.play().catch(() => state());
       this.wake();
     },
     wake() {
-      if (!this.box) return;
+      if (!this.box) {
+        if (!this.photo) return;
+        this.el.classList.remove("photo-idle"); clearTimeout(this.idleT);
+        this.idleT = setTimeout(() => this.el.classList.add("photo-idle"), 2600);
+        return;
+      }
       this.box.classList.remove("idle"); clearTimeout(this.idleT);
       this.idleT = setTimeout(() => { if (this.vid && !this.vid.paused) this.box.classList.add("idle"); }, 2600);
     },
     toggle() { const v = this.vid; if (!v) return; if (v.paused || v.ended) { if (v.ended) v.currentTime = 0; v.play().catch(() => {}); play("select"); } else { v.pause(); play("tick"); } },
-    seek(s) { const v = this.vid; if (!v || !v.duration) return play("bump"); v.currentTime = clamp(v.currentTime + s, 0, v.duration - 0.05); play("tick"); this.wake(); },
-    stop() { if (this.vid) { try { this.vid.pause(); this.vid.removeAttribute("src"); this.vid.load(); } catch {} } this.vid = this.box = null; clearTimeout(this.idleT); },
+    seek(s) { const v = this.vid; if (!v || !v.duration) return play("bump"); v.currentTime = clamp(v.currentTime + s, 0, Math.max(0, v.duration - .00001)); play("tick"); this.wake(); },
+    transformPhoto(step = 0, dx = 0, dy = 0) {
+      const img = this.el.querySelector(".photostage img"); if (!img) return;
+      this.zoom = clamp(this.zoom + step, 1, 4);
+      this.panX = clamp(this.panX + dx, -img.clientWidth * (this.zoom - 1)/2, img.clientWidth * (this.zoom - 1)/2);
+      this.panY = clamp(this.panY + dy, -img.clientHeight * (this.zoom - 1)/2, img.clientHeight * (this.zoom - 1)/2);
+      img.style.transform = `translate(${this.panX}px,${this.panY}px) scale(${this.zoom})`; this.wake(); updateFocus();
+    },
+    async stepFrame(dir) {
+      const v = this.vid;
+      if (!v || this.stepping || !v.paused || v.readyState < 2) return;
+      const interval = 1 / (playbackList[this.idx].fps || 30);
+      if (!v.requestVideoFrameCallback || !Number.isFinite(v.duration)) return this.seek(dir * interval);
+      const origin = v.currentTime, limit = Math.max(0, v.duration - .000001);
+      this.stepping = v;
+      // El tiempo de presentación identifica el cuadro incluso cuando dos cuadros tienen los mismos píxeles.
+      const sample = at => new Promise(resolve => {
+        if (v !== this.vid || !v.paused) return resolve(null);
+        let handle;
+        const timer = setTimeout(() => { v.cancelVideoFrameCallback(handle); resolve(null); }, 180);
+        const presented = (_, metadata) => {
+          if (v.seeking) { handle = v.requestVideoFrameCallback(presented); return; }
+          clearTimeout(timer); resolve(metadata.mediaTime);
+        };
+        v.currentTime = at;
+        handle = v.requestVideoFrameCallback(presented);
+      });
+      try {
+        // Chromium no presenta un cuadro nuevo si se asigna exactamente el mismo currentTime.
+        const base = await sample(origin < limit ? Math.min(limit, origin + .00001) : Math.max(0, origin - .00001));
+        if (base == null) {
+          if (v === this.vid && v.paused) v.currentTime = clamp(origin + dir * interval, 0, limit);
+          return;
+        }
+        let near = origin, far = origin, distance = interval;
+        let changed = false;
+        while (v === this.vid && v.paused) {
+          far = clamp(origin + dir * distance, 0, limit);
+          if (far === near) break;
+          const stamp = await sample(far);
+          if (stamp == null) return;
+          if ((stamp - base) * dir > .000001) { changed = true; break; }
+          near = far; distance *= 2;
+        }
+        if (!changed) return;
+        // Acota el primer cambio de cuadro desde la posición de partida (también con video de tasa variable).
+        while (Math.abs(far - near) > .001) {
+          const middle = (near + far) / 2, stamp = await sample(middle);
+          if (stamp == null) return;
+          if ((stamp - base) * dir > .000001) far = middle; else near = middle;
+        }
+        if (v === this.vid && v.paused) v.currentTime = far;
+      } finally { if (this.stepping === v) this.stepping = null; }
+      this.wake();
+    },
+    async frame() {
+      const v = this.vid, c = playbackList[this.idx];
+      if (!v || this.saving || this.stepping || !v.paused || v.seeking || v.readyState < 2) return play("bump");
+      this.saving = true;
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = v.videoWidth; canvas.height = v.videoHeight;
+        canvas.getContext("2d").drawImage(v, 0, 0);
+        await saveAlbumImage(c, canvas, true);
+        toast("Fotograma guardado en el Álbum");
+      } catch (e) { toast(e.message || "No se pudo guardar el fotograma"); }
+      finally { this.saving = false; }
+    },
+    dispose() { this.stop(); },
+    stop() { this.stepping = null; this.photo = null; if (this.vid) { try { this.vid.pause(); this.vid.removeAttribute("src"); this.vid.load(); } catch {} } this.vid = this.box = null; clearTimeout(this.idleT); },
     go(d) {
       const n = this.idx + d;
-      if (n < 0 || n >= album.list.length) return bump($(".vwrap img, .vwrap .vplayer", this.el), d > 0 ? "right" : "left");
+      if (n < 0 || n >= playbackList.length) return bump($(".vwrap img, .vwrap .vplayer", this.el), d > 0 ? "right" : "left");
       this.idx = n; play("move"); this.show();
     },
     more() {
-      const c = album.list[this.idx]; if (!c) return;
+      const c = playbackList[this.idx]; if (!c) return;
       if (this.vid && !this.vid.paused) this.vid.pause();
       const opts = [{ label: "Enviar al celular (código QR)", value: "share" }, { label: "Copiar (para pegar en Discord, WhatsApp…)", value: "copy" }];
-      if (c.type === "video") opts.push({ label: "Recortar video", value: "trim" });
+      if (c.type === "video") opts.push({ label: "Guardar fotograma", value: "frame" }, { label: "Recortar video", value: "trim" });
+      else opts.push({ label: "Añadir texto", value: "caption" });
       opts.push({ label: c.type === "video" ? "Borrar grabación" : "Borrar captura", value: "del" });
       openView(pickerView("Opciones", I.album, opts, null, v => {
         if (v === "share") openView(shareView([c.path]));
         else if (v === "copy") Host.has ? Host.call("album.copy", { path: c.path }).then(ok => toast(ok ? "Copiada: pégala con Ctrl+V" : "No se pudo copiar")).catch(() => toast("No se pudo copiar")) : toast("Copiada (demo)");
-        else if (v === "trim") { this.stop(); openView(trimView(c, item => { albumData.unshift(item); album.refresh(); this.idx = Math.max(0, album.list.indexOf(c)); this.show(); })); }
+        else if (v === "frame") this.frame();
+        else if (v === "caption") openView(albumCaptionView(c));
+        else if (v === "trim") openView(trimView(c, addAlbumImage));
         else if (v === "del") this.onX();
       }));
     },
     onKey(k) {
-      if (this.vid) this.wake();
+      this.wake();
+      if (k === "y" && this.vid?.paused) { this.frame(); return true; }
+      if (this.photo && ["lt","rt","a"].includes(k)) {
+        this.transformPhoto(k === "rt" ? .5 : k === "lt" ? -.5 : 1 - this.zoom); return true;
+      }
       if (k === "start") { this.more(); return true; }
       if (k === "a" && this.vid) { this.toggle(); return true; }
       if (k === "lb" || k === "rb") { this.go(k === "lb" ? -1 : 1); return true; }
       return false;
     },
     nav(d) {
+      if (this.photo && this.zoom > 1) {
+        this.transformPhoto(0, d === "left" ? 48 : d === "right" ? -48 : 0, d === "up" ? 48 : d === "down" ? -48 : 0); return;
+      }
       if (d !== "left" && d !== "right") return false;
-      if (this.vid) this.seek(d === "right" ? 5 : -5); else this.go(d === "right" ? 1 : -1);
+      if (this.vid) {
+        const dir = d === "right" ? 1 : -1;
+        if (this.vid.paused) this.stepFrame(dir); else this.seek(dir * 5);
+      } else this.go(d === "right" ? 1 : -1);
     },
-    onB() { this.stop(); return false; },
+    onB() { const i = album.list.findIndex(c => c.path === playbackList[this.idx].path); if (i >= 0) album.i = i; return false; },
     onX() {
-      const c = album.list[this.idx];
-      confirmDialog(`¿Borrar esta ${c.type === "video" ? "grabación" : "captura"}?\nNo se puede deshacer.`, "Borrar").then(ok => {
+      const c = playbackList[this.idx];
+      confirmDialog(`¿Borrar esta ${c.type === "video" ? "grabación" : "captura"}?\nNo se puede deshacer.`, "Borrar").then(async ok => {
         if (!ok) return;
         this.stop();   // suelta el archivo antes de borrarlo
-        Host.call("album.delete", { path: c.path }).catch(() => {});
-        albumData = albumData.filter(x => x !== c); album.refresh();
+        if (Host.has && !await Host.call("album.delete", { path: c.path }).catch(() => false)) {
+          this.show(); toast("No se pudo borrar la captura"); return;
+        }
+        albumData = albumData.filter(x => x.path !== c.path); album.refresh(); playbackList = album.list;
         if (!album.list.length) return closeView();
         this.idx = Math.min(this.idx, album.list.length - 1); this.show(); toast("Se borró la captura");
       });
@@ -3177,6 +3411,102 @@ function trimView(c, onSaved) {
   };
 }
 
+/* Una copia PNG conserva la resolución original. La vista previa usa el mismo lienzo que se guarda. */
+function addAlbumImage(item) {
+  if (!item?.path) return;
+  albumData = [item, ...(albumData || []).filter(c => c.path !== item.path)];
+}
+async function saveAlbumImage(source, canvas, frame) {
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("No se pudo preparar la imagen.");
+  const url = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("No se pudo leer la imagen."));
+    reader.readAsDataURL(blob);
+  });
+  const item = Host.has ? await Host.call("album.savePng", { path: source.path, frame, png: url.slice(url.indexOf(",") + 1) })
+    : { ...source, path: `captura_${Date.now()}.png`, url, thumb: url, type: "image" };
+  if (!item?.path) throw new Error("No se pudo guardar la copia.");
+  addAlbumImage(item);
+}
+function albumCaptionView(source) {
+  const positions = ["Abajo", "Centro", "Arriba"], sizes = ["Pequeño","Mediano","Grande"];
+  const colors = [["Blanco","#fff"],["Negro","#161619"],["Amarillo","#ffdb60"],["Azul","#92caff"]];
+  return {
+    cls: "caption-editor", text: "", position: 0, size: 1, color: 0, outline: true,
+    hints: [["B","Volver"],["◀▶","Ajustar"],["A","Elegir"],["☰","Guardar copia"]],
+    render(el) {
+      el.innerHTML = head(I.album, "Añadir texto", source.game) +
+        '<div class="caption-layout"><div class="caption-preview"><canvas hidden></canvas><p>Cargando imagen…</p></div><div class="caption-tools"></div></div>';
+      const tools = $(".caption-tools", el);
+      for (const label of ["Texto","Posición","Tamaño","Color","Contorno","Guardar copia"]) {
+        const button = document.createElement("button"); button.className = "lrow fi";
+        button.innerHTML = `<b>${label}</b><span class="val"></span>`;
+        const i = tools.children.length; button.onclick = () => this.change(i, 1); tools.append(button);
+      }
+      this.canvas = $("canvas", el);
+      this.img = new Image(); this.img.crossOrigin = "anonymous";
+      this.img.onload = () => {
+        this.canvas.width = this.img.naturalWidth; this.canvas.height = this.img.naturalHeight;
+        this.canvas.hidden = false; $(".caption-preview p", el).hidden = true; this.paint();
+      };
+      this.img.onerror = () => { $(".caption-preview p", el).textContent = "No se pudo abrir la captura."; };
+      this.img.src = source.url; this.paint();
+    },
+    change(i, d) {
+      if (this.saving) return;
+      const cycle = (n,len) => (n + d + len) % len;
+      if (i === 0) return openView(keyboardView(this.text, t => { this.text = t.trim(); this.paint(); }, null, { title: "Texto de la captura", caps: true, max: 120 }));
+      if (i === 1) this.position = cycle(this.position, positions.length);
+      if (i === 2) this.size = cycle(this.size, sizes.length);
+      if (i === 3) this.color = cycle(this.color, colors.length);
+      if (i === 4) this.outline = !this.outline;
+      if (i === 5) return this.save();
+      this.paint();
+    },
+    paint() {
+      const vals = [this.text || "Escribir…", positions[this.position], sizes[this.size], colors[this.color][0], this.outline ? "Sí" : "No", ""];
+      $$(".val", this.el).forEach((e,i) => e.textContent = vals[i]);
+      if (this.canvas.hidden) return;
+      const canvas = this.canvas, ctx = canvas.getContext("2d"), w = canvas.width, h = canvas.height;
+      ctx.drawImage(this.img, 0, 0, w, h);
+      if (!this.text) return;
+      const font = Math.max(1, Math.round(Math.min(w,h) * [.035,.055,.08][this.size]));
+      ctx.font = `600 ${font}px "Segoe UI", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = colors[this.color][1]; ctx.strokeStyle = this.color === 1 ? "white" : "#18181c";
+      ctx.lineJoin = "round"; ctx.lineWidth = Math.max(1, font * .12);
+      const width = w * .89, lines = [];
+      let line = "";
+      for (const word of this.text.split(/\s+/)) {
+        const next = line ? line + " " + word : word;
+        if (line && ctx.measureText(next).width > width) { lines.push(line); line = word; } else line = next;
+      }
+      lines.push(line);
+      const leading = font * 1.2, pad = h * .04 + font/2;
+      const y = [h-pad-(lines.length-1)*leading, (h-(lines.length-1)*leading)/2, pad][this.position];
+      lines.forEach((t,i) => {
+        if (this.outline) ctx.strokeText(t,w/2,y+i*leading,width);
+        ctx.fillText(t,w/2,y+i*leading,width);
+      });
+    },
+    async save() {
+      if (this.saving || this.canvas.hidden) return;
+      if (!this.text) return this.change(0, 1);
+      this.saving = true;
+      try {
+        await saveAlbumImage(source, this.canvas, false);
+        if (topView() === this) closeView();
+        toast("Copia con texto guardada");
+      } catch (e) { toast(e.message || "No se pudo guardar la copia"); }
+      finally { this.saving = false; }
+    },
+    onLR(i,d) { if (i > 0 && i < 5) this.change(i,d); },
+    onKey(k) { if (k === "start") { this.save(); return true; } return false; },
+    onB() { return !!this.saving; },
+    items() { return fis(this.el); }
+  };
+}
 /* ================= beta 1.2: Perfil como en la consola =================
    Dos columnas (como Ajustes): Perfil (avatar, lo que juegas, tu código de amigo, historial de juego con horas),
    Lista de amigos (tarjetas, ★ primero, Y para actualizar), Añadir un amigo (por código de amigo) y Ajustes de usuario. */
@@ -3506,7 +3836,7 @@ function settingsCats() {
       ["Biblioteca", [go("Juegos ocultos", "Los que ocultaste no salen en ningún lado; aquí los vuelves a mostrar", () => openView(hiddenView()), () => { const n = games.filter(isHidden).length; return n ? String(n) : "Ninguno"; })]],
       ["Caché", [{ label: "Borrar caché de portadas", desc: "Vuelve a descargar las imágenes", val: () => "", act() { Art.clear(); renderHome(); toast("Caché de portadas borrada"); } }]]] },
     { label: "Sistema", secs: [
-      ["Menú rápido", [sw("Fondo transparente", "El fondo del menú rápido al 50 % para seguir viendo el juego detrás. Los textos y las barras no cambian.", () => settings.quickGlass !== false, v => { settings.quickGlass = v; applyGlass(); }),
+      ["Menú rápido", [sw("Fondo transparente", "Permite ver el juego a través del panel. Lúmina usa un tinte más marcado para que se lean los controles.", () => settings.quickGlass !== false, v => { settings.quickGlass = v; applyGlass(); }),
         sw("Menú rápido clásico", "El menú rápido de antes, con cuadritos. Úsalo si el nuevo te da algún problema.", () => !!settings.quickClassic, v => settings.quickClassic = v)]],
       ["Herramientas", [
         ...(H ? [go("Diagnóstico", "Lo que Scarlet detecta ahora: juego, apps con sonido, Dolby, música, Steam", () => openView(diagView()))] : []),
@@ -4006,7 +4336,7 @@ function notify(o) {
     if (Host.has) {   // el menú está oculto: la app dibuja la notificación encima del juego (igual, pero sin acción)
       const t = o.thumb || {};
       const tag = NOTIF_TAG[o.kind] || (o.tag ? [o.tag, o.tagColor || "#ffffff"] : ["", "#ffffff"]);
-      const msg = { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
+      const msg = { title: o.title, text: o.text, letter: o.letter || "", color: o.bg || "", friendId: o.friendId, image: o.image || "", wide: !!o.thumb, video: !!t.video, dur: t.dur || "", saving: !!t.saving,
         tag: tag[0], accent: tag[1] };
       if (settings.lumina === true) Object.assign(msg, notifB(o, tag));
       return Host.call("overlay.notify", msg).catch(() => {});
@@ -4056,12 +4386,13 @@ function notifGrad(o) {
   if (o.kind === "cap") return "cap";
   return null;
 }
-const notifArt = o => settings.lumina === true && o.game && !o.thumb ? Art.now(o.game) : null;
+const notifArt = o => settings.lumina === true && !o.portrait && o.game && !o.thumb ? Art.now(o.game) : null;
 const notifLumi = o => settings.lumina === true && typeof o.batt === "number" ? luminaBatt(o) : null;
 const notifCls = o => { const lb = notifLumi(o), gr = settings.lumina === true ? notifGrad(o) : null; return "notif" + (o.thumb ? " wide" : "") + (o.lines ? " sum" : "") + (lb ? " batt " + lb.cls : "") + (gr ? " g-" + gr : ""); };
 function notifHTML(o) {
   const t = o.thumb;
   const ic = t ? `<div class="ic thumb${t.saving ? " saving" : ""}">${t.src ? `<img alt="" src="${esc(t.src)}">` : ""}${t.video && !t.saving ? `<span class="pl"><b></b></span>${t.dur ? `<span class="du">${esc(t.dur)}</span>` : ""}` : ""}${t.saving ? `<span class="rec"><i></i></span>` : ""}</div>`
+    : o.portrait ? `<div class="ic portrait" style="background:${esc(o.bg)}">${esc(o.letter)}${o.avatar ? `<img alt="" hidden data-avatar="${esc(o.avatar)}">` : ""}</div>`
     : notifArt(o) ? `<div class="ic game"><img alt="" src="${esc(notifArt(o))}"></div>`
     : `<div class="ic" style="${o.bg ? `background:${o.bg};color:${o.fg || "#fff"}` : ""}">${o.icon}</div>`;
   const act = o.act && mode === "ui" ? `<div class="nact"><span class="xbtn"></span>${esc(o.act.label)}</div>` : "";
@@ -4101,6 +4432,11 @@ function notifStack() {
 }
 /* La línea de abajo y el tiempo que se queda; si llega otra detrás, esta se va un poco antes. */
 function notifTime(o) {
+  const avatar = o.el.querySelector("img[data-avatar]");
+  if (avatar) {
+    avatar.onload = () => { avatar.hidden = false; };
+    avatar.src = avatar.dataset.avatar;
+  }
   const ms = o.ms || (o.act ? NOTIF_ACT_MS : NOTIF_MS), life = $(".nlife", o.el);
   clearTimeout(o.t);
   if (o.thumb && o.thumb.saving) { if (life) life.style.display = "none"; o.t = setTimeout(() => notifDone(o), 30000); return; }
@@ -4151,7 +4487,8 @@ function missedView() {
 const isBest = name => (settings.bestFriends || []).includes(name);
 function notifyFriend(f) {
   const best = isBest(f.name);
-  notify({ kind: f.game ? "friendplay" : "friend", game: f.game ? games.find(x => x.name === f.game) : null, star: best, sound: f.game ? "friendgame" : "friend", icon: f.avatar ? `<img alt="" src="${esc(f.avatar)}">` : esc(f.name[0].toUpperCase()), letter: f.name[0].toUpperCase(), bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
+  const letter = Array.from((f.name || "?").trim())[0]?.toUpperCase() || "?";
+  notify({ kind: f.game ? "friendplay" : "friend", portrait: true, friendId: f.steamid, avatar: f.avatar, image: filePathOf(f.avatar), star: best, sound: f.game ? "friendgame" : "friend", letter, bg: `hsl(${hueOf(f.name)},55%,48%)`, title: f.name, text: f.game ? "Está jugando " + f.game : "Se ha conectado",
     act: { label: "Ver perfil", run: () => { const x = friends.find(y => y.name === f.name); if (x) openView(friendProfileView(x)); } } });
 }
 /* beta 1.6: los logros tienen su propio aviso, como en Xbox (43-logros.js) */
@@ -5701,7 +6038,7 @@ function nqVal(r) {
   return ["", false];
 }
 /* Barra con su bolita; la burbuja con el número solo se ve en la barra elegida. */
-const nqBar = (v, off) => `<span class="qbar nqbar"><i style="width:${off ? 0 : v}%"></i><u style="left:${off ? 0 : v}%"><em>${off ? "—" : v}</em></u></span>`;
+const nqBar = (v, off) => `<span class="qbar nqbar"><i style="width:${off ? 0 : v}%"></i><u style="left:${off ? 0 : v}%"><em>${off ? "—" : v + " %"}</em></u></span>`;
 function nqMedia(f) {
   const m = media, p = mediaPos(), pct = m.duration ? p / m.duration * 100 : 0;
   const sub = [m.artist || m.album || "", m.app || ""].filter(Boolean).join(" · ");
@@ -5990,13 +6327,20 @@ function applyGlass(tell = true) {
 }
 Events.on("quick.glass", on => document.documentElement.classList.toggle("hostglass", !!on));
 /* Encima del juego, el fondo de la app lleva los mismos colores de la carátula. */
-function tellTint(cols) { if (OVERLAY && Host.has) Host.call("quick.tint", { colors: cols || null, light: document.documentElement.dataset.theme === "light" }).catch(() => {}); }
+function tellTint(cols) { if (OVERLAY && Host.has) Host.call("quick.tint", { colors: settings.lumina ? null : cols || null, light: document.documentElement.dataset.theme === "light" }).catch(() => {}); }
 /* El menú se tiñe con los colores de la carátula (degradado que se mueve despacio, oscurecido para que se lea bien). */
-let tintFor = null;
+let tintFor = null, tintColors = null;
 function tintQuick() {
   const q = $("#quick"), art = media && media.art;
-  if (!art) { q.classList.remove("tinted"); if (tintFor !== null || !tellTint.sent) { tellTint.sent = true; tellTint(null); } tintFor = null; return; }
-  if (art === tintFor) return;
+  if (!art) { tintColors = null; q.classList.remove("tinted", "music-tint"); if (tintFor !== null || !tellTint.sent) { tellTint.sent = true; tellTint(null); } tintFor = null; return; }
+  if (art === tintFor) {
+    q.classList.toggle("music-tint", !!tintColors && !!settings.lumina);
+    q.classList.toggle("tinted", !!tintColors && !settings.lumina);
+    return;
+  }
+  tintColors = null;
+  q.classList.remove("music-tint", "tinted");
+  tellTint(null);
   tintFor = art;
   const img = new Image(); img.crossOrigin = "anonymous";
   img.onload = () => {
@@ -6004,9 +6348,10 @@ function tintQuick() {
     const cols = artColors(img);
     if (!cols) { tellTint(null); return q.classList.remove("tinted"); }
     cols.forEach((c, i) => q.style.setProperty(`--mt${i + 1}`, c));
-    q.classList.add("tinted"); tellTint(cols);
+    tintColors = cols;
+    q.classList.add(settings.lumina ? "music-tint" : "tinted"); tellTint(cols);
   };
-  img.onerror = () => q.classList.remove("tinted");
+  img.onerror = () => { if (tintFor === art) q.classList.remove("tinted", "music-tint"); };
   img.src = art;
 }
 /* Los 3 colores con más presencia (pesando más los vivos), llevados a un tono oscuro. */
@@ -6118,13 +6463,16 @@ function saveCapture(type, hostItem) {
   const d = new Date(), months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
   const item = hostItem || { url: shotSvg(g || { appid: 7, name: "Captura" }, Math.floor(Math.random() * 50)), path: `captura_${Date.now()}.png`, game: g ? g.name : "Sistema", date: `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()} · ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`, type };
   if (!albumData) albumData = Host.has ? [] : mockAlbum();
+  const album = views.find(v => v.isAlbum);
+  const keep = album?.list?.[album.i]?.path;
   albumData.unshift(item);
+  if (album && topView() === album) album.refresh(keep);
   notifyCapture(item);
   if (!hostItem) Host.call("capture.take", { type }).catch(() => {});
 }
 Events.on("capture.saving", d => { if (d && d.path) notifyCapture(d, true); });
 Events.on("capture.saved", d => {
-  if (/ \(recorte\)/.test(d.path || "")) return;            // los recortes los agrega el editor, sin aviso de "últimos 30 s"
+  if (/ \((?:recorte|fotograma|texto)\)(?: \(\d+\))?\.[^.]+$/i.test(d.path || "")) return;            // los recortes los agrega el editor, sin aviso de "últimos 30 s"
   if (albumData && albumData.some(x => x.path === d.path)) return;
   saveCapture(d.type || "image", d);
 });
@@ -6475,7 +6823,7 @@ function longFire(target) {
   if (k < 0) return;
   // Álbum: empieza a elegir capturas con esa (como ☰)
   if (v.isAlbum) {
-    v.i = k; updateFocus(); touchSwallowClick = Date.now() + 600; rumbleTap();
+    v.i = v.itemIndex(items[k]); updateFocus(); touchSwallowClick = Date.now() + 600; rumbleTap();
     if (!v.sel) v.onKey("start"); return;
   }
   // Biblioteca u otra lista con opciones (X)
@@ -6869,6 +7217,7 @@ const Lumina = (() => {
     el = n; if (!n) return;
     const T = rectOf(n), cs = getComputedStyle(n).borderTopLeftRadius, h = T.b - T.t, w = T.r - T.l;
     rad = Math.min((cs.endsWith("%") ? h : parseFloat(cs) || 10) + gap(), h / 2, w / 2);
+    lens.classList.toggle("control", n.matches(".qrow"));
     lens.classList.toggle("hollow", n.matches(".tile:not(.all),.avatar,.shot"));
     if (far) {                                     // otra pantalla o panel: aparece ahí, sin cruzar toda la pantalla
       Object.assign(S, T); for (const k of EDGES) V[k] = 0; snapUntil = now + 520;
@@ -6880,7 +7229,7 @@ const Lumina = (() => {
       snapUntil = 0;
     }
     since = now;
-    if (refracting()) useMap(w, h, rad);
+    if (refracting() && !n.matches(".qrow")) useMap(w, h, rad);
   }
   function tick(now) {
     raf = 0;
@@ -6909,7 +7258,7 @@ const Lumina = (() => {
   }
   /* Se llama cuando cambia el foco o se mueve algo: la gota sigue a su opción un rato y luego deja de gastar. */
   function kick(ms = 1300) {
-    if (!on() || !lens) return;
+    if (!on() || !lens || OVERLAY) return;
     until = Math.max(until, performance.now() + ms);
     if (!raf) { last = performance.now(); raf = requestAnimationFrame(tick); }
   }
@@ -6933,7 +7282,8 @@ const Lumina = (() => {
     const o = on();
     root.toggleAttribute("data-lumina", o);
     shape();
-    if (!o) {
+    if (typeof tintFor !== "undefined") { tintQuick(); tellTint(tintColors); }
+    if (!o || OVERLAY) {
       delete root.dataset.lens; clearInterval(watch); watch = 0; if (raf) cancelAnimationFrame(raf); raf = 0; el = null;
       if (lens) lens.style.opacity = "0";
       return;

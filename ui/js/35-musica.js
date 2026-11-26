@@ -90,13 +90,20 @@ function applyGlass(tell = true) {
 }
 Events.on("quick.glass", on => document.documentElement.classList.toggle("hostglass", !!on));
 /* Encima del juego, el fondo de la app lleva los mismos colores de la carátula. */
-function tellTint(cols) { if (OVERLAY && Host.has) Host.call("quick.tint", { colors: cols || null, light: document.documentElement.dataset.theme === "light" }).catch(() => {}); }
+function tellTint(cols) { if (OVERLAY && Host.has) Host.call("quick.tint", { colors: settings.lumina ? null : cols || null, light: document.documentElement.dataset.theme === "light" }).catch(() => {}); }
 /* El menú se tiñe con los colores de la carátula (degradado que se mueve despacio, oscurecido para que se lea bien). */
-let tintFor = null;
+let tintFor = null, tintColors = null;
 function tintQuick() {
   const q = $("#quick"), art = media && media.art;
-  if (!art) { q.classList.remove("tinted"); if (tintFor !== null || !tellTint.sent) { tellTint.sent = true; tellTint(null); } tintFor = null; return; }
-  if (art === tintFor) return;
+  if (!art) { tintColors = null; q.classList.remove("tinted", "music-tint"); if (tintFor !== null || !tellTint.sent) { tellTint.sent = true; tellTint(null); } tintFor = null; return; }
+  if (art === tintFor) {
+    q.classList.toggle("music-tint", !!tintColors && !!settings.lumina);
+    q.classList.toggle("tinted", !!tintColors && !settings.lumina);
+    return;
+  }
+  tintColors = null;
+  q.classList.remove("music-tint", "tinted");
+  tellTint(null);
   tintFor = art;
   const img = new Image(); img.crossOrigin = "anonymous";
   img.onload = () => {
@@ -104,9 +111,10 @@ function tintQuick() {
     const cols = artColors(img);
     if (!cols) { tellTint(null); return q.classList.remove("tinted"); }
     cols.forEach((c, i) => q.style.setProperty(`--mt${i + 1}`, c));
-    q.classList.add("tinted"); tellTint(cols);
+    tintColors = cols;
+    q.classList.add(settings.lumina ? "music-tint" : "tinted"); tellTint(cols);
   };
-  img.onerror = () => q.classList.remove("tinted");
+  img.onerror = () => { if (tintFor === art) q.classList.remove("tinted", "music-tint"); };
   img.src = art;
 }
 /* Los 3 colores con más presencia (pesando más los vivos), llevados a un tono oscuro. */
